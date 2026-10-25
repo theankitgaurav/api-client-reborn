@@ -2,19 +2,20 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
-  import { getResolvedCommand } from '$lib/utils/curl-generator';
   import {
     parseCurlToPlayground,
     serializePlaygroundToCurl,
     type PlaygroundModel,
   } from '$lib/utils/curl-serializer';
   import {
+    getVariableAtPosition,
+    getVariableInfo,
+    type VariableInfo,
+  } from '$lib/utils/variable-tooltip';
+  import {
     Play,
     Square,
     Save,
-    Terminal,
-    Copy,
-    Check,
     Plus,
     Trash2,
   } from '$lib/components/icons';
@@ -25,8 +26,6 @@
   let postResponseScript = $state('');
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
-  let showTerminalDrawer = $state(true);
-  let copied = $state(false);
   let rawEditMode = $state(false);
 
   let activeFilePath = $derived(workspaceState.activeFilePath);
@@ -164,21 +163,6 @@
     }
   }
 
-  // Executable terminal command with evaluated variables
-  let resolvedCommand = $derived(
-    getResolvedCommand(
-      workspaceState.activeFile?.raw_content || '',
-      envState.mergedVariables
-    )
-  );
-
-  function copyCommand() {
-    navigator.clipboard.writeText(resolvedCommand);
-    copied = true;
-    setTimeout(() => {
-      copied = false;
-    }, 1800);
-  }
 
   function handleSend() {
     if (responseState.isExecuting) {
@@ -420,16 +404,6 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <!-- Toggle Terminal Command Drawer -->
-      <button
-        onclick={() => (showTerminalDrawer = !showTerminalDrawer)}
-        title="Toggle resolved {commandLabel} preview alongside playground"
-        class="flex items-center gap-1 text-xs bg-white dark:bg-[#202020] hover:bg-neutral-100 dark:hover:bg-[#2a2a2a] text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 px-2 py-1 rounded border border-[#d2d2d7] dark:border-[#333] transition-colors"
-      >
-        <Terminal size={12} />
-        <span>{showTerminalDrawer ? 'Hide CLI' : 'Show CLI'}</span>
-      </button>
-
       {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
         <button
           onclick={() => workspaceState.saveActiveFile()}
@@ -1081,31 +1055,6 @@
     {/if}
   </div>
 
-  <!-- Resolved Command Drawer (Always alongside the request) -->
-  {#if workspaceState.activeFile && showTerminalDrawer}
-    <div class="h-36 border-t border-[#e5e5e5] dark:border-[#2d2d2d] bg-[#f9f9fb] dark:bg-[#161616] flex flex-col overflow-hidden">
-      <div class="px-3 py-1.5 bg-[#f0f0f3] dark:bg-[#1c1c1c] border-b border-[#e5e5e5] dark:border-[#282828] flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
-        <div class="flex items-center gap-2">
-          <Terminal size={12} class="text-emerald-500" />
-          <span class="font-medium text-neutral-800 dark:text-neutral-300">Executable {commandLabel} (Variables Evaluated)</span>
-          <span class="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono">Run directly in terminal</span>
-        </div>
-        <button
-          onclick={copyCommand}
-          class="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-        >
-          {#if copied}
-            <Check size={11} class="text-emerald-500" />
-            <span class="text-emerald-600 dark:text-emerald-400">Copied</span>
-          {:else}
-            <Copy size={11} />
-            <span>Copy</span>
-          {/if}
-        </button>
-      </div>
-      <pre class="flex-1 p-2.5 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-emerald-700 dark:text-emerald-300/90 select-text bg-[#f5f5f7] dark:bg-[#121212]">{resolvedCommand || '// Type a command above'}</pre>
-    </div>
-  {/if}
 
   <!-- Variable Hover Tooltip Card -->
   {#if varTooltip && varTooltip.visible}

@@ -360,9 +360,12 @@
         class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white transition-colors"
         onclick={() => {
           if (itemContextMenu) {
-            workspaceState.renameItem(itemContextMenu.item.path, itemContextMenu.item.name);
+            const item = itemContextMenu.item;
+            closeContextMenu();
+            workspaceState.renameItem(item.path, item.name);
+          } else {
+            closeContextMenu();
           }
-          closeContextMenu();
         }}
       >
         Rename Folder
@@ -429,9 +432,14 @@
         class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white transition-colors"
         onclick={() => {
           if (itemContextMenu) {
-            workspaceState.renameItem(itemContextMenu.item.path, itemContextMenu.item.name);
+            const item = itemContextMenu.item;
+            const currentName =
+              item.display_name || item.name.replace(/\.(curl|grpcurl)$/, '');
+            closeContextMenu();
+            workspaceState.renameItem(item.path, currentName);
+          } else {
+            closeContextMenu();
           }
-          closeContextMenu();
         }}
       >
         Rename Request

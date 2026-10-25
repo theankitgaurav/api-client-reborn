@@ -226,8 +226,8 @@ pub fn delete_workspace_item(item_path: String) -> Result<()> {
 
 #[tauri::command]
 pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<String> {
-    let sanitized_name = new_name.trim().replace(['/', '\\'], "_");
-    if sanitized_name.is_empty() {
+    let trimmed_name = new_name.trim();
+    if trimmed_name.is_empty() {
         return Err(AppError::FsError("New name cannot be empty".to_string()));
     }
 
@@ -237,16 +237,115 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
     }
 
     let parent = source.parent().unwrap_or_else(|| Path::new("."));
+
+    if source.is_dir() {
+        let sanitized_name = trimmed_name.replace(['/', '\\'], "_");
+        let target = parent.join(&sanitized_name);
+
+        if target != source && target.exists() {
+            return Err(AppError::FsError("An item with the target name already exists".to_string()));
+        }
+
+        if target != source {
+            fs::rename(&source, &target)
+                .map_err(|e| AppError::FsError(format!("Failed to rename folder: {}", e)))?;
+        }
+
+        let return_path = if Path::new(&old_path).is_absolute() {
+            target.to_string_lossy().to_string()
+        } else {
+            let old_parent = Path::new(&old_path).parent().unwrap_or_else(|| Path::new(""));
+            if old_parent.as_os_str().is_empty() {
+                sanitized_name
+            } else {
+                old_parent.join(&sanitized_name).to_string_lossy().to_string()
+            }
+        };
+
+        return Ok(return_path);
+    }
+
+    // It's a file
+    let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let is_request = ext == "curl" || ext == "grpcurl";
+
+    if is_request {
+        let sanitized = trimmed_name.replace(['/', '\\'], "_");
+        let (display_name, target_file_name) = if sanitized.ends_with(".curl") || sanitized.ends_with(".grpcurl") {
+            let name_without_ext = sanitized
+                .trim_end_matches(".curl")
+                .trim_end_matches(".grpcurl")
+                .to_string();
+            (name_without_ext, sanitized)
+        } else {
+            let slug = slugify(&sanitized);
+            let file_name = if !slug.is_empty() {
+                format!("{}.{}", slug, ext)
+            } else {
+                format!("{}.{}", sanitized, ext)
+            };
+            (sanitized, file_name)
+        };
+
+        let target = parent.join(&target_file_name);
+
+        if target != source && target.exists() {
+            return Err(AppError::FsError(format!(
+                "An item with the name '{}' already exists",
+                target_file_name
+            )));
+        }
+
+        if target != source {
+            let old_sidecar = source.with_extension("meta.json");
+            fs::rename(&source, &target)
+                .map_err(|e| AppError::FsError(format!("Failed to rename file: {}", e)))?;
+
+            if old_sidecar.exists() {
+                let new_sidecar = target.with_extension("meta.json");
+                let _ = fs::rename(&old_sidecar, &new_sidecar);
+            }
+        }
+
+        // Update @name in the target file content
+        if let Ok(content) = fs::read_to_string(&target) {
+            let (mut meta, cmd) = extract_comments_and_command(&content);
+            meta.name = Some(display_name.clone());
+            let updated_content = compose_file_content(&meta, &cmd);
+            let _ = fs::write(&target, updated_content);
+        }
+
+        // Update sidecar metadata name if present
+        if let Some(mut sidecar) = read_sidecar_meta(&target) {
+            if sidecar.name.is_some() {
+                sidecar.name = Some(display_name);
+                let _ = save_sidecar_meta(&target, &sidecar);
+            }
+        }
+
+        let return_path = if Path::new(&old_path).is_absolute() {
+            target.to_string_lossy().to_string()
+        } else {
+            let old_parent = Path::new(&old_path).parent().unwrap_or_else(|| Path::new(""));
+            if old_parent.as_os_str().is_empty() {
+                target_file_name
+            } else {
+                old_parent.join(&target_file_name).to_string_lossy().to_string()
+            }
+        };
+
+        return Ok(return_path);
+    }
+
+    // Generic file rename
+    let sanitized_name = trimmed_name.replace(['/', '\\'], "_");
     let target = parent.join(&sanitized_name);
 
-    if target.exists() {
+    if target != source && target.exists() {
         return Err(AppError::FsError("An item with the target name already exists".to_string()));
     }
 
-    if source.is_dir() {
-        fs::rename(&source, &target)
-            .map_err(|e| AppError::FsError(format!("Failed to rename folder: {}", e)))?;
-    } else {
+    if target != source {
         let old_sidecar = source.with_extension("meta.json");
         fs::rename(&source, &target)
             .map_err(|e| AppError::FsError(format!("Failed to rename file: {}", e)))?;
@@ -257,7 +356,18 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
         }
     }
 
-    Ok(target.to_string_lossy().to_string())
+    let return_path = if Path::new(&old_path).is_absolute() {
+        target.to_string_lossy().to_string()
+    } else {
+        let old_parent = Path::new(&old_path).parent().unwrap_or_else(|| Path::new(""));
+        if old_parent.as_os_str().is_empty() {
+            sanitized_name
+        } else {
+            old_parent.join(&sanitized_name).to_string_lossy().to_string()
+        }
+    };
+
+    Ok(return_path)
 }
 
 #[tauri::command]
@@ -378,5 +488,70 @@ mod tests {
         assert_eq!(slugify("Postman Echo API"), "postman_echo_api");
         assert_eq!(slugify("Special @#$% Characters!"), "special_characters");
         assert_eq!(slugify(""), "collection");
+    }
+
+    #[test]
+    fn test_rename_workspace_item_request() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "test_rename_req_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let req_file = temp_dir.join("get_users.curl");
+        fs::write(
+            &req_file,
+            "# @name Get All Users\n# @timeout 5000\n\ncurl https://api.example.com/users",
+        )
+        .unwrap();
+
+        // 1. Rename with display name
+        let result = rename_workspace_item(
+            req_file.to_string_lossy().to_string(),
+            "List Users".to_string(),
+        )
+        .unwrap();
+        let target = PathBuf::from(&result);
+        assert!(target.exists());
+        assert_eq!(target.file_name().unwrap(), "list_users.curl");
+        assert!(!req_file.exists());
+
+        let content = fs::read_to_string(&target).unwrap();
+        assert!(content.contains("# @name List Users"));
+        assert!(content.contains("# @timeout 5000"));
+
+        // 2. Rename with explicit .curl filename
+        let result2 = rename_workspace_item(
+            target.to_string_lossy().to_string(),
+            "all_users.curl".to_string(),
+        )
+        .unwrap();
+        let target2 = PathBuf::from(&result2);
+        assert!(target2.exists());
+        assert_eq!(target2.file_name().unwrap(), "all_users.curl");
+        let content2 = fs::read_to_string(&target2).unwrap();
+        assert!(content2.contains("# @name all_users"));
+
+        // 3. Rename with same name without failing
+        let result3 = rename_workspace_item(
+            target2.to_string_lossy().to_string(),
+            "all_users".to_string(),
+        )
+        .unwrap();
+        assert!(PathBuf::from(&result3).exists());
+
+        // 4. Test collision error
+        let other_file = temp_dir.join("other.curl");
+        fs::write(&other_file, "curl https://example.com").unwrap();
+        let collision_result = rename_workspace_item(
+            other_file.to_string_lossy().to_string(),
+            "all_users".to_string(),
+        );
+        assert!(collision_result.is_err());
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

@@ -360,12 +360,27 @@ export class WorkspaceState {
 
     try {
       const newPath = await renameWorkspaceItem(oldPath, newName.trim());
+      const displayName = newName.trim().replace(/\.(curl|grpcurl)$/, '');
 
-      // Update tab if open
-      const openTab = this.tabs.find((t) => t.filePath === oldPath);
-      if (openTab) {
-        openTab.filePath = newPath;
-        openTab.name = newName.trim();
+      // Update tab(s) if open
+      for (const tab of this.tabs) {
+        if (tab.filePath === oldPath) {
+          tab.filePath = newPath;
+          tab.name = displayName;
+          if (tab.rawContent.match(/#\s*@name\s+.+/)) {
+            tab.rawContent = tab.rawContent.replace(
+              /#\s*@name\s+.+/,
+              `# @name ${displayName}`
+            );
+          } else {
+            tab.rawContent = `# @name ${displayName}\n${tab.rawContent}`;
+          }
+          if (tab.sidecar) {
+            tab.sidecar.name = displayName;
+          }
+        } else if (tab.filePath && tab.filePath.startsWith(oldPath + '/')) {
+          tab.filePath = newPath + tab.filePath.slice(oldPath.length);
+        }
       }
 
       await this.refreshTree();

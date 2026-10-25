@@ -17,6 +17,44 @@ export async function getWorkspacePath(): Promise<string> {
   return '~/.api-client-reborn';
 }
 
+let mockWorkspaceTree: WorkspaceFileItem[] = [
+  {
+    name: 'examples',
+    path: '/examples',
+    is_dir: true,
+    children: [
+      {
+        name: 'get_users.curl',
+        path: '/examples/get_users.curl',
+        is_dir: false,
+        display_name: 'Get All Users',
+        method: 'GET',
+      },
+      {
+        name: 'create_user.curl',
+        path: '/examples/create_user.curl',
+        is_dir: false,
+        display_name: 'Create User Profile',
+        method: 'POST',
+      },
+      {
+        name: 'stream_events.curl',
+        path: '/examples/stream_events.curl',
+        is_dir: false,
+        display_name: 'Stream Live SSE Events',
+        method: 'GET',
+      },
+      {
+        name: 'get_user_grpc.grpcurl',
+        path: '/examples/get_user_grpc.grpcurl',
+        is_dir: false,
+        display_name: 'Get User gRPC',
+        method: 'gRPC',
+      },
+    ],
+  },
+];
+
 export async function scanWorkspace(path: string): Promise<WorkspaceFileItem[]> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -24,43 +62,7 @@ export async function scanWorkspace(path: string): Promise<WorkspaceFileItem[]> 
   }
 
   // Browser mock fallback
-  return [
-    {
-      name: 'examples',
-      path: '/examples',
-      is_dir: true,
-      children: [
-        {
-          name: 'get_users.curl',
-          path: '/examples/get_users.curl',
-          is_dir: false,
-          display_name: 'Get All Users',
-          method: 'GET',
-        },
-        {
-          name: 'create_user.curl',
-          path: '/examples/create_user.curl',
-          is_dir: false,
-          display_name: 'Create User Profile',
-          method: 'POST',
-        },
-        {
-          name: 'stream_events.curl',
-          path: '/examples/stream_events.curl',
-          is_dir: false,
-          display_name: 'Stream Live SSE Events',
-          method: 'GET',
-        },
-        {
-          name: 'get_user_grpc.grpcurl',
-          path: '/examples/get_user_grpc.grpcurl',
-          is_dir: false,
-          display_name: 'Get User gRPC',
-          method: 'gRPC',
-        },
-      ],
-    },
-  ];
+  return JSON.parse(JSON.stringify(mockWorkspaceTree));
 }
 
 export async function readRequestFile(path: string): Promise<FileDetails> {
@@ -367,7 +369,52 @@ export async function renameWorkspaceItem(
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('rename_workspace_item', { oldPath, newName });
   }
-  return newName;
+
+  function updateInTree(items: WorkspaceFileItem[]): string | null {
+    for (const item of items) {
+      if (item.path === oldPath) {
+        const isRequest = item.name.endsWith('.curl') || item.name.endsWith('.grpcurl');
+        if (isRequest) {
+          const ext = item.name.endsWith('.grpcurl') ? 'grpcurl' : 'curl';
+          const trimmed = newName.trim();
+          let displayName = trimmed;
+          let fileName = trimmed;
+          if (trimmed.endsWith('.curl') || trimmed.endsWith('.grpcurl')) {
+            displayName = trimmed.replace(/\.(curl|grpcurl)$/, '');
+          } else {
+            const slug =
+              trimmed
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'request';
+            fileName = `${slug}.${ext}`;
+          }
+          const lastSlash = oldPath.lastIndexOf('/');
+          const parent = lastSlash >= 0 ? oldPath.substring(0, lastSlash) : '';
+          const newPath = parent ? `${parent}/${fileName}` : fileName;
+          item.name = fileName;
+          item.display_name = displayName;
+          item.path = newPath;
+          return newPath;
+        } else {
+          const lastSlash = oldPath.lastIndexOf('/');
+          const parent = lastSlash >= 0 ? oldPath.substring(0, lastSlash) : '';
+          const newPath = parent ? `${parent}/${newName.trim()}` : newName.trim();
+          item.name = newName.trim();
+          item.path = newPath;
+          return newPath;
+        }
+      }
+      if (item.children) {
+        const res = updateInTree(item.children);
+        if (res) return res;
+      }
+    }
+    return null;
+  }
+
+  const updatedPath = updateInTree(mockWorkspaceTree);
+  return updatedPath || newName;
 }
 
 export async function duplicateRequestFile(sourcePath: string): Promise<string> {
