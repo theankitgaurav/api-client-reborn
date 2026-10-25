@@ -21,6 +21,8 @@
         return 'text-rose-600 dark:text-rose-400 bg-rose-500/10';
       case 'PATCH':
         return 'text-purple-600 dark:text-purple-400 bg-purple-500/10';
+      case 'GRPC':
+        return 'text-cyan-600 dark:text-cyan-400 bg-cyan-500/10';
       default:
         return 'text-neutral-500 bg-neutral-200 dark:bg-neutral-800';
     }

@@ -155,7 +155,7 @@
 <aside class="w-64 bg-[#fbfbfd] dark:bg-[#181818] border-r border-[#d8d8dc] dark:border-[#2d2d2d] flex flex-col h-full select-none text-xs transition-colors">
   <!-- Requests Header & Actions -->
   <div class="px-3 py-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
-    <div class="flex items-center gap-1.5">
+    <div class="flex items-center gap-1.5" title="Storage directory: {workspaceState.workspacePath}">
       <span class="font-semibold text-neutral-800 dark:text-neutral-200 text-xs">Requests</span>
       <span class="text-[10px] bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.2 rounded-full font-mono">
         {countRequests(workspaceState.tree)}

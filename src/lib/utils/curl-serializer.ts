@@ -96,7 +96,7 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
-    if (token === 'curl' || token === 'grpcurl') continue;
+    if (token === 'curl' || token === 'grpcurl' || token === '\\') continue;
 
     if (token === '-plaintext' || token === '-insecure') {
       continue;

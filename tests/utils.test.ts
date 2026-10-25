@@ -144,3 +144,29 @@ test('getResolvedCommand correctly resolves variables in example grpc request', 
   assert.ok(resolved.includes('secret_jwt_token'));
   assert.ok(resolved.includes('dev-tenant-101'));
 });
+
+test('parseCurlToPlayground and serializePlaygroundToCurl handles gRPC requests properly', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  const filePath = path.resolve('examples', 'get_user_grpc.grpcurl');
+  const content = fs.readFileSync(filePath, 'utf-8');
+
+  const model = parseCurlToPlayground(content);
+  assert.equal(model.name, 'Get User gRPC');
+  assert.equal(model.method, 'GRPC');
+  assert.equal(model.url, '{{grpc_host}} api.v1.UserService/GetUser');
+  assert.equal(model.authType, 'bearer');
+  assert.equal(model.bearerToken, '{{auth_token}}');
+  assert.equal(model.bodyType, 'json');
+  assert.ok(model.bodyRaw.includes('"id": 42'));
+
+  const serialized = serializePlaygroundToCurl(model);
+  assert.ok(serialized.includes('grpcurl -plaintext'));
+  assert.ok(serialized.includes('{{grpc_host}} api.v1.UserService/GetUser'));
+  assert.ok(serialized.includes('-H "Authorization: Bearer {{auth_token}}"'));
+
+  const reModel = parseCurlToPlayground(serialized);
+  assert.equal(reModel.method, 'GRPC');
+  assert.equal(reModel.url, '{{grpc_host}} api.v1.UserService/GetUser');
+});

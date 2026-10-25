@@ -5,33 +5,167 @@ use crate::parser::curl::parse_curl_command;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub const DEFAULT_APP_DIR_NAME: &str = ".api-client-reborn";
+
 const IGNORED_NAMES: &[&str] = &[
     "node_modules",
     "target",
     "dist",
     "build",
+    "src",
     "src-tauri",
+    "docs",
     "gen",
     "icons",
     ".git",
     ".apiclient",
     ".gemini",
+    ".vscode",
+    ".idea",
     "environments",
     "tests",
 ];
 
-/// Resolves workspace root. If "." or empty, and running in dev inside `src-tauri`,
-/// steps up to the project root directory.
-pub fn resolve_workspace_root(input: &str) -> PathBuf {
-    let p = PathBuf::from(input);
-    if input == "." || input.is_empty() {
-        if let Ok(cwd) = std::env::current_dir() {
-            if cwd.file_name().and_then(|n| n.to_str()) == Some("src-tauri") {
-                return cwd.parent().unwrap_or(&cwd).to_path_buf();
-            }
-            return cwd;
+const DEFAULT_DEV_ENV: &str = r#"{
+  "api_host": "httpbin.org",
+  "port": "443",
+  "base_url": "https://httpbin.org",
+  "tenant_id": "dev-tenant-101",
+  "grpc_host": "localhost:50051"
+}"#;
+
+const DEFAULT_PROD_ENV: &str = r#"{
+  "api_host": "api.example.com",
+  "port": "443",
+  "base_url": "https://api.example.com",
+  "tenant_id": "prod-enterprise",
+  "grpc_host": "grpc.example.com:443"
+}"#;
+
+const SAMPLE_GET_USERS: &str = r#"# @name Get All Users
+# @description List registered users with pagination and trace id
+# @timeout 30000
+
+curl -X GET "{{base_url}}/get?page=1&limit=20" \
+  -H "Accept: application/json" \
+  -H "X-Trace-Id: {{$uuid}}" \
+  -H "Authorization: Bearer {{auth_token}}"
+"#;
+
+const SAMPLE_CREATE_USER: &str = r#"# @name Create User Profile
+# @timeout 15000
+curl -X POST "{{base_url}}/post" \
+  -H "Content-Type: application/json" \
+  -H "X-Client-Id: {{tenant_id}}" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -d '{
+  "username": "alex_developer",
+  "email": "alex@example.com",
+  "role": "admin",
+  "registered_at": "{{$isoTimestamp}}"
+}'
+"#;
+
+const SAMPLE_STREAM_EVENTS: &str = r#"# @name Stream Live Events
+# @description Consumes a chunked streaming response or SSE endpoint
+# @timeout 60000
+
+curl -N "{{base_url}}/stream/10" \
+  -H "Accept: application/json, text/event-stream"
+"#;
+
+const SAMPLE_GET_USER_GRPC: &str = r#"# @name Get User gRPC
+# @description Sample gRPC unary call using grpcurl with reflection and metadata
+# @timeout 15000
+
+grpcurl -plaintext \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "X-Client-Id: {{tenant_id}}" \
+  -d '{
+    "id": 42
+  }' \
+  {{grpc_host}} api.v1.UserService/GetUser
+"#;
+
+/// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
+pub fn get_default_workspace_dir() -> PathBuf {
+    if let Ok(custom) = std::env::var("API_CLIENT_WORKSPACE_DIR") {
+        if !custom.trim().is_empty() {
+            return PathBuf::from(custom.trim());
         }
     }
+
+    if let Some(home) = dirs::home_dir() {
+        home.join(DEFAULT_APP_DIR_NAME)
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    }
+}
+
+/// Ensures the workspace root directory exists and contains default environments and sample requests.
+pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
+    if !dir.exists() {
+        fs::create_dir_all(dir)
+            .map_err(|e| AppError::FsError(format!("Failed to create workspace directory: {}", e)))?;
+    }
+
+    // 1. Environments folder & default environment configs
+    let env_dir = dir.join("environments");
+    if !env_dir.exists() {
+        fs::create_dir_all(&env_dir)
+            .map_err(|e| AppError::FsError(format!("Failed to create environments directory: {}", e)))?;
+    }
+
+    let dev_env_file = env_dir.join("development.env.json");
+    if !dev_env_file.exists() {
+        let _ = fs::write(&dev_env_file, DEFAULT_DEV_ENV);
+    }
+
+    let prod_env_file = env_dir.join("production.env.json");
+    if !prod_env_file.exists() {
+        let _ = fs::write(&prod_env_file, DEFAULT_PROD_ENV);
+    }
+
+    let default_env_file = env_dir.join("default.env.json");
+    if !default_env_file.exists() {
+        let _ = fs::write(&default_env_file, DEFAULT_DEV_ENV);
+    }
+
+    // 2. Secret file directory
+    let apiclient_dir = dir.join(".apiclient");
+    if !apiclient_dir.exists() {
+        let _ = fs::create_dir_all(&apiclient_dir);
+    }
+    let secrets_file = apiclient_dir.join(".secrets.env");
+    if !secrets_file.exists() {
+        let content = "# Local-only secrets - NEVER commit this file to version control\nauth_token=demo-secret-token-42\n";
+        let _ = fs::write(&secrets_file, content);
+    }
+
+    // 3. Seed starter requests if examples/ folder doesn't exist
+    let examples_dir = dir.join("examples");
+    if !examples_dir.exists() {
+        if let Ok(()) = fs::create_dir_all(&examples_dir) {
+            let _ = fs::write(examples_dir.join("get_users.curl"), SAMPLE_GET_USERS);
+            let _ = fs::write(examples_dir.join("create_user.curl"), SAMPLE_CREATE_USER);
+            let _ = fs::write(examples_dir.join("stream_events.curl"), SAMPLE_STREAM_EVENTS);
+            let _ = fs::write(examples_dir.join("get_user_grpc.grpcurl"), SAMPLE_GET_USER_GRPC);
+        }
+    }
+
+    Ok(())
+}
+
+/// Resolves workspace root. If "." or empty, returns the user's home app directory
+/// (`~/.api-client-reborn`) and ensures it is initialized.
+pub fn resolve_workspace_root(input: &str) -> PathBuf {
+    let p = if input == "." || input.is_empty() {
+        get_default_workspace_dir()
+    } else {
+        PathBuf::from(input)
+    };
+
+    let _ = ensure_workspace_initialized(&p);
     p
 }
 
@@ -53,7 +187,7 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
             .unwrap_or("")
             .to_string();
 
-        // Skip hidden files/folders (.git, etc.), sidecars (.meta.json), and ignored build directories
+        // Skip hidden files/folders (.git, .apiclient, etc.), sidecars (.meta.json), and ignored directories (src, docs, node_modules, etc.)
         if file_name.starts_with('.')
             || file_name.ends_with(".meta.json")
             || IGNORED_NAMES.contains(&file_name.as_str())
@@ -120,8 +254,9 @@ mod tests {
 
     #[test]
     fn test_scan_workspace() {
-        let root = resolve_workspace_root(".");
-        let items = scan_workspace_tree(&root).unwrap();
+        let temp_dir = std::env::temp_dir().join(format!("test_api_client_ws_{}", uuid::Uuid::new_v4()));
+        ensure_workspace_initialized(&temp_dir).unwrap();
+        let items = scan_workspace_tree(&temp_dir).unwrap();
 
         // Must find `examples` folder
         let examples = items.iter().find(|i| i.name == "examples" && i.is_dir);
@@ -134,7 +269,10 @@ mod tests {
         assert!(grpc_sample.is_some(), "Expected a .grpcurl sample request in examples folder");
         assert_eq!(grpc_sample.unwrap().method.as_deref(), Some("gRPC"));
 
-        // Must not contain `target`, `icons`, `gen`, or `src-tauri`
-        assert!(items.iter().all(|i| i.name != "target" && i.name != "gen" && i.name != "icons"));
+        // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
+        assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
+
+        // Clean up
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

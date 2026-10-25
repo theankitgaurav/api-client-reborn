@@ -62,6 +62,12 @@ fn slugify(input: &str) -> String {
 }
 
 #[tauri::command]
+pub fn get_workspace_path() -> Result<String> {
+    let path = resolve_workspace_root(".");
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn scan_workspace(workspace_path: String) -> Result<Vec<WorkspaceFileItem>> {
     let path = resolve_workspace_root(&workspace_path);
     scan_workspace_tree(&path)

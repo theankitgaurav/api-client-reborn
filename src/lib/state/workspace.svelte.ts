@@ -2,6 +2,7 @@ import {
   createCollectionFolder,
   deleteWorkspaceItem,
   duplicateRequestFile,
+  getWorkspacePath,
   readRequestFile,
   renameWorkspaceItem,
   saveRequestFile,
@@ -79,6 +80,13 @@ export class WorkspaceState {
   async refreshTree() {
     this.isLoading = true;
     try {
+      if (this.workspacePath === '.' || !this.workspacePath) {
+        try {
+          this.workspacePath = await getWorkspacePath();
+        } catch {
+          // fallback to '.' if IPC fails
+        }
+      }
       this.tree = await scanWorkspace(this.workspacePath);
       // Auto-open first request if no tabs exist
       if (this.tabs.length === 0 && this.tree.length > 0) {

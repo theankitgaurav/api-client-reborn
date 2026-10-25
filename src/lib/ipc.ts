@@ -9,6 +9,14 @@ import type {
 // Detect whether running in Tauri desktop environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+export async function getWorkspacePath(): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_workspace_path');
+  }
+  return '~/.api-client-reborn';
+}
+
 export async function scanWorkspace(path: string): Promise<WorkspaceFileItem[]> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');

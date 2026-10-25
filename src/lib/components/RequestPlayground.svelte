@@ -206,6 +206,204 @@
         return 'text-neutral-400 font-bold';
     }
   }
+
+  // --- Variable Hover Tooltip Logic ---
+  interface VarTooltipData {
+    visible: boolean;
+    x: number;
+    y: number;
+    placement: 'top' | 'bottom';
+    variableName: string;
+    variableValue: string | null;
+    isDefined: boolean;
+    isSecret: boolean;
+    isDynamic: boolean;
+    source: string;
+  }
+
+  let varTooltip = $state<VarTooltipData | null>(null);
+
+  function findVariablesInText(text: string) {
+    if (!text) return [];
+    const matches: { raw: string; name: string; start: number; end: number }[] = [];
+    const regex = /\{\{([^}]+)\}\}/g;
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+      matches.push({
+        raw: m[0],
+        name: m[1].trim(),
+        start: m.index,
+        end: m.index + m[0].length,
+      });
+    }
+    return matches;
+  }
+
+  function getVariableInfo(token: string) {
+    const key = token.trim();
+
+    if (key === '$uuid') {
+      return {
+        variableName: '$uuid',
+        variableValue: crypto.randomUUID(),
+        isDefined: true,
+        isSecret: false,
+        isDynamic: true,
+        source: 'Dynamic Generator',
+      };
+    }
+    if (key === '$isoTimestamp') {
+      return {
+        variableName: '$isoTimestamp',
+        variableValue: new Date().toISOString(),
+        isDefined: true,
+        isSecret: false,
+        isDynamic: true,
+        source: 'Dynamic Generator',
+      };
+    }
+    if (key === '$timestamp') {
+      return {
+        variableName: '$timestamp',
+        variableValue: Math.floor(Date.now() / 1000).toString(),
+        isDefined: true,
+        isSecret: false,
+        isDynamic: true,
+        source: 'Dynamic Generator',
+      };
+    }
+
+    const found = envState.variables.find((v) => v.key.trim() === key);
+    if (found) {
+      return {
+        variableName: key,
+        variableValue: found.value,
+        isDefined: true,
+        isSecret: !!found.isSecret,
+        isDynamic: false,
+        source: found.isSecret ? 'Secret Variable' : 'Workspace Variable',
+      };
+    }
+
+    if (envState.mergedVariables && key in envState.mergedVariables) {
+      return {
+        variableName: key,
+        variableValue: envState.mergedVariables[key],
+        isDefined: true,
+        isSecret: false,
+        isDynamic: false,
+        source: 'Workspace Variable',
+      };
+    }
+
+    return {
+      variableName: key,
+      variableValue: null,
+      isDefined: false,
+      isSecret: false,
+      isDynamic: false,
+      source: 'Unresolved Variable',
+    };
+  }
+
+  function getVarTooltipTitle(text: string): string | undefined {
+    if (!text || !text.includes('{{')) return undefined;
+    const matches = findVariablesInText(text);
+    if (matches.length === 0) return undefined;
+    return matches
+      .map((m) => {
+        const info = getVariableInfo(m.name);
+        return `{{${m.name}}}: ${info.variableValue ?? 'Unresolved'}`;
+      })
+      .join('\n');
+  }
+
+  function handleVarHover(e: MouseEvent, text: string) {
+    if (!text || !text.includes('{{')) {
+      varTooltip = null;
+      return;
+    }
+
+    const matches = findVariablesInText(text);
+    if (matches.length === 0) {
+      varTooltip = null;
+      return;
+    }
+
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    let targetMatch = matches[0];
+
+    if (matches.length > 1) {
+      try {
+        const style = window.getComputedStyle(target);
+        const fontSize = parseFloat(style.fontSize) || 12;
+        const charWidth = fontSize * 0.605;
+        const paddingLeft = parseFloat(style.paddingLeft) || 8;
+
+        if (target instanceof HTMLTextAreaElement) {
+          const paddingTop = parseFloat(style.paddingTop) || 8;
+          const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.5;
+          const lineIdx = Math.max(0, Math.floor((e.clientY - rect.top - paddingTop + target.scrollTop) / lineHeight));
+          const lines = text.split('\n');
+          if (lineIdx < lines.length) {
+            const lineText = lines[lineIdx];
+            const lineMatches = findVariablesInText(lineText);
+            if (lineMatches.length > 0) {
+              const clickX = e.clientX - rect.left - paddingLeft + target.scrollLeft;
+              const charIdx = Math.max(0, Math.floor(clickX / charWidth));
+              targetMatch = lineMatches.find((m) => charIdx >= m.start && charIdx <= m.end) || lineMatches[0];
+            }
+          }
+        } else {
+          const scrollLeft = (target as HTMLInputElement).scrollLeft || 0;
+          const clickX = e.clientX - rect.left - paddingLeft + scrollLeft;
+          const charIdx = Math.max(0, Math.floor(clickX / charWidth));
+          const found = matches.find((m) => charIdx >= m.start && charIdx <= m.end);
+          if (found) {
+            targetMatch = found;
+          } else {
+            let closest = matches[0];
+            let minDiff = 9999;
+            for (const match of matches) {
+              const mid = (match.start + match.end) / 2;
+              const diff = Math.abs(charIdx - mid);
+              if (diff < minDiff) {
+                minDiff = diff;
+                closest = match;
+              }
+            }
+            targetMatch = closest;
+          }
+        }
+      } catch {
+        targetMatch = matches[0];
+      }
+    }
+
+    const info = getVariableInfo(targetMatch.name);
+    const tooltipWidth = 280;
+    let posX = Math.max(12, Math.min(e.clientX - 40, window.innerWidth - tooltipWidth - 16));
+    let posY = rect.top - 8;
+    let placement: 'top' | 'bottom' = 'top';
+
+    if (posY < 90) {
+      posY = rect.bottom + 8;
+      placement = 'bottom';
+    }
+
+    varTooltip = {
+      visible: true,
+      x: posX,
+      y: posY,
+      placement,
+      ...info,
+    };
+  }
+
+  function handleVarLeave() {
+    varTooltip = null;
+  }
 </script>
 
 <div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
@@ -270,6 +468,9 @@
         type="text"
         value={model.url}
         oninput={(e) => handleUrlInput((e.target as HTMLInputElement).value)}
+        onmousemove={(e) => handleVarHover(e, model.url)}
+        onmouseleave={handleVarLeave}
+        title={getVarTooltipTitle(model.url)}
         placeholder={isGrpcurl || model.method === 'GRPC'
           ? "Enter host and endpoint (e.g. {{grpc_host}} api.v1.UserService/GetUser)"
           : "Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
@@ -401,6 +602,9 @@
                     placeholder="Key"
                     bind:value={param.key}
                     oninput={syncToWorkspace}
+                    onmousemove={(e) => handleVarHover(e, param.key)}
+                    onmouseleave={handleVarLeave}
+                    title={getVarTooltipTitle(param.key)}
                     class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                   />
                 </td>
@@ -410,6 +614,9 @@
                     placeholder={"Value (or {{variable}})"}
                     bind:value={param.value}
                     oninput={syncToWorkspace}
+                    onmousemove={(e) => handleVarHover(e, param.value)}
+                    onmouseleave={handleVarLeave}
+                    title={getVarTooltipTitle(param.value)}
                     class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                   />
                 </td>
@@ -466,6 +673,9 @@
                     placeholder="Header Name"
                     bind:value={h.key}
                     oninput={syncToWorkspace}
+                    onmousemove={(e) => handleVarHover(e, h.key)}
+                    onmouseleave={handleVarLeave}
+                    title={getVarTooltipTitle(h.key)}
                     class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                   />
                 </td>
@@ -475,6 +685,9 @@
                     placeholder="Header Value"
                     bind:value={h.value}
                     oninput={syncToWorkspace}
+                    onmousemove={(e) => handleVarHover(e, h.value)}
+                    onmouseleave={handleVarLeave}
+                    title={getVarTooltipTitle(h.value)}
                     class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                   />
                 </td>
@@ -559,6 +772,8 @@
           <textarea
             bind:value={model.bodyRaw}
             oninput={syncToWorkspace}
+            onmousemove={(e) => handleVarHover(e, model.bodyRaw)}
+            onmouseleave={handleVarLeave}
             placeholder={model.bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Enter raw payload'}
             spellcheck="false"
             class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
@@ -591,6 +806,9 @@
                         placeholder="field"
                         bind:value={item.key}
                         oninput={syncToWorkspace}
+                        onmousemove={(e) => handleVarHover(e, item.key)}
+                        onmouseleave={handleVarLeave}
+                        title={getVarTooltipTitle(item.key)}
                         class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                       />
                     </td>
@@ -600,6 +818,9 @@
                         placeholder="value"
                         bind:value={item.value}
                         oninput={syncToWorkspace}
+                        onmousemove={(e) => handleVarHover(e, item.value)}
+                        onmouseleave={handleVarLeave}
+                        title={getVarTooltipTitle(item.value)}
                         class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                       />
                     </td>
@@ -660,6 +881,9 @@
               placeholder={"e.g. {{auth_token}} or token_xyz"}
               bind:value={model.bearerToken}
               oninput={syncToWorkspace}
+              onmousemove={(e) => handleVarHover(e, model.bearerToken)}
+              onmouseleave={handleVarLeave}
+              title={getVarTooltipTitle(model.bearerToken)}
               class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
             />
           </div>
@@ -675,6 +899,9 @@
                 placeholder="Username"
                 bind:value={model.basicUser}
                 oninput={syncToWorkspace}
+                onmousemove={(e) => handleVarHover(e, model.basicUser)}
+                onmouseleave={handleVarLeave}
+                title={getVarTooltipTitle(model.basicUser)}
                 class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
               />
             </div>
@@ -688,6 +915,9 @@
                 placeholder="Password"
                 bind:value={model.basicPass}
                 oninput={syncToWorkspace}
+                onmousemove={(e) => handleVarHover(e, model.basicPass)}
+                onmouseleave={handleVarLeave}
+                title={getVarTooltipTitle(model.basicPass)}
                 class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
               />
             </div>
@@ -842,6 +1072,8 @@
             rawEditMode = true;
             workspaceState.updateContent((e.target as HTMLTextAreaElement).value);
           }}
+          onmousemove={(e) => handleVarHover(e, workspaceState.activeFile?.raw_content || '')}
+          onmouseleave={handleVarLeave}
           spellcheck="false"
           class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
         ></textarea>
@@ -872,6 +1104,56 @@
         </button>
       </div>
       <pre class="flex-1 p-2.5 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-emerald-700 dark:text-emerald-300/90 select-text bg-[#f5f5f7] dark:bg-[#121212]">{resolvedCommand || '// Type a command above'}</pre>
+    </div>
+  {/if}
+
+  <!-- Variable Hover Tooltip Card -->
+  {#if varTooltip && varTooltip.visible}
+    <div
+      class="fixed z-50 pointer-events-none transition-all duration-100 ease-out bg-[#1e1e20] dark:bg-[#202022] text-neutral-100 border border-[#3e3e42] dark:border-[#38383c] shadow-2xl rounded-lg p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
+      style="left: {varTooltip.x}px; top: {varTooltip.y}px;"
+    >
+      <!-- Header: variable name & origin -->
+      <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#2e2e32] dark:border-[#2e2e32]">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded border {varTooltip.isDynamic
+            ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+            : varTooltip.isSecret
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+              : varTooltip.isDefined
+                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                : 'bg-rose-500/20 text-rose-400 border-rose-500/30'}">
+            &#123;&#123;{varTooltip.variableName}&#125;&#125;
+          </span>
+        </div>
+        <span class="text-[10px] font-medium text-neutral-400 shrink-0">
+          {varTooltip.source}
+        </span>
+      </div>
+
+      <!-- Resolved Value Section -->
+      <div class="space-y-1">
+        <div class="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
+          Value:
+        </div>
+        <div class="font-mono text-[11px] p-1.5 rounded bg-[#141416] border border-[#2a2a2e] break-all select-text max-h-24 overflow-y-auto">
+          {#if varTooltip.isDefined}
+            {#if varTooltip.isSecret}
+              <div class="flex items-center justify-between">
+                <span class="text-emerald-400 font-semibold">{varTooltip.variableValue || '<empty>'}</span>
+                <span class="text-[9px] text-amber-400 bg-amber-500/10 px-1 rounded ml-1">secret</span>
+              </div>
+            {:else}
+              <span class="text-emerald-400 font-semibold">{varTooltip.variableValue || '<empty string>'}</span>
+            {/if}
+          {:else}
+            <div class="text-rose-400 italic flex items-center gap-1">
+              <span>⚠️ Not found</span>
+              <span class="text-neutral-500 font-sans text-[10px]">(click Variables in navbar)</span>
+            </div>
+          {/if}
+        </div>
+      </div>
     </div>
   {/if}
 </div>
