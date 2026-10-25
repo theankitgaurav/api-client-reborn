@@ -43,6 +43,13 @@ export async function scanWorkspace(path: string): Promise<WorkspaceFileItem[]> 
           display_name: 'Stream Live SSE Events',
           method: 'GET',
         },
+        {
+          name: 'get_user_grpc.grpcurl',
+          path: '/examples/get_user_grpc.grpcurl',
+          is_dir: false,
+          display_name: 'Get User gRPC',
+          method: 'gRPC',
+        },
       ],
     },
   ];
@@ -71,6 +78,16 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
       metadata: {
         name: 'Stream Live SSE Events',
         timeout_ms: 60000,
+      },
+    };
+  } else if (path.includes('get_user_grpc')) {
+    return {
+      path,
+      raw_content: `# @name Get User gRPC\n# @description Sample gRPC unary call using grpcurl with reflection and metadata\n# @timeout 15000\n\ngrpcurl -plaintext \\\n  -H "Authorization: Bearer {{auth_token}}" \\\n  -H "X-Client-Id: {{tenant_id}}" \\\n  -d '{\\n    "id": 42\\n  }' \\\n  {{grpc_host}} api.v1.UserService/GetUser`,
+      metadata: {
+        name: 'Get User gRPC',
+        description: 'Sample gRPC unary call using grpcurl with reflection and metadata',
+        timeout_ms: 15000,
       },
     };
   }

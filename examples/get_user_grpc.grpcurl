@@ -1,0 +1,11 @@
+# @name Get User gRPC
+# @description Sample gRPC unary call using grpcurl with reflection and metadata
+# @timeout 15000
+
+grpcurl -plaintext \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "X-Client-Id: {{tenant_id}}" \
+  -d '{
+    "id": 42
+  }' \
+  {{grpc_host}} api.v1.UserService/GetUser

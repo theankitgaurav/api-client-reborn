@@ -8,17 +8,15 @@
     FolderOpen,
     RefreshCw,
     Search,
-    Terminal,
-    Check,
     Plus,
     Upload,
     FolderPlus,
     Copy,
     Trash2,
+    MoreVertical,
   } from '$lib/components/icons';
 
   let searchQuery = $state('');
-  let copiedPath = $state<string | null>(null);
 
   let itemContextMenu = $state<{
     visible: boolean;
@@ -91,10 +89,6 @@
 
       const resolved = getResolvedCommand(rawContent, envState.mergedVariables);
       navigator.clipboard.writeText(resolved);
-      copiedPath = item.path;
-      setTimeout(() => {
-        copiedPath = null;
-      }, 1500);
     } catch (e) {
       console.error('Failed to copy command:', e);
     }
@@ -107,6 +101,39 @@
       visible: true,
       x: e.clientX,
       y: e.clientY,
+      item,
+    };
+  }
+
+  function toggleContextMenuForElement(e: MouseEvent, item: WorkspaceFileItem) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (itemContextMenu?.visible && itemContextMenu.item.path === item.path) {
+      itemContextMenu = null;
+      return;
+    }
+
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const menuWidth = 192; // w-48 = 12rem
+    const menuHeight = item.is_dir ? 190 : 230;
+
+    let x = rect.right - menuWidth;
+    if (x < 8) x = 8;
+    if (x + menuWidth > window.innerWidth - 8) {
+      x = Math.max(8, window.innerWidth - menuWidth - 8);
+    }
+
+    let y = rect.bottom + 4;
+    if (y + menuHeight > window.innerHeight - 8) {
+      y = Math.max(8, rect.top - menuHeight - 4);
+    }
+
+    itemContextMenu = {
+      visible: true,
+      x,
+      y,
       item,
     };
   }
@@ -198,7 +225,7 @@
               <FolderOpen size={12} class="text-neutral-400 shrink-0" />
               <span class="truncate">{item.name}</span>
             </div>
-            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-center gap-0.5 transition-opacity {itemContextMenu?.visible && itemContextMenu.item.path === item.path ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}">
               <button
                 type="button"
                 onclick={(e) => {
@@ -209,6 +236,14 @@
                 class="p-0.5 hover:text-neutral-900 dark:hover:text-white text-neutral-400 rounded"
               >
                 <Plus size={11} />
+              </button>
+              <button
+                type="button"
+                onclick={(e) => toggleContextMenuForElement(e, item)}
+                title="Folder options"
+                class="p-0.5 hover:text-neutral-900 dark:hover:text-white text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60 rounded"
+              >
+                <MoreVertical size={11} />
               </button>
             </div>
           </div>
@@ -246,21 +281,16 @@
               <span class="truncate">{item.display_name || item.name}</span>
             </div>
 
-            <!-- Quick Copy Button on Hover -->
+            <!-- Three dot icon to invoke context menu -->
             <button
               type="button"
-              onclick={(e) => {
-                e.stopPropagation();
-                copyRequestCommand(item);
-              }}
-              title="Copy resolved cURL command"
-              class="opacity-0 group-hover:opacity-100 p-0.5 hover:text-neutral-900 dark:hover:text-white text-neutral-400 rounded transition-opacity"
+              onclick={(e) => toggleContextMenuForElement(e, item)}
+              title="Request options"
+              class="p-0.5 hover:text-neutral-900 dark:hover:text-white text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-neutral-700/60 rounded transition-opacity {itemContextMenu?.visible && itemContextMenu.item.path === item.path
+                ? 'opacity-100 text-neutral-900 dark:text-white'
+                : 'opacity-0 group-hover:opacity-100'}"
             >
-              {#if copiedPath === item.path}
-                <Check size={12} class="text-emerald-500" />
-              {:else}
-                <Terminal size={12} />
-              {/if}
+              <MoreVertical size={12} />
             </button>
           </div>
         </div>

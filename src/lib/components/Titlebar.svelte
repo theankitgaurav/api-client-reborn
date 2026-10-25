@@ -4,9 +4,6 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { themeState } from '$lib/state/theme.svelte';
   import {
-    Play,
-    Square,
-    KeyRound,
     Layers,
     Sun,
     Moon,
@@ -39,8 +36,8 @@
   data-tauri-drag-region
   class="h-10 bg-[#f0f0f3] dark:bg-[#1e1e1e] border-b border-[#d8d8dc] dark:border-[#2d2d2d] flex items-center justify-between select-none px-3 transition-colors"
 >
-  <!-- macOS traffic lights offset -->
-  <div class="flex items-center space-x-2 pl-[70px]">
+  <!-- App name at the extreme left, offset past macOS traffic lights -->
+  <div class="flex items-center space-x-2 pl-[76px]">
     <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5">
       <Layers size={14} class="text-blue-500" />
       API Client Reborn
@@ -52,24 +49,7 @@
     {/if}
   </div>
 
-  <!-- Center: Unified Variables Action -->
-  <div class="flex items-center space-x-2">
-    <button
-      onclick={() => (envState.isVariablesModalOpen = true)}
-      title="Configure Workspace Variables & Secrets"
-      class="flex items-center gap-1.5 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2.5 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
-    >
-      <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
-      <span class="font-medium text-[11px]">Variables</span>
-      {#if envState.variables.length > 0}
-        <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">
-          {envState.variables.length}
-        </span>
-      {/if}
-    </button>
-  </div>
-
-  <!-- Right: Theme Switcher & Send / Cancel Action -->
+  <!-- Right: Theme Switcher & Variables Action -->
   <div class="flex items-center space-x-2">
     <!-- Light/Dark Toggle -->
     <button
@@ -84,19 +64,18 @@
       {/if}
     </button>
 
+    <!-- Variables Button -->
     <button
-      onclick={handleSend}
-      class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-all shadow-sm {responseState.isExecuting
-        ? 'bg-rose-600 hover:bg-rose-700 text-white'
-        : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'}"
+      onclick={() => (envState.isVariablesModalOpen = true)}
+      title="Configure Workspace Variables & Secrets"
+      class="flex items-center gap-1.5 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2.5 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
     >
-      {#if responseState.isExecuting}
-        <Square size={13} fill="currentColor" />
-        <span>Cancel</span>
-      {:else}
-        <Play size={13} fill="currentColor" />
-        <span>Send</span>
-        <span class="text-[10px] opacity-75 ml-0.5 font-mono">⌘↵</span>
+      <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
+      <span class="font-medium text-[11px]">Variables</span>
+      {#if envState.variables.length > 0}
+        <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">
+          {envState.variables.length}
+        </span>
       {/if}
     </button>
   </div>

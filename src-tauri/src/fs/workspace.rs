@@ -128,7 +128,11 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(children.len(), 3, "Expected 3 sample requests in examples folder");
+        assert_eq!(children.len(), 4, "Expected 4 sample requests in examples folder");
+
+        let grpc_sample = children.iter().find(|i| i.name.ends_with(".grpcurl"));
+        assert!(grpc_sample.is_some(), "Expected a .grpcurl sample request in examples folder");
+        assert_eq!(grpc_sample.unwrap().method.as_deref(), Some("gRPC"));
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "gen" && i.name != "icons"));

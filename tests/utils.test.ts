@@ -122,3 +122,25 @@ test('Roundtrip fidelity on example curl files', async () => {
     assert.equal(reModel.noBuffer, model.noBuffer, `NoBuffer mismatch on roundtrip for ${f}`);
   }
 });
+
+test('getResolvedCommand correctly resolves variables in example grpc request', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  const filePath = path.resolve('examples', 'get_user_grpc.grpcurl');
+  const content = fs.readFileSync(filePath, 'utf-8');
+
+  const vars = {
+    grpc_host: 'localhost:50051',
+    auth_token: 'secret_jwt_token',
+    tenant_id: 'dev-tenant-101',
+  };
+
+  const resolved = getResolvedCommand(content, vars);
+  assert.ok(!resolved.includes('# @name'));
+  assert.ok(!resolved.includes('# @timeout'));
+  assert.ok(resolved.includes('grpcurl -plaintext'));
+  assert.ok(resolved.includes('localhost:50051 api.v1.UserService/GetUser'));
+  assert.ok(resolved.includes('secret_jwt_token'));
+  assert.ok(resolved.includes('dev-tenant-101'));
+});

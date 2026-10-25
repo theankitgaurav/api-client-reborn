@@ -83,15 +83,24 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
     tokens.push(match[1] !== undefined ? match[1] : match[2] !== undefined ? match[2] : match[0]);
   }
 
+  const isGrpc =
+    tokens[0] === 'grpcurl' ||
+    command.trimStart().startsWith('grpcurl') ||
+    rawContent.includes('grpcurl');
+
   const headersList: KeyValueParam[] = [];
-  let url = '';
+  const positionalArgs: string[] = [];
   let method: string | null = null;
   let bodyData: string | null = null;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
-    if (token === 'curl') continue;
+    if (token === 'curl' || token === 'grpcurl') continue;
+
+    if (token === '-plaintext' || token === '-insecure') {
+      continue;
+    }
 
     if (token === '-X' || token === '--request') {
       if (i + 1 < tokens.length) {
@@ -156,36 +165,42 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
         const sec = parseFloat(tokens[++i]);
         if (!isNaN(sec)) model.timeoutMs = Math.round(sec * 1000);
       }
-    } else if (!token.startsWith('-') && !url) {
-      url = token;
+    } else if (!token.startsWith('-')) {
+      positionalArgs.push(token);
     }
   }
 
-  // Parse query params from URL
-  if (url) {
-    const questionIdx = url.indexOf('?');
-    if (questionIdx >= 0) {
-      const baseUrl = url.substring(0, questionIdx);
-      const queryStr = url.substring(questionIdx + 1);
-      const paramsList: KeyValueParam[] = [];
+  if (isGrpc) {
+    model.method = 'GRPC';
+    model.url = positionalArgs.join(' ').trim();
+  } else {
+    // Parse query params from URL
+    const url = positionalArgs[0] || '';
+    if (url) {
+      const questionIdx = url.indexOf('?');
+      if (questionIdx >= 0) {
+        const baseUrl = url.substring(0, questionIdx);
+        const queryStr = url.substring(questionIdx + 1);
+        const paramsList: KeyValueParam[] = [];
 
-      for (const pair of queryStr.split('&')) {
-        if (!pair) continue;
-        const [k, v] = pair.split('=');
-        paramsList.push({
-          id: String(Date.now() + Math.random()),
-          key: decodeURIComponent(k || ''),
-          value: decodeURIComponent(v || ''),
-          enabled: true,
-        });
-      }
+        for (const pair of queryStr.split('&')) {
+          if (!pair) continue;
+          const [k, v] = pair.split('=');
+          paramsList.push({
+            id: String(Date.now() + Math.random()),
+            key: decodeURIComponent(k || ''),
+            value: decodeURIComponent(v || ''),
+            enabled: true,
+          });
+        }
 
-      model.url = baseUrl;
-      if (paramsList.length > 0) {
-        model.params = paramsList;
+        model.url = baseUrl;
+        if (paramsList.length > 0) {
+          model.params = paramsList;
+        }
+      } else {
+        model.url = url;
       }
-    } else {
-      model.url = url;
     }
   }
 
@@ -220,18 +235,20 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
     model.bodyType = 'none';
   }
 
-  // Infer method
-  if (method) {
-    model.method = method;
-  } else {
-    model.method = model.bodyType !== 'none' ? 'POST' : 'GET';
+  // Infer method for non-gRPC
+  if (!isGrpc) {
+    if (method) {
+      model.method = method;
+    } else {
+      model.method = model.bodyType !== 'none' ? 'POST' : 'GET';
+    }
   }
 
   return model;
 }
 
 /**
- * Serializes the Postman-like playground state back into a clean, canonical .curl file
+ * Serializes the Postman-like playground state back into a clean, canonical .curl or .grpcurl file
  */
 export function serializePlaygroundToCurl(model: PlaygroundModel): string {
   const lines: string[] = [];
@@ -244,6 +261,40 @@ export function serializePlaygroundToCurl(model: PlaygroundModel): string {
     lines.push(`# @timeout ${model.timeoutMs}`);
   }
   lines.push('');
+
+  const isGrpc = model.method?.toUpperCase() === 'GRPC';
+
+  if (isGrpc) {
+    const grpcCmdParts: string[] = ['grpcurl -plaintext'];
+
+    // Headers
+    const activeHeaders = model.headers.filter((h) => h.enabled && h.key.trim());
+    for (const h of activeHeaders) {
+      grpcCmdParts.push(`  -H "${h.key.trim()}: ${h.value.trim()}"`);
+    }
+
+    // Auth Header
+    if (model.authType === 'bearer' && model.bearerToken.trim()) {
+      grpcCmdParts.push(`  -H "Authorization: Bearer ${model.bearerToken.trim()}"`);
+    } else if (model.authType === 'basic' && (model.basicUser || model.basicPass)) {
+      grpcCmdParts.push(`  -u "${model.basicUser.trim()}:${model.basicPass.trim()}"`);
+    }
+
+    // Body
+    if (model.bodyType === 'json' && model.bodyRaw.trim()) {
+      const escaped = model.bodyRaw.replace(/'/g, "'\\''");
+      grpcCmdParts.push(`  -d '${escaped}'`);
+    } else if (model.bodyType === 'text' && model.bodyRaw.trim()) {
+      const escaped = model.bodyRaw.replace(/'/g, "'\\''");
+      grpcCmdParts.push(`  -d '${escaped}'`);
+    }
+
+    // Host & Endpoint
+    const hostAndEndpoint = model.url.trim() || 'localhost:50051 api.v1.Service/Method';
+    grpcCmdParts.push(`  ${hostAndEndpoint}`);
+
+    return `${lines.join('\n')}${grpcCmdParts.join(' \\\n')}\n`;
+  }
 
   // Rebuild full URL with enabled query params
   let fullUrl = model.url.trim();

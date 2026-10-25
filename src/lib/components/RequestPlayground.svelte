@@ -3,7 +3,6 @@
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
-  import TabBar from './TabBar.svelte';
   import {
     parseCurlToPlayground,
     serializePlaygroundToCurl,
@@ -39,6 +38,9 @@
     const tab = workspaceState.activeTab;
     if (tab) {
       model = parseCurlToPlayground(tab.rawContent);
+      if (tab.filePath?.endsWith('.grpcurl') || tab.method?.toUpperCase() === 'GRPC') {
+        model.method = 'GRPC';
+      }
       preRequestScript = tab.sidecar?.pre_request_script || '';
       postResponseScript = tab.sidecar?.post_response_script || '';
       rawEditMode = false;
@@ -198,6 +200,8 @@
         return 'text-rose-500 font-bold';
       case 'PATCH':
         return 'text-purple-500 font-bold';
+      case 'GRPC':
+        return 'text-cyan-500 font-bold';
       default:
         return 'text-neutral-400 font-bold';
     }
@@ -205,9 +209,6 @@
 </script>
 
 <div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
-  <!-- Multi-Tab Bar Strip -->
-  <TabBar />
-
   <!-- Top Request Metadata & Toolbar -->
   <div class="px-3 py-2 bg-[#f9f9fb] dark:bg-[#252526] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
     <div class="flex items-center gap-2 flex-1 mr-2">
@@ -218,42 +219,9 @@
         placeholder="Request Name"
         class="bg-transparent font-semibold text-neutral-800 dark:text-neutral-200 outline-none text-xs w-64 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 px-1.5 py-0.5 rounded transition-colors"
       />
-
-      <!-- Streaming (-N) Flag Toggle -->
-      <button
-        type="button"
-        onclick={() => {
-          model.noBuffer = !model.noBuffer;
-          syncToWorkspace();
-        }}
-        title="Toggle streaming / unbuffered response flag (-N)"
-        class="px-2 py-0.5 rounded text-[11px] font-mono transition-colors {model.noBuffer
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-medium'
-          : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 border border-dashed border-neutral-300 dark:border-neutral-700'}"
-      >
-        {model.noBuffer ? '⚡ Stream (-N)' : '+ Stream'}
-      </button>
     </div>
 
     <div class="flex items-center gap-2">
-      <!-- Quick Copy as cURL Button -->
-      {#if workspaceState.activeFile}
-        <button
-          onclick={copyCommand}
-          title="Copy executable {commandLabel} command with variables resolved (⌘⇧C)"
-          class="flex items-center gap-1.5 text-xs bg-white dark:bg-[#2f2f30] hover:bg-neutral-100 dark:hover:bg-[#3a3a3c] text-neutral-700 dark:text-neutral-200 px-2.5 py-1 rounded border border-[#d2d2d7] dark:border-[#404040] transition-all shadow-sm active:scale-95"
-        >
-          {#if copied}
-            <Check size={13} class="text-emerald-500" />
-            <span class="text-emerald-600 dark:text-emerald-400 font-medium">Copied {commandLabel}!</span>
-          {:else}
-            <Terminal size={13} class="text-blue-500" />
-            <span>Copy as {commandLabel}</span>
-            <span class="text-[10px] text-neutral-400 font-mono">⌘⇧C</span>
-          {/if}
-        </button>
-      {/if}
-
       <!-- Toggle Terminal Command Drawer -->
       <button
         onclick={() => (showTerminalDrawer = !showTerminalDrawer)}
@@ -285,6 +253,7 @@
         onchange={syncToWorkspace}
         class="bg-[#f0f0f2] dark:bg-[#2a2a2c] border border-[#d2d2d7] dark:border-[#3a3a3c] rounded px-2.5 py-1.5 font-mono text-xs cursor-pointer outline-none {getMethodColor(model.method)}"
       >
+        <option value="GRPC" class="text-cyan-500 font-bold">GRPC</option>
         <option value="GET" class="text-blue-500 font-bold">GET</option>
         <option value="POST" class="text-emerald-500 font-bold">POST</option>
         <option value="PUT" class="text-amber-500 font-bold">PUT</option>
@@ -301,7 +270,9 @@
         type="text"
         value={model.url}
         oninput={(e) => handleUrlInput((e.target as HTMLInputElement).value)}
-        placeholder={"Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
+        placeholder={isGrpcurl || model.method === 'GRPC'
+          ? "Enter host and endpoint (e.g. {{grpc_host}} api.v1.UserService/GetUser)"
+          : "Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
         class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-blue-500 transition-colors"
       />
     </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Titlebar from '$lib/components/Titlebar.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
+  import TabBar from '$lib/components/TabBar.svelte';
   import RequestPlayground from '$lib/components/RequestPlayground.svelte';
   import ResponseViewer from '$lib/components/ResponseViewer.svelte';
   import EnvModal from '$lib/components/EnvModal.svelte';
@@ -13,16 +14,25 @@
   <!-- macOS Top Navigation & Traffic Lights -->
   <Titlebar />
 
-  <!-- 3-Column Split View -->
+  <!-- Main Workspace Layout -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Sidebar: Collections & Files -->
     <Sidebar />
 
-    <!-- Center Playground: Postman-like Request Editor -->
-    <RequestPlayground />
+    <!-- Content Area: Full-width TabBar on top, parallel Request & Response panes below -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <!-- Request tabs spanning full width to the right -->
+      <TabBar />
 
-    <!-- Right Viewer: Status, Response, Stream Logs -->
-    <ResponseViewer />
+      <!-- Parallel Split View below TabBar -->
+      <div class="flex-1 flex min-h-0 overflow-hidden">
+        <!-- Request Editor Pane -->
+        <RequestPlayground />
+
+        <!-- Response Viewer Pane -->
+        <ResponseViewer />
+      </div>
+    </div>
   </div>
 
   <!-- Local Variables & Secrets Modal -->
