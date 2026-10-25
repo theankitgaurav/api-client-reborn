@@ -1,0 +1,7 @@
+# @name Stream Live Events
+# @description Consumes a chunked streaming response or SSE endpoint
+# @timeout 60000
+# @tags stream, sse
+
+curl -N "{{base_url}}/stream/10" \
+  -H "Accept: application/json, text/event-stream"

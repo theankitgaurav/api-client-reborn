@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #181818;
+  color: #cccccc;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Method badge colors */
+.badge-get {
+  @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+}
+.badge-post {
+  @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+}
+.badge-put {
+  @apply bg-amber-500/20 text-amber-400 border border-amber-500/30;
+}
+.badge-delete {
+  @apply bg-rose-500/20 text-rose-400 border border-rose-500/30;
+}
+.badge-patch {
+  @apply bg-purple-500/20 text-purple-400 border border-purple-500/30;
+}
+.badge-grpc {
+  @apply bg-cyan-500/20 text-cyan-400 border border-cyan-500/30;
+}

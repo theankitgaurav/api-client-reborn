@@ -1,0 +1,9 @@
+# @name Get All Users
+# @description List registered users with pagination and trace id
+# @timeout 30000
+# @tags users, api
+
+curl -X GET "{{base_url}}/get?page=1&limit=20" \
+  -H "Accept: application/json" \
+  -H "X-Trace-Id: {{$uuid}}" \
+  -H "Authorization: Bearer {{auth_token}}"

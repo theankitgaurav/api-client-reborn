@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Tauri & Rust
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# API Client Secrets (CRITICAL: Never commit secrets)
+.apiclient/.secrets.env
+*.secret.env
+*.secrets.json
+
+# OS files
+.DS_Store
+Thumbs.db
