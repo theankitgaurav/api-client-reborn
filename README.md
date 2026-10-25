@@ -69,7 +69,10 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ### 🔌 Dual-Protocol Engine: REST & gRPC
 - **Full HTTP/REST Support**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS`.
-- **gRPC Testing**: Inspect and invoke gRPC unary methods using standard `grpcurl` syntax with server reflection and metadata headers.
+- **Native Pure-Rust gRPC Engine**: Inspect and invoke gRPC unary methods directly inside the native Rust core (no external `grpcurl` or `protoc` installation required).
+  - **Server Reflection**: Dynamically discover services and schemas on reflection-enabled endpoints (e.g. `localhost:50051`).
+  - **Local Proto Schema**: Point directly to local `.proto` files with custom import paths via the dedicated **Proto** tab UI or `-proto` flag for endpoints without server reflection (e.g. `localhost:50052`).
+  - **Built-in Demo Service**: Launch a local dual-mode gRPC test server with `npm run demo:grpc`.
 
 ### 🌊 Real-Time Streaming & Server-Sent Events (SSE)
 - **Live Event Streamer**: Inspect chunked HTTP streaming endpoints and Server-Sent Events with structured event IDs, types, and payloads.

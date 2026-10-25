@@ -87,6 +87,50 @@ grpcurl -plaintext \
   {{grpc_host}} api.v1.UserService/GetUser
 "#;
 
+const SAMPLE_GET_USER_PROTO: &str = r#"# @name Get User with Proto File
+# @description Sample gRPC unary call pointing to a .proto file for endpoints without server reflection
+# @timeout 15000
+
+grpcurl -plaintext \
+  -proto "examples/user.proto" \
+  -import-path "." \
+  -H "Authorization: Bearer dev_token" \
+  -d '{
+    "id": 99
+  }' \
+  localhost:50052 api.v1.UserService/GetUser
+"#;
+
+const SAMPLE_USER_PROTO: &str = r#"syntax = "proto3";
+
+package api.v1;
+
+service UserService {
+  rpc GetUser (UserRequest) returns (UserResponse);
+  rpc Echo (EchoRequest) returns (EchoResponse);
+}
+
+message UserRequest {
+  int32 id = 1;
+}
+
+message UserResponse {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  string role = 4;
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
+  int64 timestamp = 2;
+}
+"#;
+
 /// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
 pub fn get_default_workspace_dir() -> PathBuf {
     if let Ok(custom) = std::env::var("API_CLIENT_WORKSPACE_DIR") {
@@ -142,14 +186,23 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
         let _ = fs::write(&secrets_file, content);
     }
 
-    // 3. Seed starter requests if examples/ folder doesn't exist
+    // 3. Seed starter requests and proto schemas in examples/
     let examples_dir = dir.join("examples");
-    if !examples_dir.exists() {
-        if let Ok(()) = fs::create_dir_all(&examples_dir) {
-            let _ = fs::write(examples_dir.join("get_users.curl"), SAMPLE_GET_USERS);
-            let _ = fs::write(examples_dir.join("create_user.curl"), SAMPLE_CREATE_USER);
-            let _ = fs::write(examples_dir.join("stream_events.curl"), SAMPLE_STREAM_EVENTS);
-            let _ = fs::write(examples_dir.join("get_user_grpc.grpcurl"), SAMPLE_GET_USER_GRPC);
+    let _ = fs::create_dir_all(&examples_dir);
+
+    let starter_files: [(&str, &str); 6] = [
+        ("get_users.curl", SAMPLE_GET_USERS),
+        ("create_user.curl", SAMPLE_CREATE_USER),
+        ("stream_events.curl", SAMPLE_STREAM_EVENTS),
+        ("get_user_grpc.grpcurl", SAMPLE_GET_USER_GRPC),
+        ("get_user_proto.grpcurl", SAMPLE_GET_USER_PROTO),
+        ("user.proto", SAMPLE_USER_PROTO),
+    ];
+
+    for (name, content) in starter_files {
+        let path = examples_dir.join(name);
+        if !path.exists() {
+            let _ = fs::write(&path, content);
         }
     }
 
@@ -263,11 +316,11 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(children.len(), 4, "Expected 4 sample requests in examples folder");
+        assert_eq!(children.len(), 5, "Expected 5 sample requests in examples folder");
 
-        let grpc_sample = children.iter().find(|i| i.name.ends_with(".grpcurl"));
-        assert!(grpc_sample.is_some(), "Expected a .grpcurl sample request in examples folder");
-        assert_eq!(grpc_sample.unwrap().method.as_deref(), Some("gRPC"));
+        let grpc_samples: Vec<_> = children.iter().filter(|i| i.name.ends_with(".grpcurl")).collect();
+        assert_eq!(grpc_samples.len(), 2, "Expected 2 .grpcurl sample requests in examples folder");
+        assert!(grpc_samples.iter().all(|i| i.method.as_deref() == Some("gRPC")));
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));

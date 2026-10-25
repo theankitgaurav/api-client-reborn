@@ -169,4 +169,79 @@ test('parseCurlToPlayground and serializePlaygroundToCurl handles gRPC requests 
   const reModel = parseCurlToPlayground(serialized);
   assert.equal(reModel.method, 'GRPC');
   assert.equal(reModel.url, '{{grpc_host}} api.v1.UserService/GetUser');
+  assert.equal(reModel.protoFile, '');
 });
+
+test('parseCurlToPlayground and serializePlaygroundToCurl handles gRPC requests pointing to a proto file', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+
+  const filePath = path.resolve('examples', 'get_user_proto.grpcurl');
+  const content = fs.readFileSync(filePath, 'utf-8');
+
+  const model = parseCurlToPlayground(content);
+  assert.equal(model.name, 'Get User with Proto File');
+  assert.equal(model.method, 'GRPC');
+  assert.equal(model.url, 'localhost:50052 api.v1.UserService/GetUser');
+  assert.equal(model.protoFile, 'examples/user.proto');
+  assert.equal(model.protoImportPath, '.');
+  assert.equal(model.authType, 'bearer');
+  assert.equal(model.bearerToken, 'dev_token');
+  assert.equal(model.bodyType, 'json');
+  assert.ok(model.bodyRaw.includes('"id": 99'));
+
+  // Serialize back and verify -proto and -import-path are generated without manual raw editing
+  const serialized = serializePlaygroundToCurl(model);
+  assert.ok(serialized.includes('-proto "examples/user.proto"'));
+  assert.ok(serialized.includes('-import-path "."'));
+  assert.ok(serialized.includes('localhost:50052 api.v1.UserService/GetUser'));
+
+  // Roundtrip back to model
+  const roundtripModel = parseCurlToPlayground(serialized);
+  assert.equal(roundtripModel.protoFile, 'examples/user.proto');
+  assert.equal(roundtripModel.protoImportPath, '.');
+  assert.equal(roundtripModel.url, 'localhost:50052 api.v1.UserService/GetUser');
+});
+
+test('user can switch between reflection and proto file without editing raw grpcurl tab', () => {
+  const rawCommand = 'grpcurl -plaintext localhost:50051 api.v1.UserService/GetUser';
+  const model = parseCurlToPlayground(rawCommand);
+  assert.equal(model.method, 'GRPC');
+  assert.equal(model.protoFile, '');
+
+  // User sets proto file in Playground UI (without raw tab edit)
+  model.protoFile = 'examples/user.proto';
+  model.protoImportPath = '.';
+  const withProto = serializePlaygroundToCurl(model);
+  assert.ok(withProto.includes('-proto "examples/user.proto"'));
+  assert.ok(withProto.includes('-import-path "."'));
+
+  // User switches back to reflection mode
+  model.protoFile = '';
+  model.protoImportPath = '';
+  const backToReflection = serializePlaygroundToCurl(model);
+  assert.ok(!backToReflection.includes('-proto'));
+  assert.ok(!backToReflection.includes('-import-path'));
+  assert.ok(backToReflection.includes('grpcurl -plaintext'));
+});
+
+test('parseCurlToPlayground supports equals syntax flags and URL-style endpoints', () => {
+  const cmd = `grpcurl -plaintext -proto=examples/user.proto -import-path=./protos -d='{"id":42}' localhost:50051/api.v1.UserService/GetUser`;
+  const model = parseCurlToPlayground(cmd);
+
+  assert.equal(model.method, 'GRPC');
+  assert.equal(model.protoFile, 'examples/user.proto');
+  assert.equal(model.protoImportPath, './protos');
+  assert.equal(model.bodyType, 'json');
+  assert.ok(model.bodyRaw.includes('"id": 42'));
+  assert.equal(model.url, 'localhost:50051 api.v1.UserService/GetUser');
+
+  // Also test with http:// prefix and -I flag
+  const cmd2 = `grpcurl -plaintext -proto="examples/user.proto" -I="./protos" http://127.0.0.1:50052/api.v1.UserService/Echo`;
+  const model2 = parseCurlToPlayground(cmd2);
+  assert.equal(model2.method, 'GRPC');
+  assert.equal(model2.protoFile, 'examples/user.proto');
+  assert.equal(model2.protoImportPath, './protos');
+  assert.equal(model2.url, '127.0.0.1:50052 api.v1.UserService/Echo');
+});
+

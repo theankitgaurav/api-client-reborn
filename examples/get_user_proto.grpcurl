@@ -1,0 +1,12 @@
+# @name Get User with Proto File
+# @description Sample gRPC unary call pointing to a .proto file for endpoints without server reflection
+# @timeout 15000
+
+grpcurl -plaintext \
+  -proto "examples/user.proto" \
+  -import-path "." \
+  -H "Authorization: Bearer dev_token" \
+  -d '{
+    "id": 99
+  }' \
+  localhost:50052 api.v1.UserService/GetUser

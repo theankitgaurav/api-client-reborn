@@ -501,6 +501,45 @@ pub fn import_collection_bundle(
     })
 }
 
+#[tauri::command]
+pub fn get_workspace_proto_files() -> Result<Vec<String>> {
+    let ws_root = resolve_workspace_root(".");
+    let mut results = Vec::new();
+
+    fn scan_protos(dir: &Path, base: &Path, results: &mut Vec<String>) {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if file_name.starts_with('.') || file_name == "target" || file_name == "node_modules" {
+                    continue;
+                }
+                if path.is_dir() {
+                    scan_protos(&path, base, results);
+                } else if file_name.ends_with(".proto") {
+                    if let Ok(rel) = path.strip_prefix(base) {
+                        results.push(rel.to_string_lossy().to_string());
+                    } else {
+                        results.push(path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    scan_protos(&ws_root, &ws_root, &mut results);
+
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd != ws_root {
+            scan_protos(&cwd, &cwd, &mut results);
+        }
+    }
+
+    results.sort();
+    results.dedup();
+    Ok(results)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

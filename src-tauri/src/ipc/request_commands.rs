@@ -78,9 +78,28 @@ pub fn parse_curl_preview(raw_content: String) -> Result<ParsedCurlRequest> {
     let (_meta, command_body) = extract_comments_and_command(&raw_content);
     let trimmed = command_body.trim_start();
     if trimmed.starts_with("grpcurl") {
+        let (url_label, headers) = if let Ok(parsed) = crate::engine::grpc::parse_grpc_command(&command_body) {
+            let label = if !parsed.host.is_empty() && !parsed.endpoint.is_empty() {
+                format!("{} {}", parsed.host, parsed.endpoint)
+            } else if !parsed.host.is_empty() {
+                parsed.host
+            } else {
+                "gRPC Service (Reflection / Protobuf)".to_string()
+            };
+            let h_pairs = parsed
+                .headers
+                .into_iter()
+                .map(|(k, v)| crate::parser::curl::HeaderPair { key: k, value: v })
+                .collect();
+            (label, h_pairs)
+        } else {
+            ("gRPC Service (Reflection / Protobuf)".to_string(), Vec::new())
+        };
+
         return Ok(ParsedCurlRequest {
             method: crate::parser::curl::HttpMethod::CUSTOM("gRPC".to_string()),
-            url: "gRPC Service (Reflection / Protobuf)".to_string(),
+            url: url_label,
+            headers,
             ..Default::default()
         });
     }

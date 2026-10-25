@@ -12,6 +12,8 @@ export interface PlaygroundModel {
   noBuffer?: boolean;
   method: string;
   url: string;
+  protoFile?: string;
+  protoImportPath?: string;
   params: KeyValueParam[];
   headers: KeyValueParam[];
   authType: 'none' | 'bearer' | 'basic';
@@ -30,6 +32,8 @@ export function createDefaultPlayground(): PlaygroundModel {
     noBuffer: false,
     method: 'GET',
     url: '',
+    protoFile: '',
+    protoImportPath: '',
     params: [{ id: '1', key: '', value: '', enabled: true }],
     headers: [{ id: '1', key: '', value: '', enabled: true }],
     authType: 'none',
@@ -102,7 +106,31 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
       continue;
     }
 
-    if (token === '-X' || token === '--request') {
+    if (token === '-proto' || token === '--proto') {
+      if (i + 1 < tokens.length) {
+        model.protoFile = tokens[++i];
+      }
+    } else if (token.startsWith('-proto=') || token.startsWith('--proto=')) {
+      let val = token.substring(token.indexOf('=') + 1);
+      if (!val && i + 1 < tokens.length) {
+        val = tokens[++i];
+      }
+      model.protoFile = val;
+    } else if (token === '-import-path' || token === '-I' || token === '--proto-path') {
+      if (i + 1 < tokens.length) {
+        model.protoImportPath = tokens[++i];
+      }
+    } else if (
+      token.startsWith('-import-path=') ||
+      token.startsWith('-I=') ||
+      token.startsWith('--proto-path=')
+    ) {
+      let val = token.substring(token.indexOf('=') + 1);
+      if (!val && i + 1 < tokens.length) {
+        val = tokens[++i];
+      }
+      model.protoImportPath = val;
+    } else if (token === '-X' || token === '--request') {
       if (i + 1 < tokens.length) {
         method = tokens[++i].toUpperCase();
       }
@@ -143,6 +171,29 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
           });
         }
       }
+    } else if (token.startsWith('-H=') || token.startsWith('--header=')) {
+      let headerStr = token.substring(token.indexOf('=') + 1);
+      if (!headerStr && i + 1 < tokens.length) {
+        headerStr = tokens[++i];
+      }
+      const colonIdx = headerStr.indexOf(':');
+      if (colonIdx > 0) {
+        const key = headerStr.substring(0, colonIdx).trim();
+        const value = headerStr.substring(colonIdx + 1).trim();
+        if (key.toLowerCase() === 'authorization') {
+          if (value.startsWith('Bearer ')) {
+            model.authType = 'bearer';
+            model.bearerToken = value.replace('Bearer ', '').trim();
+            continue;
+          }
+        }
+        headersList.push({
+          id: String(Date.now() + Math.random()),
+          key,
+          value,
+          enabled: true,
+        });
+      }
     } else if (token === '-u' || token === '--user') {
       if (i + 1 < tokens.length) {
         const userPass = tokens[++i];
@@ -160,6 +211,17 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
       if (i + 1 < tokens.length) {
         bodyData = tokens[++i];
       }
+    } else if (
+      token.startsWith('-d=') ||
+      token.startsWith('--data=') ||
+      token.startsWith('--data-raw=') ||
+      token.startsWith('--data-binary=')
+    ) {
+      let val = token.substring(token.indexOf('=') + 1);
+      if (!val && i + 1 < tokens.length) {
+        val = tokens[++i];
+      }
+      bodyData = val;
     } else if (token === '-m' || token === '--max-time') {
       if (i + 1 < tokens.length) {
         const sec = parseFloat(tokens[++i]);
@@ -172,7 +234,25 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
 
   if (isGrpc) {
     model.method = 'GRPC';
-    model.url = positionalArgs.join(' ').trim();
+    if (positionalArgs.length === 1) {
+      const text = positionalArgs[0].trim();
+      const parts = text.split(/\s+/);
+      if (parts.length >= 2) {
+        model.url = parts.join(' ');
+      } else {
+        const clean = text.replace(/^https?:\/\//, '');
+        const slashIdx = clean.indexOf('/');
+        if (slashIdx > 0) {
+          const host = clean.substring(0, slashIdx);
+          const endpoint = clean.substring(slashIdx + 1);
+          model.url = `${host} ${endpoint}`;
+        } else {
+          model.url = text;
+        }
+      }
+    } else {
+      model.url = positionalArgs.join(' ').trim();
+    }
   } else {
     // Parse query params from URL
     const url = positionalArgs[0] || '';
@@ -266,6 +346,14 @@ export function serializePlaygroundToCurl(model: PlaygroundModel): string {
 
   if (isGrpc) {
     const grpcCmdParts: string[] = ['grpcurl -plaintext'];
+
+    // Proto file & Import path
+    if (model.protoFile?.trim()) {
+      grpcCmdParts.push(`  -proto "${model.protoFile.trim()}"`);
+      if (model.protoImportPath?.trim()) {
+        grpcCmdParts.push(`  -import-path "${model.protoImportPath.trim()}"`);
+      }
+    }
 
     // Headers
     const activeHeaders = model.headers.filter((h) => h.enabled && h.key.trim());

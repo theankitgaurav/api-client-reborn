@@ -1,4 +1,5 @@
 pub mod cancel;
+pub mod demo_server;
 pub mod grpc;
 pub mod http;
 pub mod spooler;

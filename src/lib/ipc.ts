@@ -718,3 +718,12 @@ export async function exportSpooledStream(
   console.log('[Dev Mock] Exported stream from', spoolPath, 'to', destinationPath);
   return 0;
 }
+
+export async function getWorkspaceProtoFiles(): Promise<string[]> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_workspace_proto_files');
+  }
+  return ['examples/user.proto'];
+}
+

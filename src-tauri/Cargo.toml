@@ -37,3 +37,14 @@ chrono = { version = "0.4", features = ["serde"] }
 regex = "1.10"
 rand = "0.8"
 dirs = "5.0"
+protox = "0.9.1"
+prost = "0.14.4"
+prost-types = "0.14.4"
+prost-reflect = { version = "0.16.5", features = ["serde"] }
+tonic = { version = "0.14.6", default-features = false, features = ["transport", "channel", "server", "router"] }
+tonic-reflection = "0.14.6"
+http = "1.0"
+http-body = "1.0"
+tower = "0.5"
+http-body-util = "0.1"
+h2 = "0.4"
