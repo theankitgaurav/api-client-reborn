@@ -6,8 +6,9 @@ use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileDetails {
@@ -15,6 +16,49 @@ pub struct FileDetails {
     pub raw_content: String,
     pub metadata: RequestMetadata,
     pub sidecar: Option<SidecarMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportedFileItem {
+    pub relative_path: String,
+    pub content: String,
+    pub sidecar: Option<SidecarMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportSummary {
+    pub imported_requests: usize,
+    pub env_file: Option<String>,
+}
+
+fn resolve_item_path(input: &str) -> PathBuf {
+    let p = PathBuf::from(input);
+    if p.is_absolute() {
+        p
+    } else {
+        let root = resolve_workspace_root(".");
+        root.join(input)
+    }
+}
+
+fn slugify(input: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_underscore = false;
+    for c in input.to_lowercase().chars() {
+        if c.is_alphanumeric() {
+            slug.push(c);
+            last_was_underscore = false;
+        } else if !last_was_underscore {
+            slug.push('_');
+            last_was_underscore = true;
+        }
+    }
+    let trimmed = slug.trim_matches('_');
+    if trimmed.is_empty() {
+        "collection".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 #[tauri::command]
@@ -58,6 +102,13 @@ pub fn save_request_file(
 ) -> Result<()> {
     let path = PathBuf::from(&file_path);
 
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)
+                .map_err(|e| AppError::FsError(format!("Failed to create parent folder: {}", e)))?;
+        }
+    }
+
     fs::write(&path, &raw_content)
         .map_err(|e| AppError::FsError(format!("Failed to write file: {}", e)))?;
 
@@ -75,11 +126,16 @@ pub fn create_request_file(
     template_type: Option<String>,
 ) -> Result<String> {
     let mut file_name = file_name;
-    if !file_name.ends_with(".curl") {
+    if !file_name.ends_with(".curl") && !file_name.ends_with(".grpcurl") {
         file_name.push_str(".curl");
     }
 
-    let parent_path = PathBuf::from(&parent_dir);
+    let parent_path = if parent_dir.is_empty() || parent_dir == "." {
+        resolve_workspace_root(".")
+    } else {
+        resolve_item_path(&parent_dir)
+    };
+
     if !parent_path.exists() {
         fs::create_dir_all(&parent_path)
             .map_err(|e| AppError::FsError(format!("Failed to create directory: {}", e)))?;
@@ -90,7 +146,11 @@ pub fn create_request_file(
         return Err(AppError::FsError("File already exists".to_string()));
     }
 
-    let initial_name = file_name.trim_end_matches(".curl").replace(['-', '_'], " ");
+    let initial_name = file_name
+        .trim_end_matches(".curl")
+        .trim_end_matches(".grpcurl")
+        .replace(['-', '_'], " ");
+
     let meta = RequestMetadata {
         name: Some(initial_name),
         timeout_ms: Some(30000),
@@ -100,6 +160,7 @@ pub fn create_request_file(
     let command_body = match template_type.as_deref() {
         Some("post") => "curl -X POST \"https://httpbin.org/post\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"message\": \"Hello World\"}'",
         Some("stream") => "curl -N \"https://httpbin.org/stream/20\"",
+        Some("grpc") => "grpcurl -plaintext -d '{\"id\": 1}' localhost:50051 api.v1.UserService/GetUser",
         _ => "curl -X GET \"https://httpbin.org/get\" \\\n  -H \"Accept: application/json\"",
     };
 
@@ -108,4 +169,208 @@ pub fn create_request_file(
         .map_err(|e| AppError::FsError(format!("Failed to create file: {}", e)))?;
 
     Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn create_collection_folder(parent_path: String, folder_name: String) -> Result<String> {
+    let sanitized_name = folder_name.trim().replace(['/', '\\'], "_");
+    if sanitized_name.is_empty() {
+        return Err(AppError::FsError("Folder name cannot be empty".to_string()));
+    }
+
+    let base = if parent_path.is_empty() || parent_path == "." {
+        resolve_workspace_root(".")
+    } else {
+        resolve_item_path(&parent_path)
+    };
+
+    let target_path = base.join(sanitized_name);
+    if target_path.exists() {
+        return Err(AppError::FsError("Folder already exists".to_string()));
+    }
+
+    fs::create_dir_all(&target_path)
+        .map_err(|e| AppError::FsError(format!("Failed to create folder: {}", e)))?;
+
+    Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn delete_workspace_item(item_path: String) -> Result<()> {
+    let path = resolve_item_path(&item_path);
+    if !path.exists() {
+        return Err(AppError::FsError(format!("Item not found: {}", item_path)));
+    }
+
+    if path.is_dir() {
+        fs::remove_dir_all(&path)
+            .map_err(|e| AppError::FsError(format!("Failed to delete folder: {}", e)))?;
+    } else {
+        fs::remove_file(&path)
+            .map_err(|e| AppError::FsError(format!("Failed to delete file: {}", e)))?;
+
+        let sidecar = path.with_extension("meta.json");
+        if sidecar.exists() {
+            let _ = fs::remove_file(sidecar);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<String> {
+    let sanitized_name = new_name.trim().replace(['/', '\\'], "_");
+    if sanitized_name.is_empty() {
+        return Err(AppError::FsError("New name cannot be empty".to_string()));
+    }
+
+    let source = resolve_item_path(&old_path);
+    if !source.exists() {
+        return Err(AppError::FsError(format!("Source does not exist: {}", old_path)));
+    }
+
+    let parent = source.parent().unwrap_or_else(|| Path::new("."));
+    let target = parent.join(&sanitized_name);
+
+    if target.exists() {
+        return Err(AppError::FsError("An item with the target name already exists".to_string()));
+    }
+
+    if source.is_dir() {
+        fs::rename(&source, &target)
+            .map_err(|e| AppError::FsError(format!("Failed to rename folder: {}", e)))?;
+    } else {
+        let old_sidecar = source.with_extension("meta.json");
+        fs::rename(&source, &target)
+            .map_err(|e| AppError::FsError(format!("Failed to rename file: {}", e)))?;
+
+        if old_sidecar.exists() {
+            let new_sidecar = target.with_extension("meta.json");
+            let _ = fs::rename(&old_sidecar, &new_sidecar);
+        }
+    }
+
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn duplicate_request_file(source_path: String) -> Result<String> {
+    let source = resolve_item_path(&source_path);
+    if !source.exists() || !source.is_file() {
+        return Err(AppError::FsError(format!("File does not exist: {}", source_path)));
+    }
+
+    let parent = source.parent().unwrap_or_else(|| Path::new("."));
+    let file_stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or("request");
+    let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("curl");
+
+    // Generate unique duplicate filename: e.g. `<stem>_copy.<ext>`
+    let mut candidate_name = format!("{}_copy.{}", file_stem, ext);
+    let mut counter = 2;
+    while parent.join(&candidate_name).exists() {
+        candidate_name = format!("{}_copy_{}.{}", file_stem, counter, ext);
+        counter += 1;
+    }
+
+    let target = parent.join(&candidate_name);
+    let content = fs::read_to_string(&source)
+        .map_err(|e| AppError::FsError(format!("Failed to read file: {}", e)))?;
+
+    // Update @name if present
+    let (mut meta, cmd) = extract_comments_and_command(&content);
+    if let Some(existing_name) = meta.name.take() {
+        meta.name = Some(format!("{} (Copy)", existing_name));
+    } else {
+        meta.name = Some(format!("{} (Copy)", file_stem.replace(['-', '_'], " ")));
+    }
+
+    let updated_content = compose_file_content(&meta, &cmd);
+    fs::write(&target, updated_content)
+        .map_err(|e| AppError::FsError(format!("Failed to write duplicate file: {}", e)))?;
+
+    // Duplicate sidecar if present
+    let old_sidecar = source.with_extension("meta.json");
+    if old_sidecar.exists() {
+        let new_sidecar = target.with_extension("meta.json");
+        let _ = fs::copy(&old_sidecar, &new_sidecar);
+    }
+
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn import_collection_bundle(
+    collection_name: String,
+    files: Vec<ImportedFileItem>,
+    env_vars: Option<Vec<(String, String)>>,
+) -> Result<ImportSummary> {
+    let root = resolve_workspace_root(".");
+    let mut count = 0;
+
+    for item in files {
+        let rel_path = PathBuf::from(item.relative_path.trim_start_matches('/'));
+        let target_file = root.join(&rel_path);
+
+        if let Some(parent) = target_file.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| AppError::FsError(format!("Failed to create folder: {}", e)))?;
+            }
+        }
+
+        fs::write(&target_file, &item.content)
+            .map_err(|e| AppError::FsError(format!("Failed to write imported file: {}", e)))?;
+
+        if let Some(sidecar) = item.sidecar {
+            save_sidecar_meta(&target_file, &sidecar)?;
+        }
+
+        count += 1;
+    }
+
+    let mut env_file_name = None;
+    if let Some(vars) = env_vars {
+        if !vars.is_empty() {
+            let env_dir = root.join("environments");
+            if !env_dir.exists() {
+                fs::create_dir_all(&env_dir)
+                    .map_err(|e| AppError::FsError(format!("Failed to create environments folder: {}", e)))?;
+            }
+
+            let slug = slugify(&collection_name);
+            let filename = format!("{}.env.json", slug);
+            let target_env = env_dir.join(&filename);
+
+            let mut var_map: HashMap<String, String> = HashMap::new();
+            for (k, v) in vars {
+                var_map.insert(k, v);
+            }
+
+            let json = serde_json::to_string_pretty(&var_map)
+                .map_err(|e| AppError::FsError(format!("Serialization error for env vars: {}", e)))?;
+
+            fs::write(&target_env, json)
+                .map_err(|e| AppError::FsError(format!("Failed to write env file: {}", e)))?;
+
+            env_file_name = Some(filename);
+        }
+    }
+
+    Ok(ImportSummary {
+        imported_requests: count,
+        env_file: env_file_name,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slugify() {
+        assert_eq!(slugify("Postman Echo API"), "postman_echo_api");
+        assert_eq!(slugify("Special @#$% Characters!"), "special_characters");
+        assert_eq!(slugify(""), "collection");
+    }
 }

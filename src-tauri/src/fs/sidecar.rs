@@ -22,7 +22,12 @@ pub fn read_sidecar_meta(curl_path: &Path) -> Option<SidecarMetadata> {
 pub fn save_sidecar_meta(curl_path: &Path, meta: &SidecarMetadata) -> Result<()> {
     let sidecar_path = curl_path.with_extension("meta.json");
 
-    if meta.tests.is_empty() && meta.tab_color.is_none() && meta.description.is_none() {
+    if meta.tests.is_empty()
+        && meta.tab_color.is_none()
+        && meta.description.is_none()
+        && meta.pre_request_script.is_none()
+        && meta.post_response_script.is_none()
+    {
         if sidecar_path.exists() {
             let _ = fs::remove_file(sidecar_path);
         }

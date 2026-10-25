@@ -52,33 +52,20 @@
     {/if}
   </div>
 
-  <!-- Center: Environments & Secrets Picker -->
+  <!-- Center: Unified Variables Action -->
   <div class="flex items-center space-x-2">
-    <div class="flex items-center bg-white dark:bg-[#252526] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2 py-1 text-xs shadow-sm">
-      <span class="text-neutral-500 dark:text-neutral-400 mr-1.5 font-medium">Env:</span>
-      <select
-        bind:value={envState.activeEnvName}
-        class="bg-transparent text-neutral-800 dark:text-neutral-200 outline-none cursor-pointer pr-1"
-      >
-        {#each envState.environments as env}
-          <option value={env.name} class="bg-white dark:bg-[#252526] text-neutral-800 dark:text-neutral-200">
-            {env.name}
-          </option>
-        {/each}
-        {#if envState.environments.length === 0}
-          <option value="development" class="bg-white dark:bg-[#252526] text-neutral-800 dark:text-neutral-200">development</option>
-        {/if}
-      </select>
-    </div>
-
-    <!-- Secrets Manager Trigger -->
     <button
-      onclick={() => (envState.isSecretsModalOpen = true)}
-      title="Manage Local Secrets (.secrets.env)"
-      class="flex items-center gap-1 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
+      onclick={() => (envState.isVariablesModalOpen = true)}
+      title="Configure Workspace Variables & Secrets"
+      class="flex items-center gap-1.5 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2.5 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
     >
-      <KeyRound size={13} class="text-amber-500" />
-      <span class="text-[11px] font-medium">Secrets</span>
+      <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
+      <span class="font-medium text-[11px]">Variables</span>
+      {#if envState.variables.length > 0}
+        <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">
+          {envState.variables.length}
+        </span>
+      {/if}
     </button>
   </div>
 

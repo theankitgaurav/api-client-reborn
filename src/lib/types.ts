@@ -36,11 +36,26 @@ export interface TestCase {
   path?: string;
 }
 
+export interface TestResultItem {
+  name: string;
+  passed: boolean;
+  error?: string;
+}
+
 export interface SidecarMetadata {
   name?: string;
   description?: string;
   tests: TestCase[];
   tab_color?: string;
+  pre_request_script?: string;
+  post_response_script?: string;
+}
+
+export interface VariableItem {
+  id: string;
+  key: string;
+  value: string;
+  isSecret: boolean;
 }
 
 export interface FileDetails {

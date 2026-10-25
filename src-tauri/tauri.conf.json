@@ -30,12 +30,42 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "A lightweight native API client for macOS, Windows, and Linux",
+    "longDescription": "A lightweight, high-performance native API testing client and cURL playground built with Tauri and Svelte.",
+    "copyright": "Copyright © 2026",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "dmg": {
+        "windowSize": { "width": 660, "height": 400 },
+        "appPosition": { "x": 480, "y": 200 },
+        "applicationFolderPosition": { "x": 180, "y": 200 }
+      }
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37",
+          "libgtk-3-0",
+          "libsoup-3.0-0 | libsoup2.4-1"
+        ]
+      }
+    }
   }
 }

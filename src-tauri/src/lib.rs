@@ -7,9 +7,11 @@ pub mod parser;
 
 use engine::cancel::CancellationManager;
 use ipc::{
-    cancel_request, create_request_file, execute_request, get_workspace_environments,
-    get_workspace_secrets, parse_curl_preview, read_request_file, save_request_file,
-    save_workspace_secrets, scan_workspace,
+    cancel_request, create_collection_folder, create_request_file, delete_workspace_item,
+    duplicate_request_file, execute_request, get_workspace_environments, get_workspace_secrets,
+    get_workspace_variables, import_collection_bundle, parse_curl_preview, read_request_file,
+    rename_workspace_item, save_request_file, save_workspace_secrets, save_workspace_variables,
+    scan_workspace,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,9 +28,16 @@ pub fn run() {
             read_request_file,
             save_request_file,
             create_request_file,
+            create_collection_folder,
+            delete_workspace_item,
+            rename_workspace_item,
+            duplicate_request_file,
+            import_collection_bundle,
             get_workspace_environments,
             get_workspace_secrets,
             save_workspace_secrets,
+            get_workspace_variables,
+            save_workspace_variables,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

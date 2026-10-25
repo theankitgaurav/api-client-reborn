@@ -1,8 +1,8 @@
 <script lang="ts">
   import { responseState } from '$lib/state/response.svelte';
+  import { workspaceState } from '$lib/state/workspace.svelte';
   import StreamLog from './StreamLog.svelte';
   import {
-    Activity,
     Copy,
     Check,
     Clock,
@@ -11,6 +11,11 @@
   } from '$lib/components/icons';
 
   let copied = $state(false);
+
+  // Sync response when switching tabs
+  $effect(() => {
+    responseState.loadTab(workspaceState.activeTabId);
+  });
 
   function copyBody() {
     navigator.clipboard.writeText(responseState.bodyText);
@@ -102,6 +107,25 @@
         Stream ({responseState.streamMessages.length})
       </button>
       <button
+        onclick={() => (responseState.activeTab = 'tests')}
+        class="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'tests'
+          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
+          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+      >
+        <span>Tests</span>
+        {#if responseState.testResults.length > 0}
+          {@const allPassed = responseState.testResults.every((t) => t.passed)}
+          {@const passCount = responseState.testResults.filter((t) => t.passed).length}
+          <span
+            class="px-1 py-0.2 rounded text-[10px] font-mono font-bold {allPassed
+              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+              : 'bg-rose-500/20 text-rose-600 dark:text-rose-400'}"
+          >
+            {passCount}/{responseState.testResults.length}
+          </span>
+        {/if}
+      </button>
+      <button
         onclick={() => (responseState.activeTab = 'raw')}
         class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'raw'
           ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
@@ -168,6 +192,60 @@
       </div>
     {:else if responseState.activeTab === 'stream'}
       <StreamLog />
+    {:else if responseState.activeTab === 'tests'}
+      <div class="h-full flex flex-col p-4 overflow-y-auto space-y-4">
+        {#if responseState.testResults.length === 0}
+          <div class="text-center py-10 text-neutral-400 dark:text-neutral-500 text-xs">
+            No test assertions executed yet.<br />
+            <span class="text-[11px] text-neutral-400">Add assertions in the <strong>Scripts &gt; Post-response</strong> tab and send again.</span>
+          </div>
+        {:else}
+          {@const allPassed = responseState.testResults.every((t) => t.passed)}
+          {@const passCount = responseState.testResults.filter((t) => t.passed).length}
+          <div class="p-2.5 rounded-md border flex items-center justify-between text-xs {allPassed ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300'}">
+            <span class="font-semibold">
+              {allPassed ? 'All Tests Passed' : `${responseState.testResults.length - passCount} Test(s) Failed`}
+            </span>
+            <span class="font-mono font-bold">{passCount} / {responseState.testResults.length} PASS</span>
+          </div>
+
+          <div class="space-y-2">
+            {#each responseState.testResults as test}
+              <div class="p-2.5 rounded border border-neutral-200 dark:border-[#2d2d2d] bg-[#f9f9fb] dark:bg-[#1f1f1f] text-xs">
+                <div class="flex items-center gap-2">
+                  {#if test.passed}
+                    <span class="text-emerald-500 font-bold text-sm leading-none">✓</span>
+                    <span class="font-medium text-neutral-800 dark:text-neutral-200">{test.name}</span>
+                    <span class="ml-auto text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">PASS</span>
+                  {:else}
+                    <span class="text-rose-500 font-bold text-sm leading-none">✗</span>
+                    <span class="font-medium text-neutral-800 dark:text-neutral-200">{test.name}</span>
+                    <span class="ml-auto text-[10px] text-rose-600 dark:text-rose-400 font-mono font-bold">FAIL</span>
+                  {/if}
+                </div>
+                {#if test.error}
+                  <div class="mt-2 p-2 bg-rose-500/10 border border-rose-500/20 rounded font-mono text-[11px] text-rose-600 dark:text-rose-300">
+                    {test.error}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if responseState.scriptLogs.length > 0}
+          <div class="pt-3 border-t border-neutral-200 dark:border-[#2d2d2d]">
+            <div class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-2">
+              Console Output
+            </div>
+            <div class="bg-[#181818] text-neutral-200 font-mono text-[11px] p-2.5 rounded space-y-1">
+              {#each responseState.scriptLogs as log}
+                <div class="break-all">{log}</div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
     {:else if responseState.activeTab === 'raw'}
       <pre class="h-full p-3 m-0 font-mono text-[12px] overflow-auto text-neutral-800 dark:text-neutral-300 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response'}</pre>
     {/if}

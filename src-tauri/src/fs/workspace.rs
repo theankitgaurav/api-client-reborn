@@ -16,6 +16,8 @@ const IGNORED_NAMES: &[&str] = &[
     ".git",
     ".apiclient",
     ".gemini",
+    "environments",
+    "tests",
 ];
 
 /// Resolves workspace root. If "." or empty, and running in dev inside `src-tauri`,
@@ -62,17 +64,14 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
         if path.is_dir() {
             // Recurse into directory
             let children = scan_workspace_tree(&path)?;
-            // Only include folders that actually contain requests (or nested non-empty folders)
-            if !children.is_empty() {
-                items.push(WorkspaceFileItem {
-                    name: file_name,
-                    path: path.to_string_lossy().to_string(),
-                    is_dir: true,
-                    display_name: None,
-                    method: None,
-                    children: Some(children),
-                });
-            }
+            items.push(WorkspaceFileItem {
+                name: file_name,
+                path: path.to_string_lossy().to_string(),
+                is_dir: true,
+                display_name: None,
+                method: None,
+                children: Some(children),
+            });
         } else if file_name.ends_with(".curl") || file_name.ends_with(".grpcurl") {
             let mut display_name = None;
             let mut method = None;

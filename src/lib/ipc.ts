@@ -277,3 +277,94 @@ export async function saveWorkspaceSecrets(
   }
   console.log('[Dev Mock] Saved secrets', secrets);
 }
+
+export async function getWorkspaceVariables(
+  workspacePath: string
+): Promise<{ public_vars: Record<string, string>; secret_vars: Record<string, string> }> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_workspace_variables', { workspacePath });
+  }
+
+  return {
+    public_vars: {
+      api_host: 'httpbin.org',
+      base_url: 'https://httpbin.org',
+      port: '443',
+    },
+    secret_vars: {
+      auth_token: 'secret_dev_token_88419',
+      api_key: 'sk_local_testing_secret_key_99',
+    },
+  };
+}
+
+export async function saveWorkspaceVariables(
+  workspacePath: string,
+  publicVars: Record<string, string>,
+  secretVars: Record<string, string>
+): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('save_workspace_variables', {
+      workspacePath,
+      publicVars,
+      secretVars,
+    });
+  }
+  console.log('[Dev Mock] Saved variables:', { publicVars, secretVars });
+}
+
+export async function createCollectionFolder(
+  parentPath: string,
+  folderName: string
+): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('create_collection_folder', { parentPath, folderName });
+  }
+  return `${parentPath}/${folderName}`;
+}
+
+export async function deleteWorkspaceItem(itemPath: string): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('delete_workspace_item', { itemPath });
+  }
+  console.log('[Dev Mock] Deleted item:', itemPath);
+}
+
+export async function renameWorkspaceItem(
+  oldPath: string,
+  newName: string
+): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('rename_workspace_item', { oldPath, newName });
+  }
+  return newName;
+}
+
+export async function duplicateRequestFile(sourcePath: string): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('duplicate_request_file', { sourcePath });
+  }
+  return `${sourcePath}_copy.curl`;
+}
+
+export async function importCollectionBundle(
+  collectionName: string,
+  files: { relative_path: string; content: string; sidecar?: any }[],
+  envVars?: [string, string][]
+): Promise<{ imported_requests: number; env_file?: string }> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('import_collection_bundle', {
+      collectionName,
+      files,
+      envVars,
+    });
+  }
+  return { imported_requests: files.length, env_file: `${collectionName}.env.json` };
+}

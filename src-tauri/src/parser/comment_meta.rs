@@ -23,6 +23,10 @@ pub struct SidecarMetadata {
     pub description: Option<String>,
     pub tests: Vec<TestCase>,
     pub tab_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_request_script: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_response_script: Option<String>,
 }
 
 /// Parses the leading `# @directive value` comments from the file content.

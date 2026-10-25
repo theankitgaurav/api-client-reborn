@@ -4,6 +4,9 @@
   import RequestPlayground from '$lib/components/RequestPlayground.svelte';
   import ResponseViewer from '$lib/components/ResponseViewer.svelte';
   import EnvModal from '$lib/components/EnvModal.svelte';
+  import SaveRequestModal from '$lib/components/SaveRequestModal.svelte';
+  import ImportModal from '$lib/components/ImportModal.svelte';
+  import ExportModal from '$lib/components/ExportModal.svelte';
 </script>
 
 <main class="h-screen w-screen flex flex-col bg-[#f5f5f7] dark:bg-[#181818] text-[#1d1d1f] dark:text-[#cccccc] overflow-hidden">
@@ -22,6 +25,15 @@
     <ResponseViewer />
   </div>
 
-  <!-- Local Secrets Modal -->
+  <!-- Local Variables & Secrets Modal -->
   <EnvModal />
+
+  <!-- Save New Request Modal -->
+  <SaveRequestModal />
+
+  <!-- Collection / Request Import Modal -->
+  <ImportModal />
+
+  <!-- Collection Shell Script Export Modal -->
+  <ExportModal />
 </main>

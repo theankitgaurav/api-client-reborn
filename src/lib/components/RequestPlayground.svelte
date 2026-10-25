@@ -3,6 +3,7 @@
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
+  import TabBar from './TabBar.svelte';
   import {
     parseCurlToPlayground,
     serializePlaygroundToCurl,
@@ -19,7 +20,11 @@
     Trash2,
   } from '$lib/components/icons';
 
-  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'raw'>('params');
+  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'raw'>('params');
+  let scriptSubTab = $state<'pre' | 'post'>('pre');
+  let preRequestScript = $state('');
+  let postResponseScript = $state('');
+
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
   let showTerminalDrawer = $state(true);
   let copied = $state(false);
@@ -29,19 +34,44 @@
   let isGrpcurl = $derived(activeFilePath?.endsWith('.grpcurl') ?? false);
   let commandLabel = $derived(isGrpcurl ? 'grpcurl' : 'cURL');
 
-  // Whenever the active file changes from workspace, load into model
+  // Whenever the active tab changes from workspace, load into model & scripts
   $effect(() => {
-    if (workspaceState.activeFile?.raw_content) {
-      model = parseCurlToPlayground(workspaceState.activeFile.raw_content);
+    const tab = workspaceState.activeTab;
+    if (tab) {
+      model = parseCurlToPlayground(tab.rawContent);
+      preRequestScript = tab.sidecar?.pre_request_script || '';
+      postResponseScript = tab.sidecar?.post_response_script || '';
+      rawEditMode = false;
     }
   });
 
   // Re-serialize back to workspace raw_content whenever model changes in playground mode
   function syncToWorkspace() {
-    if (!rawEditMode && workspaceState.activeFile) {
+    if (!rawEditMode && workspaceState.activeTab) {
       const serialized = serializePlaygroundToCurl(model);
-      workspaceState.updateContent(serialized);
+      workspaceState.updateContent(serialized, model.method, model.name);
     }
+  }
+
+  function syncScriptsToWorkspace() {
+    const tab = workspaceState.activeTab;
+    if (!tab) return;
+    if (!tab.sidecar) {
+      tab.sidecar = { tests: [] };
+    }
+    tab.sidecar.pre_request_script = preRequestScript;
+    tab.sidecar.post_response_script = postResponseScript;
+    tab.isDirty = true;
+    tab.isPinned = true;
+  }
+
+  function insertSnippet(code: string) {
+    if (scriptSubTab === 'pre') {
+      preRequestScript = (preRequestScript.trim() ? preRequestScript.trim() + '\n\n' : '') + code;
+    } else {
+      postResponseScript = (postResponseScript.trim() ? postResponseScript.trim() + '\n\n' : '') + code;
+    }
+    syncScriptsToWorkspace();
   }
 
   // Handle URL input changes: sync query params into params table
@@ -175,6 +205,9 @@
 </script>
 
 <div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
+  <!-- Multi-Tab Bar Strip -->
+  <TabBar />
+
   <!-- Top Request Metadata & Toolbar -->
   <div class="px-3 py-2 bg-[#f9f9fb] dark:bg-[#252526] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
     <div class="flex items-center gap-2 flex-1 mr-2">
@@ -231,7 +264,7 @@
         <span>{showTerminalDrawer ? 'Hide CLI' : 'Show CLI'}</span>
       </button>
 
-      {#if workspaceState.isDirty}
+      {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
         <button
           onclick={() => workspaceState.saveActiveFile()}
           class="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded transition-colors shadow-sm"
@@ -291,7 +324,7 @@
     </button>
   </div>
 
-  <!-- Postman Playground Tabs (Params | Headers | Body | Auth | Raw) -->
+  <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts | Raw) -->
   <div class="px-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center gap-1 select-none">
     <button
       onclick={() => (activeTab = 'params')}
@@ -338,6 +371,18 @@
     >
       Auth {#if model.authType !== 'none'}
         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block ml-1"></span>
+      {/if}
+    </button>
+
+    <button
+      onclick={() => (activeTab = 'scripts')}
+      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'scripts'
+        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+    >
+      Scripts
+      {#if preRequestScript.trim() || postResponseScript.trim()}
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block ml-1"></span>
       {/if}
     </button>
 
@@ -683,7 +728,141 @@
         {/if}
       </div>
 
-    <!-- 5. RAW cURL TAB -->
+    <!-- 5. SCRIPTS TAB (Postman-style Pre-request & Post-response) -->
+    {:else if activeTab === 'scripts'}
+      <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#1a1a1a]">
+        <!-- Sub-tab switcher -->
+        <div class="px-3 py-1.5 bg-[#f9f9fb] dark:bg-[#202020] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button
+              onclick={() => (scriptSubTab = 'pre')}
+              class="px-2.5 py-1 rounded text-xs font-medium transition-colors {scriptSubTab === 'pre'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-[#2d2d2d]'}"
+            >
+              Pre-request Script
+              {#if preRequestScript.trim()}
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block ml-1"></span>
+              {/if}
+            </button>
+            <button
+              onclick={() => (scriptSubTab = 'post')}
+              class="px-2.5 py-1 rounded text-xs font-medium transition-colors {scriptSubTab === 'post'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-[#2d2d2d]'}"
+            >
+              Post-response Script (Tests)
+              {#if postResponseScript.trim()}
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block ml-1"></span>
+              {/if}
+            </button>
+          </div>
+          <span class="text-[10px] text-neutral-400 font-mono">
+            {scriptSubTab === 'pre' ? 'Runs before sending request' : 'Runs after response is received'}
+          </span>
+        </div>
+
+        <!-- Editor & Snippets Split -->
+        <div class="flex-1 flex overflow-hidden">
+          <!-- Code Editor Area -->
+          <div class="flex-1 flex flex-col p-3 overflow-hidden">
+            {#if scriptSubTab === 'pre'}
+              <textarea
+                bind:value={preRequestScript}
+                oninput={syncScriptsToWorkspace}
+                placeholder={"// JavaScript to execute BEFORE sending the request\n// e.g. pm.environment.set(\"request_time\", Date.now());\n// Available: pm.environment, pm.variables, pm.request, console.log"}
+                spellcheck="false"
+                class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+              ></textarea>
+            {:else}
+              <textarea
+                bind:value={postResponseScript}
+                oninput={syncScriptsToWorkspace}
+                placeholder={"// JavaScript to execute AFTER response is received\n// e.g. pm.test(\"Status is 200\", function() {\n//   pm.response.to.have.status(200);\n// });\n// Available: pm.response, pm.environment, pm.test, pm.expect"}
+                spellcheck="false"
+                class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+              ></textarea>
+            {/if}
+          </div>
+
+          <!-- Postman-style Snippets Sidebar -->
+          <div class="w-56 border-l border-[#e5e5e5] dark:border-[#2d2d2d] bg-[#f9f9fb] dark:bg-[#181818] p-3 flex flex-col overflow-y-auto">
+            <span class="font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider text-[10px] mb-2">
+              Snippets
+            </span>
+            <div class="space-y-1">
+              {#if scriptSubTab === 'pre'}
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.environment.set("variable_key", "variable_value");')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Set an environment variable
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('let val = pm.environment.get("variable_key");')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Get an environment variable
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.request.headers.add({ key: "X-Trace-Id", value: crypto.randomUUID() });')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Add a request header
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('let uuid = crypto.randomUUID();\npm.environment.set("uuid", uuid);')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Generate dynamic UUID
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.test("Status code is 200", function () {\n  pm.response.to.have.status(200);\n});')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Status code: Code is 200
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.test("Check JSON body property", function () {\n  let jsonData = pm.response.json();\n  pm.expect(jsonData).to.have.property("id");\n});')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Response body: JSON check
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('let jsonData = pm.response.json();\npm.environment.set("auth_token", jsonData.token);')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Set env var from JSON response
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.test("Response time is less than 500ms", function () {\n  pm.expect(pm.response.responseTime).to.be.below(500);\n});')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Response time &lt; 500ms
+                </button>
+                <button
+                  type="button"
+                  onclick={() => insertSnippet('pm.test("Status text is OK", function () {\n  pm.response.to.have.status("OK");\n});')}
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                >
+                  Check status code name
+                </button>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- 6. RAW cURL TAB -->
     {:else if activeTab === 'raw'}
       <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <textarea
