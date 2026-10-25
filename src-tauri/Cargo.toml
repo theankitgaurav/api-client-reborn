@@ -5,6 +5,7 @@ description = "A lightweight native API client for macOS, Windows, and Linux"
 authors = ["API Client Authors"]
 license = "MIT"
 edition = "2021"
+default-run = "api_client_reborn"
 
 [lib]
 name = "api_client_reborn_lib"
