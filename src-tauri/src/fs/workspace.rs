@@ -3,7 +3,35 @@ use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::parse_curl_command;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+const IGNORED_NAMES: &[&str] = &[
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "src-tauri",
+    "gen",
+    "icons",
+    ".git",
+    ".apiclient",
+    ".gemini",
+];
+
+/// Resolves workspace root. If "." or empty, and running in dev inside `src-tauri`,
+/// steps up to the project root directory.
+pub fn resolve_workspace_root(input: &str) -> PathBuf {
+    let p = PathBuf::from(input);
+    if input == "." || input.is_empty() {
+        if let Ok(cwd) = std::env::current_dir() {
+            if cwd.file_name().and_then(|n| n.to_str()) == Some("src-tauri") {
+                return cwd.parent().unwrap_or(&cwd).to_path_buf();
+            }
+            return cwd;
+        }
+    }
+    p
+}
 
 /// Recursively scans a workspace directory and builds a hierarchical tree of folders and request files
 pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
@@ -23,22 +51,28 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
             .unwrap_or("")
             .to_string();
 
-        // Skip hidden files (.git, .apiclient, etc.) and sidecars (.meta.json)
-        if file_name.starts_with('.') || file_name.ends_with(".meta.json") {
+        // Skip hidden files/folders (.git, etc.), sidecars (.meta.json), and ignored build directories
+        if file_name.starts_with('.')
+            || file_name.ends_with(".meta.json")
+            || IGNORED_NAMES.contains(&file_name.as_str())
+        {
             continue;
         }
 
         if path.is_dir() {
             // Recurse into directory
             let children = scan_workspace_tree(&path)?;
-            items.push(WorkspaceFileItem {
-                name: file_name,
-                path: path.to_string_lossy().to_string(),
-                is_dir: true,
-                display_name: None,
-                method: None,
-                children: Some(children),
-            });
+            // Only include folders that actually contain requests (or nested non-empty folders)
+            if !children.is_empty() {
+                items.push(WorkspaceFileItem {
+                    name: file_name,
+                    path: path.to_string_lossy().to_string(),
+                    is_dir: true,
+                    display_name: None,
+                    method: None,
+                    children: Some(children),
+                });
+            }
         } else if file_name.ends_with(".curl") || file_name.ends_with(".grpcurl") {
             let mut display_name = None;
             let mut method = None;
@@ -79,4 +113,25 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
     });
 
     Ok(items)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scan_workspace() {
+        let root = resolve_workspace_root(".");
+        let items = scan_workspace_tree(&root).unwrap();
+
+        // Must find `examples` folder
+        let examples = items.iter().find(|i| i.name == "examples" && i.is_dir);
+        assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
+
+        let children = examples.unwrap().children.as_ref().unwrap();
+        assert_eq!(children.len(), 3, "Expected 3 sample requests in examples folder");
+
+        // Must not contain `target`, `icons`, `gen`, or `src-tauri`
+        assert!(items.iter().all(|i| i.name != "target" && i.name != "gen" && i.name != "icons"));
+    }
 }

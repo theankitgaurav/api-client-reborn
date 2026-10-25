@@ -1,7 +1,7 @@
 use crate::error::{AppError, Result};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Loads secret key-values from `.apiclient/.secrets.env` inside the workspace root.
 pub fn load_secrets_env(workspace_root: &Path) -> Result<HashMap<String, String>> {

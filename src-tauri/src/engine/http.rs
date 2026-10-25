@@ -106,12 +106,21 @@ pub async fn execute_http_request(
 
     let mut resp_headers = Vec::new();
     let mut is_sse = false;
+    let mut is_chunked = false;
 
     for (k, v) in response.headers() {
         let key_str = k.to_string();
         let val_str = v.to_str().unwrap_or("").to_string();
-        if key_str.eq_ignore_ascii_case("content-type") && val_str.contains("text/event-stream") {
-            is_sse = true;
+        if key_str.eq_ignore_ascii_case("content-type") {
+            let lower = val_str.to_lowercase();
+            if lower.contains("text/event-stream") {
+                is_sse = true;
+            } else if lower.contains("stream") || lower.contains("ndjson") || lower.contains("jsonl") {
+                is_chunked = true;
+            }
+        }
+        if key_str.eq_ignore_ascii_case("transfer-encoding") && val_str.to_lowercase().contains("chunked") {
+            is_chunked = true;
         }
         resp_headers.push(HeaderPair {
             key: key_str,
@@ -119,12 +128,15 @@ pub async fn execute_http_request(
         });
     }
 
+    let is_streaming = is_sse || is_chunked;
+
     let _ = channel.send(ResponseChunk::HeaderReceived {
         status,
         status_text,
         headers: resp_headers,
         protocol,
         ttfb_ms,
+        is_streaming,
     });
 
     // 7. Stream response body

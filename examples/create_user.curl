@@ -1,15 +1,12 @@
 # @name Create User Profile
-# @description Creates a new user profile with JSON payload
 # @timeout 15000
-# @tags users, write
-
 curl -X POST "{{base_url}}/post" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{auth_token}}" \
   -H "X-Client-Id: {{tenant_id}}" \
+  -H "Authorization: Bearer {{auth_token}}" \
   -d '{
-    "username": "alex_developer",
-    "email": "alex@example.com",
-    "role": "admin",
-    "registered_at": "{{$isoTimestamp}}"
-  }'
+  "username": "alex_developer",
+  "email": "alex@example.com",
+  "role": "admin",
+  "registered_at": "{{$isoTimestamp}}"
+}'

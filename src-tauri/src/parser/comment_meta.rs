@@ -6,7 +6,6 @@ pub struct RequestMetadata {
     pub description: Option<String>,
     pub timeout_ms: Option<u64>,
     pub default_env: Option<String>,
-    pub tags: Vec<String>,
     pub service: Option<String>,
     pub method: Option<String>,
 }
@@ -51,13 +50,6 @@ pub fn extract_comments_and_command(file_content: &str) -> (RequestMetadata, Str
                         }
                     }
                     "env" => meta.default_env = Some(value),
-                    "tag" | "tags" => {
-                        meta.tags = value
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect();
-                    }
                     "service" => meta.service = Some(value),
                     "method" => meta.method = Some(value),
                     _ => {}
@@ -99,9 +91,6 @@ pub fn compose_file_content(meta: &RequestMetadata, command_body: &str) -> Strin
     if let Some(env) = &meta.default_env {
         lines.push(format!("# @env {}", env));
     }
-    if !meta.tags.is_empty() {
-        lines.push(format!("# @tags {}", meta.tags.join(", ")));
-    }
     if let Some(service) = &meta.service {
         lines.push(format!("# @service {}", service));
     }
@@ -125,14 +114,12 @@ mod tests {
     fn test_extract_and_compose() {
         let content = r#"# @name Get User Details
 # @timeout 5000
-# @tags auth, user
 
 curl -X GET "https://api.example.com/user""#;
 
         let (meta, cmd) = extract_comments_and_command(content);
         assert_eq!(meta.name.as_deref(), Some("Get User Details"));
         assert_eq!(meta.timeout_ms, Some(5000));
-        assert_eq!(meta.tags, vec!["auth", "user"]);
         assert_eq!(cmd, "curl -X GET \"https://api.example.com/user\"");
 
         let composed = compose_file_content(&meta, &cmd);

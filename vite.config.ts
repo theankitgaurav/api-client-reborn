@@ -8,9 +8,13 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [svelte()],
   resolve: {
+    conditions: ['browser'],
     alias: {
       $lib: path.resolve(__dirname, './src/lib'),
     },
+  },
+  optimizeDeps: {
+    exclude: ['svelte'],
   },
   // Vite options tailored for Tauri development
   clearScreen: false,

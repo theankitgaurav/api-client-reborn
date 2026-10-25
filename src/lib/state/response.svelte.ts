@@ -3,15 +3,17 @@ import type { ResponseChunk } from '../types';
 import { envState } from './env.svelte';
 import { workspaceState } from './workspace.svelte';
 
-export interface SseMessage {
+export interface StreamItem {
   id?: string;
   event?: string;
   data: string;
   timestamp: string;
+  bytes?: number;
 }
 
 export class ResponseState {
   isExecuting = $state(false);
+  isStreaming = $state(false);
   activeRequestId = $state<string | null>(null);
 
   status = $state<number | null>(null);
@@ -23,7 +25,7 @@ export class ResponseState {
 
   headers = $state<{ key: string; value: string }[]>([]);
   bodyText = $state<string>('');
-  sseMessages = $state<SseMessage[]>([]);
+  streamMessages = $state<StreamItem[]>([]);
   error = $state<string | null>(null);
 
   activeTab = $state<'body' | 'headers' | 'stream' | 'raw'>('body');
@@ -32,14 +34,16 @@ export class ResponseState {
     if (!workspaceState.activeFile) return;
 
     this.isExecuting = true;
+    this.isStreaming = false;
     this.error = null;
     this.status = null;
     this.statusText = '';
     this.headers = [];
     this.bodyText = '';
-    this.sseMessages = [];
+    this.streamMessages = [];
     this.durationMs = null;
     this.totalBytes = 0;
+    this.activeTab = 'body';
 
     const requestId = crypto.randomUUID();
     this.activeRequestId = requestId;
@@ -67,19 +71,44 @@ export class ResponseState {
         this.headers = chunk.payload.headers;
         this.protocol = chunk.payload.protocol;
         this.ttfbMs = chunk.payload.ttfb_ms;
+        this.isStreaming = chunk.payload.is_streaming;
+
+        if (this.isStreaming) {
+          this.activeTab = 'stream';
+        }
         break;
 
-      case 'BodyChunk':
+      case 'BodyChunk': {
         this.bodyText += chunk.payload.text;
         this.totalBytes = chunk.payload.bytes_received;
+
+        // If streaming or line-delimited chunks
+        const raw = chunk.payload.text.trim();
+        if (raw) {
+          const lines = raw.split('\n').filter((l) => l.trim().length > 0);
+          for (const line of lines) {
+            this.streamMessages.push({
+              event: 'chunk',
+              data: line,
+              timestamp: new Date().toLocaleTimeString(),
+              bytes: line.length,
+            });
+          }
+        }
+
+        if (this.isStreaming && this.activeTab !== 'stream') {
+          this.activeTab = 'stream';
+        }
         break;
+      }
 
       case 'SseChunk':
-        this.sseMessages.push({
+        this.streamMessages.push({
           id: chunk.payload.id,
-          event: chunk.payload.event,
+          event: chunk.payload.event || 'message',
           data: chunk.payload.data,
           timestamp: new Date().toLocaleTimeString(),
+          bytes: chunk.payload.data.length,
         });
         if (this.activeTab !== 'stream') {
           this.activeTab = 'stream';

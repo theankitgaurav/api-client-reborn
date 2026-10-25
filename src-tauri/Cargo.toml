@@ -14,13 +14,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0", features = ["macos-private-api"] }
+tauri = { version = "2.0.0", features = [] }
 tauri-plugin-shell = "2.0.0"
 tauri-plugin-fs = "2.0.0"
 
 # Async & Networking
 tokio = { version = "1.38", features = ["full"] }
-tokio-util = "1.10"
+tokio-util = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "json", "gzip", "brotli"] }
 bytes = "1.6"
 futures-util = "0.3"

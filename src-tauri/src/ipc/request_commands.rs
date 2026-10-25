@@ -1,7 +1,7 @@
 use crate::engine::cancel::CancellationManager;
 use crate::engine::http::execute_http_request;
 use crate::env::resolver::resolve_variables;
-use crate::error::{AppError, Result};
+use crate::error::Result;
 use crate::ipc::types::ResponseChunk;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::{parse_curl_command, ParsedCurlRequest};

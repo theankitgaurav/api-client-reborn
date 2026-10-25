@@ -3,17 +3,27 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 }
 
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #181818;
-  color: #cccccc;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Light Theme Defaults */
+html:not(.dark) body {
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+}
+
+/* Dark Theme */
+html.dark body {
+  background-color: #181818;
+  color: #cccccc;
 }
 
 /* Custom modern scrollbars */
@@ -26,31 +36,40 @@ body {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 
 /* Method badge colors */
 .badge-get {
-  @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+  @apply bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30;
 }
 .badge-post {
-  @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+  @apply bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30;
 }
 .badge-put {
-  @apply bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  @apply bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30;
 }
 .badge-delete {
-  @apply bg-rose-500/20 text-rose-400 border border-rose-500/30;
+  @apply bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30;
 }
 .badge-patch {
-  @apply bg-purple-500/20 text-purple-400 border border-purple-500/30;
+  @apply bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30;
 }
 .badge-grpc {
-  @apply bg-cyan-500/20 text-cyan-400 border border-cyan-500/30;
+  @apply bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30;
 }

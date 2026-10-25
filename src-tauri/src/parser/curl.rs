@@ -219,7 +219,7 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
 
             // Standard CLI utility flags that we safely ignore
             "-s" | "--silent" | "-S" | "--show-error" | "-v" | "--verbose" | "-i"
-            | "--include" | "--compressed" => {}
+            | "--include" | "--compressed" | "-N" | "--no-buffer" => {}
 
             // Unknown or positional arguments
             arg => {

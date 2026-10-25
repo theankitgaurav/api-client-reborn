@@ -58,11 +58,10 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
   if (path.includes('create_user')) {
     return {
       path,
-      raw_content: `# @name Create User Profile\n# @timeout 15000\n# @tags users, api\n\ncurl -X POST "https://httpbin.org/post" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer {{auth_token}}" \\\n  -d '{\n    "username": "alex",\n    "email": "alex@example.com",\n    "trace_id": "{{$uuid}}"\n  }'`,
+      raw_content: `# @name Create User Profile\n# @timeout 15000\n\ncurl -X POST "https://httpbin.org/post" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer {{auth_token}}" \\\n  -d '{\n    "username": "alex",\n    "email": "alex@example.com",\n    "trace_id": "{{$uuid}}"\n  }'`,
       metadata: {
         name: 'Create User Profile',
         timeout_ms: 15000,
-        tags: ['users', 'api'],
       },
     };
   } else if (path.includes('stream_events')) {
@@ -154,6 +153,7 @@ export async function executeRequest(
         ],
         protocol: 'HTTP/2.0',
         ttfb_ms: 84,
+        is_streaming: rawContent.includes('-N') || rawContent.includes('stream'),
       },
     });
 

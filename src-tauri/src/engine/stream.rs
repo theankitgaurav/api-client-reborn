@@ -11,7 +11,6 @@ pub struct SseEvent {
 #[derive(Default)]
 pub struct SseParser {
     buffer: String,
-    current_event: SseEvent,
 }
 
 impl SseParser {

@@ -1,14 +1,14 @@
 use crate::env::secret_file::{load_secrets_env, save_secrets_env};
-use crate::error::{AppError, Result};
+use crate::error::Result;
+use crate::fs::workspace::resolve_workspace_root;
 use crate::ipc::types::EnvironmentItem;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
 
 #[tauri::command]
 pub fn get_workspace_environments(workspace_path: String) -> Result<Vec<EnvironmentItem>> {
-    let ws_path = PathBuf::from(&workspace_path);
+    let ws_path = resolve_workspace_root(&workspace_path);
     let env_dir = ws_path.join("environments");
 
     let mut environments = Vec::new();
@@ -52,7 +52,7 @@ pub fn get_workspace_environments(workspace_path: String) -> Result<Vec<Environm
 
 #[tauri::command]
 pub fn get_workspace_secrets(workspace_path: String) -> Result<HashMap<String, String>> {
-    let ws_path = PathBuf::from(&workspace_path);
+    let ws_path = resolve_workspace_root(&workspace_path);
     load_secrets_env(&ws_path)
 }
 
@@ -61,6 +61,6 @@ pub fn save_workspace_secrets(
     workspace_path: String,
     secrets: HashMap<String, String>,
 ) -> Result<()> {
-    let ws_path = PathBuf::from(&workspace_path);
+    let ws_path = resolve_workspace_root(&workspace_path);
     save_secrets_env(&ws_path, &secrets)
 }

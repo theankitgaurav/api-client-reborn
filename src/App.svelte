@@ -1,12 +1,12 @@
 <script lang="ts">
   import Titlebar from '$lib/components/Titlebar.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
-  import RequestEditor from '$lib/components/RequestEditor.svelte';
+  import RequestPlayground from '$lib/components/RequestPlayground.svelte';
   import ResponseViewer from '$lib/components/ResponseViewer.svelte';
   import EnvModal from '$lib/components/EnvModal.svelte';
 </script>
 
-<main class="h-screen w-screen flex flex-col bg-[#181818] text-[#cccccc] overflow-hidden">
+<main class="h-screen w-screen flex flex-col bg-[#f5f5f7] dark:bg-[#181818] text-[#1d1d1f] dark:text-[#cccccc] overflow-hidden">
   <!-- macOS Top Navigation & Traffic Lights -->
   <Titlebar />
 
@@ -15,8 +15,8 @@
     <!-- Left Sidebar: Collections & Files -->
     <Sidebar />
 
-    <!-- Center Editor: cURL & Metadata -->
-    <RequestEditor />
+    <!-- Center Playground: Postman-like Request Editor -->
+    <RequestPlayground />
 
     <!-- Right Viewer: Status, Response, Stream Logs -->
     <ResponseViewer />

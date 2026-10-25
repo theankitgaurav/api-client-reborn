@@ -26,7 +26,6 @@ export interface RequestMetadata {
   description?: string;
   timeout_ms?: number;
   default_env?: string;
-  tags?: string[];
   service?: string;
   method?: string;
 }
@@ -76,6 +75,7 @@ export type ResponseChunk =
         headers: { key: string; value: string }[];
         protocol: string;
         ttfb_ms: number;
+        is_streaming: boolean;
       };
     }
   | {

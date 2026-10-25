@@ -13,6 +13,7 @@ pub enum ResponseChunk {
         headers: Vec<HeaderPair>,
         protocol: String,
         ttfb_ms: u64,
+        is_streaming: bool,
     },
     BodyChunk {
         text: String,

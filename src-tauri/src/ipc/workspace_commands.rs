@@ -1,6 +1,6 @@
 use crate::error::{AppError, Result};
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
-use crate::fs::workspace::scan_workspace_tree;
+use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
@@ -19,15 +19,21 @@ pub struct FileDetails {
 
 #[tauri::command]
 pub fn scan_workspace(workspace_path: String) -> Result<Vec<WorkspaceFileItem>> {
-    let path = PathBuf::from(&workspace_path);
+    let path = resolve_workspace_root(&workspace_path);
     scan_workspace_tree(&path)
 }
 
 #[tauri::command]
 pub fn read_request_file(file_path: String) -> Result<FileDetails> {
-    let path = PathBuf::from(&file_path);
+    let mut path = PathBuf::from(&file_path);
     if !path.exists() {
-        return Err(AppError::FsError("File does not exist".to_string()));
+        let root = resolve_workspace_root(".");
+        let candidate = root.join(&file_path);
+        if candidate.exists() {
+            path = candidate;
+        } else {
+            return Err(AppError::FsError(format!("File does not exist: {}", file_path)));
+        }
     }
 
     let content = fs::read_to_string(&path)
@@ -37,7 +43,7 @@ pub fn read_request_file(file_path: String) -> Result<FileDetails> {
     let sidecar = read_sidecar_meta(&path);
 
     Ok(FileDetails {
-        path: file_path,
+        path: path.to_string_lossy().to_string(),
         raw_content: content,
         metadata,
         sidecar,
