@@ -1,6 +1,7 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
+  import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { readRequestFile } from '$lib/ipc';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
   import type { WorkspaceFileItem } from '$lib/types';
@@ -12,10 +13,12 @@
     Upload,
     FolderPlus,
     Copy,
+    Check,
     Trash2,
     MoreVertical,
   } from '$lib/components/icons';
 
+  let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
 
   let itemContextMenu = $state<{
@@ -77,18 +80,58 @@
     }
   }
 
+  let copyNotification = $state<{ text: string; visible: boolean } | null>(null);
+  let copyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  async function copyToClipboardWithFallback(text: string): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fall through to textarea fallback
+      }
+    }
+
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch {
+      return false;
+    }
+  }
+
   async function copyRequestCommand(item: WorkspaceFileItem) {
     try {
       let rawContent = '';
-      if (workspaceState.activeFilePath === item.path && workspaceState.activeFile) {
-        rawContent = workspaceState.activeFile.raw_content;
+      const openTab = workspaceState.tabs.find((t) => t.filePath === item.path);
+      if (openTab) {
+        rawContent = openTab.rawContent;
       } else {
         const details = await readRequestFile(item.path);
         rawContent = details.raw_content;
       }
 
       const resolved = getResolvedCommand(rawContent, envState.mergedVariables);
-      navigator.clipboard.writeText(resolved);
+      await copyToClipboardWithFallback(resolved);
+
+      if (copyTimeout) clearTimeout(copyTimeout);
+      copyNotification = {
+        text: `cURL copied for "${item.display_name || item.name}"`,
+        visible: true,
+      };
+      copyTimeout = setTimeout(() => {
+        copyNotification = null;
+      }, 2500);
     } catch (e) {
       console.error('Failed to copy command:', e);
     }
@@ -164,7 +207,7 @@
     <div class="flex items-center gap-1">
       <button
         onclick={() => workspaceState.createNewRequest()}
-        title="Create New Request"
+        title="New Request ({isMac ? '⌘N' : 'Ctrl+N'})"
         class="flex items-center gap-0.5 bg-blue-600 hover:bg-blue-500 text-white px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors shadow-sm active:scale-95"
       >
         <Plus size={11} />
@@ -202,8 +245,9 @@
     <div class="relative w-full">
       <Search size={13} class="absolute left-2 top-2 text-neutral-400" />
       <input
+        id="sidebar-filter-input"
         type="text"
-        placeholder="Filter requests..."
+        placeholder="Filter requests... ({isMac ? '⌘F' : 'Ctrl+F'})"
         bind:value={searchQuery}
         class="w-full bg-white dark:bg-[#202020] border border-[#d2d2d7] dark:border-[#303030] rounded pl-7 pr-2 py-1 text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 shadow-sm"
       />
@@ -230,7 +274,7 @@
                 type="button"
                 onclick={(e) => {
                   e.stopPropagation();
-                  workspaceState.createNewRequestInFolder(item.name);
+                  workspaceState.createNewRequestInFolder(item.path);
                 }}
                 title="New Request in this folder"
                 class="p-0.5 hover:text-neutral-900 dark:hover:text-white text-neutral-400 rounded"
@@ -320,7 +364,7 @@
       <button
         class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-between"
         onclick={() => {
-          if (itemContextMenu) workspaceState.createNewRequestInFolder(itemContextMenu.item.name);
+          if (itemContextMenu) workspaceState.createNewRequestInFolder(itemContextMenu.item.path);
           closeContextMenu();
         }}
       >
@@ -457,5 +501,15 @@
         Delete Request
       </button>
     {/if}
+  </div>
+{/if}
+
+<!-- Toast Notification for Copy Feedback -->
+{#if copyNotification && copyNotification.visible}
+  <div
+    class="fixed bottom-3 left-4 z-50 bg-neutral-900/90 text-white text-[11px] px-3 py-1.5 rounded shadow-lg border border-neutral-700 flex items-center gap-2 pointer-events-none transition-all"
+  >
+    <Check size={12} class="text-emerald-400" />
+    <span>{copyNotification.text}</span>
   </div>
 {/if}

@@ -4,17 +4,17 @@
   import type { WorkspaceFileItem } from '$lib/types';
 
   let requestName = $state('');
-  let selectedFolder = $state('examples');
+  let selectedFolder = $state('.');
   let customFileName = $state('');
 
   function getFolderList(items: WorkspaceFileItem[], parent = ''): { path: string; label: string }[] {
     const list: { path: string; label: string }[] = [];
     for (const item of items) {
       if (item.is_dir) {
-        const display = parent ? `${parent}/${item.name}` : item.name;
-        list.push({ path: item.name, label: `${display}/` });
+        const fullRelPath = parent ? `${parent}/${item.name}` : item.name;
+        list.push({ path: fullRelPath, label: `${fullRelPath}/` });
         if (item.children) {
-          list.push(...getFolderList(item.children, display));
+          list.push(...getFolderList(item.children, fullRelPath));
         }
       }
     }
@@ -29,7 +29,7 @@
   $effect(() => {
     if (workspaceState.isSaveModalOpen) {
       requestName = workspaceState.activeTab?.name || 'New Request';
-      selectedFolder = workspaceState.targetNewRequestFolder || 'examples';
+      selectedFolder = workspaceState.targetNewRequestFolder || '.';
       customFileName = requestName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')

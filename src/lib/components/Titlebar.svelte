@@ -1,36 +1,17 @@
 <script lang="ts">
   import { envState } from '$lib/state/env.svelte';
-  import { responseState } from '$lib/state/response.svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { themeState } from '$lib/state/theme.svelte';
+  import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import {
     Layers,
     Sun,
     Moon,
+    Keyboard,
   } from '$lib/components/icons';
 
-  function handleSend() {
-    if (responseState.isExecuting) {
-      responseState.cancel();
-    } else {
-      responseState.runCurrentRequest();
-    }
-  }
-
-  // Global keyboard shortcuts
-  function handleKeyDown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleSend();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      workspaceState.saveActiveFile();
-    }
-  }
+  let isMac = $derived(shortcutsState.isMac);
 </script>
-
-<svelte:window onkeydown={handleKeyDown} />
 
 <header
   data-tauri-drag-region
@@ -51,6 +32,15 @@
 
   <!-- Right: Theme Switcher & Variables Action -->
   <div class="flex items-center space-x-2">
+    <!-- Keyboard Shortcuts Button -->
+    <button
+      onclick={() => shortcutsState.toggleCheatSheet()}
+      title="Keyboard Shortcuts ({isMac ? '⌘/' : 'Ctrl+/'})"
+      class="p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors"
+    >
+      <Keyboard size={14} />
+    </button>
+
     <!-- Light/Dark Toggle -->
     <button
       onclick={() => themeState.toggle()}
@@ -67,7 +57,7 @@
     <!-- Variables Button -->
     <button
       onclick={() => (envState.isVariablesModalOpen = true)}
-      title="Configure Workspace Variables & Secrets"
+      title="Configure Workspace Variables & Secrets ({isMac ? '⌘E' : 'Ctrl+E'})"
       class="flex items-center gap-1.5 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2.5 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
     >
       <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>

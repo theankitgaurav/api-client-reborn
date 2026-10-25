@@ -8,9 +8,23 @@
     Clock,
     HardDrive,
     AlertTriangle,
+    Download,
   } from '$lib/components/icons';
 
   let copied = $state(false);
+  let isExporting = $state(false);
+
+  async function handleExportStream() {
+    const defaultName = 'stream_export.bin';
+    const destination = prompt('Enter export destination path (or filename):', defaultName);
+    if (!destination) return;
+    isExporting = true;
+    try {
+      await responseState.exportStream(destination);
+    } finally {
+      isExporting = false;
+    }
+  }
 
   // Sync response when switching tabs
   $effect(() => {
@@ -151,6 +165,21 @@
   <div class="flex-1 relative overflow-hidden bg-white dark:bg-[#181818]">
     {#if responseState.activeTab === 'body'}
       <div class="h-full flex flex-col">
+        {#if responseState.isBodyTruncated}
+          <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-center justify-between">
+            <span>
+              ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
+            </span>
+            <button
+              onclick={handleExportStream}
+              disabled={isExporting}
+              class="font-semibold underline hover:text-amber-950 dark:hover:text-white flex items-center gap-1"
+            >
+              <Download size={11} />
+              <span>{isExporting ? 'Exporting...' : 'Export Full Stream'}</span>
+            </button>
+          </div>
+        {/if}
         <div class="px-3 py-1 bg-[#f9f9fb] dark:bg-[#181818] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex justify-end">
           <button
             onclick={copyBody}

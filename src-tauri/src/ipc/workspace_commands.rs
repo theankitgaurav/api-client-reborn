@@ -106,7 +106,7 @@ pub fn save_request_file(
     raw_content: String,
     sidecar: Option<SidecarMetadata>,
 ) -> Result<()> {
-    let path = PathBuf::from(&file_path);
+    let path = resolve_item_path(&file_path);
 
     if let Some(parent) = path.parent() {
         if !parent.exists() {
@@ -276,7 +276,8 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
                 .trim_end_matches(".curl")
                 .trim_end_matches(".grpcurl")
                 .to_string();
-            (name_without_ext, sanitized)
+            let file_name = format!("{}.{}", name_without_ext, ext);
+            (name_without_ext, file_name)
         } else {
             let slug = slugify(&sanitized);
             let file_name = if !slug.is_empty() {
@@ -405,11 +406,32 @@ pub fn duplicate_request_file(source_path: String) -> Result<String> {
     fs::write(&target, updated_content)
         .map_err(|e| AppError::FsError(format!("Failed to write duplicate file: {}", e)))?;
 
-    // Duplicate sidecar if present
+    // Duplicate sidecar if present and update internal "name" attribute to include (Copy)
     let old_sidecar = source.with_extension("meta.json");
     if old_sidecar.exists() {
         let new_sidecar = target.with_extension("meta.json");
         let _ = fs::copy(&old_sidecar, &new_sidecar);
+
+        if let Ok(sidecar_content) = fs::read_to_string(&new_sidecar) {
+            if let Ok(mut json_val) = serde_json::from_str::<serde_json::Value>(&sidecar_content) {
+                if let Some(obj) = json_val.as_object_mut() {
+                    if let Some(name_val) = obj.get("name").and_then(|v| v.as_str()) {
+                        obj.insert(
+                            "name".to_string(),
+                            serde_json::Value::String(format!("{} (Copy)", name_val)),
+                        );
+                    } else if let Some(req_name) = meta.name.as_ref() {
+                        obj.insert(
+                            "name".to_string(),
+                            serde_json::Value::String(req_name.clone()),
+                        );
+                    }
+                    if let Ok(updated_json) = serde_json::to_string_pretty(&json_val) {
+                        let _ = fs::write(&new_sidecar, updated_json);
+                    }
+                }
+            }
+        }
     }
 
     Ok(target.to_string_lossy().to_string())
@@ -551,6 +573,76 @@ mod tests {
             "all_users".to_string(),
         );
         assert!(collision_result.is_err());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_duplicate_request_file_updates_sidecar_name() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "test_dup_req_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let req_file = temp_dir.join("login.curl");
+        fs::write(
+            &req_file,
+            "# @name Login Request\n\ncurl https://api.example.com/login",
+        )
+        .unwrap();
+
+        let sidecar_file = temp_dir.join("login.meta.json");
+        fs::write(
+            &sidecar_file,
+            r#"{"name": "Login Request", "tests": [], "description": "Authenticates user"}"#,
+        )
+        .unwrap();
+
+        let dup_path_str = duplicate_request_file(req_file.to_string_lossy().to_string()).unwrap();
+        let dup_path = PathBuf::from(&dup_path_str);
+        assert!(dup_path.exists());
+        assert_eq!(dup_path.file_name().unwrap(), "login_copy.curl");
+
+        let dup_content = fs::read_to_string(&dup_path).unwrap();
+        assert!(dup_content.contains("# @name Login Request (Copy)"));
+
+        let dup_sidecar = dup_path.with_extension("meta.json");
+        assert!(dup_sidecar.exists());
+
+        let sidecar_content = fs::read_to_string(&dup_sidecar).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&sidecar_content).unwrap();
+        assert_eq!(parsed["name"].as_str().unwrap(), "Login Request (Copy)");
+        assert_eq!(parsed["description"].as_str().unwrap(), "Authenticates user");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_save_request_file_resolves_path() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "test_save_req_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let target_file = temp_dir.join("nested/folder/req.curl");
+        save_request_file(
+            target_file.to_string_lossy().to_string(),
+            "# @name Saved\ncurl https://example.com".to_string(),
+            None,
+        )
+        .unwrap();
+
+        assert!(target_file.exists());
+        let content = fs::read_to_string(&target_file).unwrap();
+        assert!(content.contains("# @name Saved"));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

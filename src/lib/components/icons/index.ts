@@ -31,3 +31,4 @@ export { default as Upload } from './Upload.svelte';
 export { default as Download } from './Download.svelte';
 export { default as FolderPlus } from './FolderPlus.svelte';
 export { default as MoreVertical } from './MoreVertical.svelte';
+export { default as Keyboard } from './Keyboard.svelte';

@@ -1,6 +1,9 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
+  import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { Plus, X } from '$lib/components/icons';
+
+  let isMac = $derived(shortcutsState.isMac);
 
   let contextMenu = $state<{
     visible: boolean;
@@ -83,7 +86,7 @@
             e.stopPropagation();
             workspaceState.closeTab(tab.id);
           }}
-          title="Close Tab"
+          title="Close Tab ({isMac ? '⌘W' : 'Ctrl+W'})"
           class="p-0.5 rounded text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''}"
         >
           <X size={11} />
@@ -96,7 +99,7 @@
   <button
     type="button"
     onclick={() => workspaceState.createNewRequest()}
-    title="New Request Tab"
+    title="New Request ({isMac ? '⌘N' : 'Ctrl+N'})"
     class="p-1.5 ml-1 text-neutral-500 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-[#252526] rounded transition-colors"
   >
     <Plus size={13} />

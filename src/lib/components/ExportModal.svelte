@@ -34,8 +34,9 @@
       }
     } else if (!item.is_dir) {
       let content = '';
-      if (workspaceState.activeFilePath === item.path && workspaceState.activeTab) {
-        content = workspaceState.activeTab.rawContent;
+      const openTab = workspaceState.tabs.find((t) => t.filePath === item.path);
+      if (openTab) {
+        content = openTab.rawContent;
       } else {
         try {
           const details = await readRequestFile(item.path);
@@ -48,8 +49,8 @@
       const isGrpc = item.name.endsWith('.grpcurl') || content.trimStart().startsWith('grpcurl');
       list.push({
         path: item.path,
-        name: item.display_name || item.name,
-        method: item.method || (isGrpc ? 'gRPC' : 'GET'),
+        name: openTab?.name || item.display_name || item.name,
+        method: openTab?.method || item.method || (isGrpc ? 'gRPC' : 'GET'),
         command: content,
         isGrpc,
       });

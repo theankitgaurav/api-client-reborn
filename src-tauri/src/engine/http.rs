@@ -1,3 +1,4 @@
+use crate::engine::spooler::StreamSpooler;
 use crate::engine::stream::SseParser;
 use crate::error::{AppError, Result};
 use crate::ipc::types::ResponseChunk;
@@ -141,8 +142,9 @@ pub async fn execute_http_request(
 
     // 7. Stream response body
     let mut stream = response.bytes_stream();
-    let mut total_bytes = 0;
+    let mut spooler = StreamSpooler::new(None).await?;
     let mut sse_parser = if is_sse { Some(SseParser::new()) } else { None };
+    let mut last_ipc_emit = Instant::now();
 
     loop {
         tokio::select! {
@@ -155,11 +157,11 @@ pub async fn execute_http_request(
             chunk_result = stream.next() => {
                 match chunk_result {
                     Some(Ok(bytes)) => {
-                        let len = bytes.len();
-                        total_bytes += len;
-                        let text = String::from_utf8_lossy(&bytes).to_string();
+                        spooler.write(&bytes).await?;
+                        let total_bytes = spooler.total_bytes();
 
                         if let Some(parser) = &mut sse_parser {
+                            let text = String::from_utf8_lossy(&bytes);
                             let events = parser.feed(&text);
                             for event in events {
                                 let _ = channel.send(ResponseChunk::SseChunk {
@@ -169,10 +171,22 @@ pub async fn execute_http_request(
                                 });
                             }
                         } else {
-                            let _ = channel.send(ResponseChunk::BodyChunk {
-                                text,
-                                bytes_received: total_bytes,
-                            });
+                            // Memory & IPC defense: send text up to 2 MB, then throttle progress updates
+                            let should_send_text = total_bytes <= 2 * 1024 * 1024;
+                            let now = Instant::now();
+
+                            if should_send_text || now.duration_since(last_ipc_emit).as_millis() >= 40 {
+                                let text = if should_send_text {
+                                    String::from_utf8_lossy(&bytes).to_string()
+                                } else {
+                                    String::new()
+                                };
+                                let _ = channel.send(ResponseChunk::BodyChunk {
+                                    text,
+                                    bytes_received: total_bytes,
+                                });
+                                last_ipc_emit = now;
+                            }
                         }
                     }
                     Some(Err(e)) => {
@@ -190,10 +204,12 @@ pub async fn execute_http_request(
         }
     }
 
+    let (spool_path, total_bytes) = spooler.finish().await?;
     let total_duration_ms = start_time.elapsed().as_millis() as u64;
     let _ = channel.send(ResponseChunk::Finished {
         total_duration_ms,
         total_bytes,
+        spool_file_path: Some(spool_path.to_string_lossy().to_string()),
     });
 
     Ok(())

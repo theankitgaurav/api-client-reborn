@@ -9,34 +9,17 @@ import {
   scanWorkspace,
 } from '../ipc';
 import type { FileDetails, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
+import {
+  cascadeFolderRename,
+  filterTabsOnFolderDelete,
+  resolveTargetTabForOpenCurrent,
+  sanitizeRequestRename,
+  updateRequestNameHeader,
+  type TabItem,
+  type TabResponseData,
+} from '../utils/workspace-sync';
 
-export interface TabResponseData {
-  status: number | null;
-  statusText: string;
-  protocol: string;
-  ttfbMs: number | null;
-  durationMs: number | null;
-  totalBytes: number;
-  headers: { key: string; value: string }[];
-  bodyText: string;
-  streamMessages: any[];
-  error: string | null;
-  activeTab: 'body' | 'headers' | 'stream' | 'tests' | 'raw';
-  testResults: TestResultItem[];
-  scriptLogs: string[];
-}
-
-export interface TabItem {
-  id: string;
-  filePath: string | null; // null if unsaved draft
-  name: string;
-  method: string;
-  rawContent: string;
-  isDirty: boolean;
-  isPinned: boolean;       // false = preview tab; true = pinned tab
-  sidecar?: SidecarMetadata;
-  response?: TabResponseData;
-}
+export type { TabItem, TabResponseData };
 
 export class WorkspaceState {
   workspacePath = $state('.');
@@ -158,17 +141,19 @@ export class WorkspaceState {
         this.tabs.push(newTab);
         this.activeTabId = newTab.id;
       } else {
-        // Reuse unpinned preview tab if available and not dirty
-        const previewTab = this.tabs.find((t) => !t.isPinned && !t.isDirty);
-        if (previewTab) {
-          previewTab.filePath = path;
-          previewTab.name = name;
-          previewTab.method = method;
-          previewTab.rawContent = details.raw_content;
-          previewTab.isDirty = false;
-          previewTab.sidecar = details.sidecar;
-          previewTab.response = undefined;
-          this.activeTabId = previewTab.id;
+        const { tabToReplace } = resolveTargetTabForOpenCurrent(
+          this.tabs,
+          this.activeTabId
+        );
+        if (tabToReplace) {
+          tabToReplace.filePath = path;
+          tabToReplace.name = name;
+          tabToReplace.method = method;
+          tabToReplace.rawContent = details.raw_content;
+          tabToReplace.isDirty = false;
+          tabToReplace.sidecar = details.sidecar;
+          tabToReplace.response = undefined;
+          this.activeTabId = tabToReplace.id;
         } else {
           const newTab: TabItem = {
             id: crypto.randomUUID(),
@@ -210,12 +195,38 @@ export class WorkspaceState {
     this.activeTabId = newTab.id;
   }
 
-  closeTab(tabId: string) {
+  closeActiveTab() {
+    if (this.activeTabId) {
+      this.closeTab(this.activeTabId);
+    }
+  }
+
+  nextTab() {
+    if (this.tabs.length <= 1) return;
+    const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
+    const nextIdx = idx === -1 ? 0 : (idx + 1) % this.tabs.length;
+    this.activeTabId = this.tabs[nextIdx].id;
+  }
+
+  previousTab() {
+    if (this.tabs.length <= 1) return;
+    const idx = this.tabs.findIndex((t) => t.id === this.activeTabId);
+    const prevIdx = idx === -1 ? 0 : (idx - 1 + this.tabs.length) % this.tabs.length;
+    this.activeTabId = this.tabs[prevIdx].id;
+  }
+
+  selectTabByIndex(index: number) {
+    if (index >= 0 && index < this.tabs.length) {
+      this.activeTabId = this.tabs[index].id;
+    }
+  }
+
+  closeTab(tabId: string, force: boolean = false) {
     const idx = this.tabs.findIndex((t) => t.id === tabId);
     if (idx === -1) return;
 
     const tab = this.tabs[idx];
-    if (tab.isDirty) {
+    if (!force && tab.isDirty) {
       const confirmClose = confirm(`"${tab.name}" has unsaved changes. Close anyway?`);
       if (!confirmClose) return;
     }
@@ -333,17 +344,22 @@ export class WorkspaceState {
     try {
       await deleteWorkspaceItem(itemPath);
 
-      // Close tab if deleted request is currently open
-      const openTab = this.tabs.find((t) => t.filePath === itemPath);
-      if (openTab) {
-        this.closeTab(openTab.id);
-      } else if (isFolder) {
-        // Close any tabs inside deleted folder
-        const tabsToClose = this.tabs.filter(
-          (t) => t.filePath && t.filePath.startsWith(itemPath)
-        );
-        for (const t of tabsToClose) {
-          this.closeTab(t.id);
+      if (isFolder) {
+        const { remainingTabs, closedTabs } = filterTabsOnFolderDelete(this.tabs, itemPath);
+        if (closedTabs.length > 0) {
+          const closedIds = new Set(closedTabs.map((t) => t.id));
+          this.tabs = remainingTabs;
+          if (closedIds.has(this.activeTabId || '')) {
+            this.activeTabId = this.tabs.length > 0 ? this.tabs[0].id : null;
+            if (!this.activeTabId) {
+              this.createNewRequest();
+            }
+          }
+        }
+      } else {
+        const openTab = this.tabs.find((t) => t.filePath === itemPath);
+        if (openTab) {
+          this.closeTab(openTab.id, true);
         }
       }
 
@@ -359,27 +375,33 @@ export class WorkspaceState {
     if (!newName || !newName.trim() || newName.trim() === currentName) return;
 
     try {
-      const newPath = await renameWorkspaceItem(oldPath, newName.trim());
-      const displayName = newName.trim().replace(/\.(curl|grpcurl)$/, '');
+      const isFolder = !oldPath.endsWith('.curl') && !oldPath.endsWith('.grpcurl');
 
-      // Update tab(s) if open
-      for (const tab of this.tabs) {
-        if (tab.filePath === oldPath) {
-          tab.filePath = newPath;
-          tab.name = displayName;
-          if (tab.rawContent.match(/#\s*@name\s+.+/)) {
-            tab.rawContent = tab.rawContent.replace(
-              /#\s*@name\s+.+/,
-              `# @name ${displayName}`
-            );
-          } else {
-            tab.rawContent = `# @name ${displayName}\n${tab.rawContent}`;
+      if (isFolder) {
+        const newPath = await renameWorkspaceItem(oldPath, newName.trim());
+        this.tabs = cascadeFolderRename(this.tabs, oldPath, newPath);
+
+        const normOld = oldPath.replace(/[\\\/]+$/, '');
+        const normNew = newPath.replace(/[\\\/]+$/, '');
+        if (this.targetNewRequestFolder === normOld) {
+          this.targetNewRequestFolder = normNew;
+        } else if (this.targetNewRequestFolder.startsWith(normOld + '/')) {
+          this.targetNewRequestFolder =
+            normNew + this.targetNewRequestFolder.slice(normOld.length);
+        }
+      } else {
+        const sanitized = sanitizeRequestRename(oldPath, newName.trim());
+        const newPath = await renameWorkspaceItem(oldPath, sanitized);
+        const displayName = sanitized.replace(/\.(curl|grpcurl)$/, '');
+
+        const openTab = this.tabs.find((t) => t.filePath === oldPath);
+        if (openTab) {
+          openTab.filePath = newPath;
+          openTab.name = displayName;
+          openTab.rawContent = updateRequestNameHeader(openTab.rawContent, displayName);
+          if (openTab.sidecar) {
+            openTab.sidecar.name = displayName;
           }
-          if (tab.sidecar) {
-            tab.sidecar.name = displayName;
-          }
-        } else if (tab.filePath && tab.filePath.startsWith(oldPath + '/')) {
-          tab.filePath = newPath + tab.filePath.slice(oldPath.length);
         }
       }
 

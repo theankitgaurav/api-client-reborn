@@ -1,16 +1,15 @@
-import { cancelRequest, executeRequest } from '../ipc';
+import { cancelRequest, executeRequest, exportSpooledStream } from '../ipc';
 import type { ResponseChunk, TestResultItem } from '../types';
 import { runScript } from '../utils/script-runner';
+import {
+  MAX_BODY_TEXT_BYTES,
+  MAX_STREAM_MESSAGES,
+  type StreamItem,
+} from '../utils/stream-buffer';
 import { envState } from './env.svelte';
 import { workspaceState, type TabResponseData } from './workspace.svelte';
 
-export interface StreamItem {
-  id?: string;
-  event?: string;
-  data: string;
-  timestamp: string;
-  bytes?: number;
-}
+export { MAX_BODY_TEXT_BYTES, MAX_STREAM_MESSAGES, type StreamItem };
 
 export class ResponseState {
   isExecuting = $state(false);
@@ -28,6 +27,10 @@ export class ResponseState {
   bodyText = $state<string>('');
   streamMessages = $state<StreamItem[]>([]);
   error = $state<string | null>(null);
+
+  isBodyTruncated = $state(false);
+  totalEventsCount = $state(0);
+  spoolFilePath = $state<string | null>(null);
 
   activeTab = $state<'body' | 'headers' | 'stream' | 'tests' | 'raw'>('body');
   testResults = $state<TestResultItem[]>([]);
@@ -54,6 +57,9 @@ export class ResponseState {
       this.bodyText = r.bodyText;
       this.streamMessages = r.streamMessages;
       this.error = r.error;
+      this.isBodyTruncated = r.isBodyTruncated ?? false;
+      this.totalEventsCount = r.totalEventsCount ?? (r.streamMessages?.length || 0);
+      this.spoolFilePath = r.spoolFilePath ?? null;
       this.activeTab = r.activeTab;
       this.testResults = r.testResults;
       this.scriptLogs = r.scriptLogs;
@@ -75,6 +81,9 @@ export class ResponseState {
       bodyText: this.bodyText,
       streamMessages: this.streamMessages,
       error: this.error,
+      isBodyTruncated: this.isBodyTruncated,
+      totalEventsCount: this.totalEventsCount,
+      spoolFilePath: this.spoolFilePath,
       activeTab: this.activeTab,
       testResults: this.testResults,
       scriptLogs: this.scriptLogs,
@@ -92,6 +101,9 @@ export class ResponseState {
     this.bodyText = '';
     this.streamMessages = [];
     this.error = null;
+    this.isBodyTruncated = false;
+    this.totalEventsCount = 0;
+    this.spoolFilePath = null;
     this.activeTab = 'body';
     this.testResults = [];
     this.scriptLogs = [];
@@ -169,19 +181,37 @@ export class ResponseState {
         break;
 
       case 'BodyChunk': {
-        this.bodyText += chunk.payload.text;
         this.totalBytes = chunk.payload.bytes_received;
 
-        const raw = chunk.payload.text.trim();
-        if (raw) {
-          const lines = raw.split('\n').filter((l) => l.trim().length > 0);
-          for (const line of lines) {
-            this.streamMessages.push({
-              event: 'chunk',
-              data: line,
-              timestamp: new Date().toLocaleTimeString(),
-              bytes: line.length,
-            });
+        // Truncate in-memory body preview at MAX_BODY_TEXT_BYTES (2 MB)
+        if (chunk.payload.text) {
+          if (this.bodyText.length < MAX_BODY_TEXT_BYTES) {
+            const remaining = MAX_BODY_TEXT_BYTES - this.bodyText.length;
+            if (chunk.payload.text.length <= remaining) {
+              this.bodyText += chunk.payload.text;
+            } else {
+              this.bodyText += chunk.payload.text.substring(0, remaining);
+              this.isBodyTruncated = true;
+            }
+          } else {
+            this.isBodyTruncated = true;
+          }
+
+          const raw = chunk.payload.text.trim();
+          if (raw) {
+            const lines = raw.split('\n').filter((l) => l.trim().length > 0);
+            for (const line of lines) {
+              this.totalEventsCount++;
+              if (this.streamMessages.length >= MAX_STREAM_MESSAGES) {
+                this.streamMessages.shift();
+              }
+              this.streamMessages.push({
+                event: 'chunk',
+                data: line,
+                timestamp: new Date().toLocaleTimeString(),
+                bytes: line.length,
+              });
+            }
           }
         }
 
@@ -192,6 +222,10 @@ export class ResponseState {
       }
 
       case 'SseChunk':
+        this.totalEventsCount++;
+        if (this.streamMessages.length >= MAX_STREAM_MESSAGES) {
+          this.streamMessages.shift();
+        }
         this.streamMessages.push({
           id: chunk.payload.id,
           event: chunk.payload.event || 'message',
@@ -207,6 +241,7 @@ export class ResponseState {
       case 'Finished':
         this.durationMs = chunk.payload.total_duration_ms;
         this.totalBytes = chunk.payload.total_bytes;
+        this.spoolFilePath = chunk.payload.spool_file_path || null;
         this.isExecuting = false;
 
         // 2. Run Post-response script (Tests) if present
@@ -260,6 +295,31 @@ export class ResponseState {
     // Auto-focus the Tests tab if tests were executed
     if (this.testResults.length > 0) {
       this.activeTab = 'tests';
+    }
+  }
+
+  async exportStream(destinationPath: string): Promise<boolean> {
+    if (!destinationPath.trim()) return false;
+
+    if (!this.spoolFilePath) {
+      // In browser fallback or if no spool file, trigger a blob download
+      const blob = new Blob([this.bodyText], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = destinationPath.split(/[\/\\]/).pop() || 'stream_export.bin';
+      a.click();
+      URL.revokeObjectURL(url);
+      return true;
+    }
+
+    try {
+      await exportSpooledStream(this.spoolFilePath, destinationPath);
+      return true;
+    } catch (e) {
+      console.error('Failed to export stream:', e);
+      alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
     }
   }
 

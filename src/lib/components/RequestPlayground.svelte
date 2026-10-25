@@ -2,6 +2,8 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
+  import { shortcutsState } from '$lib/state/shortcuts.svelte';
+  import { registerBeautifyHandler } from '$lib/utils/shortcuts';
   import {
     parseCurlToPlayground,
     serializePlaygroundToCurl,
@@ -31,6 +33,16 @@
   let activeFilePath = $derived(workspaceState.activeFilePath);
   let isGrpcurl = $derived(activeFilePath?.endsWith('.grpcurl') ?? false);
   let commandLabel = $derived(isGrpcurl ? 'grpcurl' : 'cURL');
+  let isMac = $derived(shortcutsState.isMac);
+
+  $effect(() => {
+    registerBeautifyHandler(() => {
+      if (model.bodyType === 'json') {
+        beautifyJson();
+      }
+    });
+    return () => registerBeautifyHandler(null);
+  });
 
   // Whenever the active tab changes from workspace, load into model & scripts
   $effect(() => {
@@ -286,7 +298,7 @@
           class="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded transition-colors shadow-sm"
         >
           <Save size={12} />
-          <span>Save (⌘S)</span>
+          <span>Save ({isMac ? '⌘S' : 'Ctrl+S'})</span>
         </button>
       {/if}
     </div>
@@ -315,12 +327,14 @@
     <!-- URL Bar -->
     <div class="flex-1 relative">
       <input
+        id="request-url-input"
         type="text"
         value={model.url}
         oninput={(e) => handleUrlInput((e.target as HTMLInputElement).value)}
         onmousemove={(e) => handleVarHover(e, model.url)}
         onmouseleave={handleVarLeave}
         onblur={handleVarLeave}
+        title="Request URL ({isMac ? '⌘L' : 'Ctrl+L'})"
         placeholder={isGrpcurl || model.method === 'GRPC'
           ? "Enter host and endpoint (e.g. {{grpc_host}} api.v1.UserService/GetUser)"
           : "Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
@@ -341,7 +355,7 @@
       {:else}
         <Play size={13} fill="currentColor" />
         <span>Send</span>
-        <span class="text-[10px] opacity-75 font-mono ml-0.5">⌘↵</span>
+        <span class="text-[10px] opacity-75 font-mono ml-0.5">{isMac ? '⌘↵' : 'Ctrl+↵'}</span>
       {/if}
     </button>
   </div>

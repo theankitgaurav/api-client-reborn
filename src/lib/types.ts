@@ -113,6 +113,7 @@ export type ResponseChunk =
       payload: {
         total_duration_ms: number;
         total_bytes: number;
+        spool_file_path?: string;
       };
     }
   | {

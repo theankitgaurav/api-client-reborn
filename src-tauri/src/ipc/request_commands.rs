@@ -1,11 +1,13 @@
 use crate::engine::cancel::CancellationManager;
+use crate::engine::grpc::execute_grpc_request;
 use crate::engine::http::execute_http_request;
 use crate::env::resolver::resolve_variables;
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::ipc::types::ResponseChunk;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::{parse_curl_command, ParsedCurlRequest};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tauri::ipc::Channel;
 use tauri::State;
 
@@ -23,16 +25,35 @@ pub async fn execute_request(
     // 2. Perform variable interpolation
     let resolved_command = resolve_variables(&command_body, &variables);
 
-    // 3. Parse command into typed AST
-    let parsed = parse_curl_command(&resolved_command)?;
-
-    // 4. Register cancellation token
+    // 3. Register cancellation token
     let cancel_token = cancel_mgr.register(&request_id);
 
-    // 5. Spawn execution
     let req_id_clone = request_id.clone();
     let cancel_mgr_clone = cancel_mgr.inner().clone();
 
+    // 4. Check if gRPC command (starts with grpcurl)
+    let trimmed = resolved_command.trim_start();
+    if trimmed.starts_with("grpcurl") {
+        tokio::spawn(async move {
+            let result = execute_grpc_request(
+                req_id_clone.clone(),
+                resolved_command,
+                cancel_token,
+                channel,
+            )
+            .await;
+            cancel_mgr_clone.remove(&req_id_clone);
+            if let Err(e) = result {
+                eprintln!("gRPC Execution error: {:?}", e);
+            }
+        });
+        return Ok(());
+    }
+
+    // 5. Otherwise parse as standard cURL command into typed AST
+    let parsed = parse_curl_command(&resolved_command)?;
+
+    // 6. Spawn HTTP execution
     tokio::spawn(async move {
         let result = execute_http_request(req_id_clone.clone(), parsed, cancel_token, channel).await;
         cancel_mgr_clone.remove(&req_id_clone);
@@ -55,5 +76,35 @@ pub fn cancel_request(
 #[tauri::command]
 pub fn parse_curl_preview(raw_content: String) -> Result<ParsedCurlRequest> {
     let (_meta, command_body) = extract_comments_and_command(&raw_content);
+    let trimmed = command_body.trim_start();
+    if trimmed.starts_with("grpcurl") {
+        return Ok(ParsedCurlRequest {
+            method: crate::parser::curl::HttpMethod::CUSTOM("gRPC".to_string()),
+            url: "gRPC Service (Reflection / Protobuf)".to_string(),
+            ..Default::default()
+        });
+    }
     parse_curl_command(&command_body)
+}
+
+#[tauri::command]
+pub async fn export_spooled_stream(spool_path: String, destination_path: String) -> Result<u64> {
+    let src = PathBuf::from(&spool_path);
+    let dest = PathBuf::from(&destination_path);
+
+    if !src.exists() {
+        return Err(AppError::FsError(format!("Spool file not found: {}", spool_path)));
+    }
+
+    if let Some(parent) = dest.parent() {
+        if !parent.exists() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| AppError::FsError(format!("Failed to create destination directory: {}", e)))?;
+        }
+    }
+
+    tokio::fs::copy(&src, &dest)
+        .await
+        .map_err(|e| AppError::FsError(format!("Failed to export stream to destination: {}", e)))
 }

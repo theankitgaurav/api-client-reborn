@@ -55,6 +55,72 @@ let mockWorkspaceTree: WorkspaceFileItem[] = [
   },
 ];
 
+const mockFileContents = new Map<string, FileDetails>();
+
+function normalizeMockPath(p: string): string {
+  return p.replace(/^[\\\/]+/, '').replace(/[\\\/]+$/, '');
+}
+
+function findMockItem(items: WorkspaceFileItem[], targetPath: string): WorkspaceFileItem | null {
+  const normTarget = normalizeMockPath(targetPath);
+  for (const item of items) {
+    if (item.path === targetPath || normalizeMockPath(item.path) === normTarget) {
+      return item;
+    }
+    if (item.children) {
+      const found = findMockItem(item.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
+  const existing = findMockItem(mockWorkspaceTree, path);
+  const nameMatch = rawContent.match(/^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m);
+  const displayName = sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined);
+
+  let method = 'GET';
+  if (path.endsWith('.grpcurl') || rawContent.trimStart().startsWith('grpcurl')) {
+    method = 'gRPC';
+  } else {
+    const methodMatch = rawContent.match(/curl\s+.*?-X\s+([A-Z]+)/i);
+    if (methodMatch) {
+      method = methodMatch[1].toUpperCase();
+    }
+  }
+
+  if (existing) {
+    if (displayName) existing.display_name = displayName;
+    existing.method = method;
+    return;
+  }
+
+  const lastSlash = path.lastIndexOf('/');
+  const dir = lastSlash >= 0 ? path.substring(0, lastSlash) : '';
+  const fileName = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+
+  const newItem: WorkspaceFileItem = {
+    name: fileName,
+    path,
+    is_dir: false,
+    display_name: displayName || fileName.replace(/\.(curl|grpcurl)$/, ''),
+    method,
+  };
+
+  if (!dir || dir === '.' || dir === '/') {
+    mockWorkspaceTree.push(newItem);
+  } else {
+    const parentFolder = findMockItem(mockWorkspaceTree, dir);
+    if (parentFolder) {
+      if (!parentFolder.children) parentFolder.children = [];
+      parentFolder.children.push(newItem);
+    } else {
+      mockWorkspaceTree.push(newItem);
+    }
+  }
+}
+
 export async function scanWorkspace(path: string): Promise<WorkspaceFileItem[]> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -72,6 +138,16 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
   }
 
   // Browser mock fallback
+  if (mockFileContents.has(path)) {
+    return JSON.parse(JSON.stringify(mockFileContents.get(path)!));
+  }
+  const normPath = normalizeMockPath(path);
+  for (const [storedPath, details] of mockFileContents.entries()) {
+    if (normalizeMockPath(storedPath) === normPath) {
+      return JSON.parse(JSON.stringify(details));
+    }
+  }
+
   if (path.includes('create_user')) {
     return {
       path,
@@ -126,7 +202,19 @@ export async function saveRequestFile(
       sidecar,
     });
   }
-  console.log('[Dev Mock] Saved file to', path, rawContent);
+
+  const nameMatch = rawContent.match(/^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m);
+  const inferredName = nameMatch ? nameMatch[1].trim() : undefined;
+  mockFileContents.set(path, {
+    path,
+    raw_content: rawContent,
+    metadata: {
+      name: sidecar?.name || inferredName,
+    },
+    sidecar,
+  });
+
+  upsertItemInMockTree(path, rawContent, sidecar);
 }
 
 export async function parseCurlPreview(rawContent: string): Promise<ParsedCurlRequest> {
@@ -350,7 +438,33 @@ export async function createCollectionFolder(
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('create_collection_folder', { parentPath, folderName });
   }
-  return `${parentPath}/${folderName}`;
+
+  const cleanFolderName = folderName.trim().replace(/[\\\/]+/g, '_');
+  const isRoot = !parentPath || parentPath === '.' || parentPath === '/' || parentPath === './';
+  const newPath = isRoot
+    ? cleanFolderName
+    : `${parentPath.replace(/[\\\/]+$/, '')}/${cleanFolderName}`;
+
+  const newFolder: WorkspaceFileItem = {
+    name: cleanFolderName,
+    path: newPath,
+    is_dir: true,
+    children: [],
+  };
+
+  if (isRoot) {
+    mockWorkspaceTree.push(newFolder);
+  } else {
+    const parent = findMockItem(mockWorkspaceTree, parentPath);
+    if (parent) {
+      if (!parent.children) parent.children = [];
+      parent.children.push(newFolder);
+    } else {
+      mockWorkspaceTree.push(newFolder);
+    }
+  }
+
+  return newPath;
 }
 
 export async function deleteWorkspaceItem(itemPath: string): Promise<void> {
@@ -358,7 +472,26 @@ export async function deleteWorkspaceItem(itemPath: string): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('delete_workspace_item', { itemPath });
   }
-  console.log('[Dev Mock] Deleted item:', itemPath);
+
+  function removeFromTree(items: WorkspaceFileItem[]): boolean {
+    const normTarget = normalizeMockPath(itemPath);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.path === itemPath || normalizeMockPath(item.path) === normTarget) {
+        items.splice(i, 1);
+        return true;
+      }
+      if (item.children && item.children.length > 0) {
+        if (removeFromTree(item.children)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  removeFromTree(mockWorkspaceTree);
+  mockFileContents.delete(itemPath);
 }
 
 export async function renameWorkspaceItem(
@@ -370,9 +503,27 @@ export async function renameWorkspaceItem(
     return invoke('rename_workspace_item', { oldPath, newName });
   }
 
+  function updateChildrenPrefix(
+    children: WorkspaceFileItem[],
+    oldPrefix: string,
+    newPrefix: string
+  ) {
+    for (const child of children) {
+      if (child.path.startsWith(oldPrefix + '/')) {
+        child.path = newPrefix + child.path.slice(oldPrefix.length);
+      } else if (child.path === oldPrefix) {
+        child.path = newPrefix;
+      }
+      if (child.children) {
+        updateChildrenPrefix(child.children, oldPrefix, newPrefix);
+      }
+    }
+  }
+
   function updateInTree(items: WorkspaceFileItem[]): string | null {
+    const normOld = normalizeMockPath(oldPath);
     for (const item of items) {
-      if (item.path === oldPath) {
+      if (item.path === oldPath || normalizeMockPath(item.path) === normOld) {
         const isRequest = item.name.endsWith('.curl') || item.name.endsWith('.grpcurl');
         if (isRequest) {
           const ext = item.name.endsWith('.grpcurl') ? 'grpcurl' : 'curl';
@@ -389,19 +540,34 @@ export async function renameWorkspaceItem(
                 .replace(/^_+|_+$/g, '') || 'request';
             fileName = `${slug}.${ext}`;
           }
-          const lastSlash = oldPath.lastIndexOf('/');
-          const parent = lastSlash >= 0 ? oldPath.substring(0, lastSlash) : '';
+          const lastSlash = item.path.lastIndexOf('/');
+          const parent = lastSlash >= 0 ? item.path.substring(0, lastSlash) : '';
           const newPath = parent ? `${parent}/${fileName}` : fileName;
           item.name = fileName;
           item.display_name = displayName;
           item.path = newPath;
+
+          if (mockFileContents.has(oldPath)) {
+            const details = mockFileContents.get(oldPath)!;
+            mockFileContents.delete(oldPath);
+            details.path = newPath;
+            if (details.metadata) details.metadata.name = displayName;
+            if (details.sidecar) details.sidecar.name = displayName;
+            mockFileContents.set(newPath, details);
+          }
+
           return newPath;
         } else {
-          const lastSlash = oldPath.lastIndexOf('/');
-          const parent = lastSlash >= 0 ? oldPath.substring(0, lastSlash) : '';
-          const newPath = parent ? `${parent}/${newName.trim()}` : newName.trim();
-          item.name = newName.trim();
+          const trimmed = newName.trim();
+          const lastSlash = item.path.lastIndexOf('/');
+          const parent = lastSlash >= 0 ? item.path.substring(0, lastSlash) : '';
+          const newPath = parent ? `${parent}/${trimmed}` : trimmed;
+          const oldItemPath = item.path;
+          item.name = trimmed;
           item.path = newPath;
+          if (item.children) {
+            updateChildrenPrefix(item.children, oldItemPath, newPath);
+          }
           return newPath;
         }
       }
@@ -422,7 +588,107 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('duplicate_request_file', { sourcePath });
   }
-  return `${sourcePath}_copy.curl`;
+
+  const isGrpc = sourcePath.endsWith('.grpcurl');
+  const ext = isGrpc ? 'grpcurl' : 'curl';
+
+  const lastSlash = sourcePath.lastIndexOf('/');
+  const dir = lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : '';
+  const fileBasename = lastSlash >= 0 ? sourcePath.substring(lastSlash + 1) : sourcePath;
+  const stem = fileBasename.replace(/\.(curl|grpcurl)$/, '');
+
+  function getSiblingNames(items: WorkspaceFileItem[], targetPath: string): string[] {
+    const normTarget = normalizeMockPath(targetPath);
+    for (const item of items) {
+      if (item.path === targetPath || normalizeMockPath(item.path) === normTarget) {
+        return items.map((i) => i.name);
+      }
+      if (item.children) {
+        const found = getSiblingNames(item.children, targetPath);
+        if (found.length > 0) return found;
+      }
+    }
+    return [];
+  }
+
+  const siblingNames = new Set(getSiblingNames(mockWorkspaceTree, sourcePath));
+
+  let candidateName = `${stem}_copy.${ext}`;
+  let counter = 2;
+  while (siblingNames.has(candidateName)) {
+    candidateName = `${stem}_copy_${counter}.${ext}`;
+    counter++;
+  }
+
+  const newPath = dir ? `${dir}/${candidateName}` : candidateName;
+
+  const originalItem = findMockItem(mockWorkspaceTree, sourcePath);
+  const originalDisplay = originalItem?.display_name || stem;
+  const newDisplay = `${originalDisplay} (Copy)`;
+
+  const duplicateItem: WorkspaceFileItem = {
+    name: candidateName,
+    path: newPath,
+    is_dir: false,
+    display_name: newDisplay,
+    method: originalItem?.method || (isGrpc ? 'gRPC' : 'GET'),
+  };
+
+  function insertDuplicate(items: WorkspaceFileItem[]): boolean {
+    const normTarget = normalizeMockPath(sourcePath);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.path === sourcePath || normalizeMockPath(item.path) === normTarget) {
+        items.splice(i + 1, 0, duplicateItem);
+        return true;
+      }
+      if (item.children && item.children.length > 0) {
+        if (insertDuplicate(item.children)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  if (!insertDuplicate(mockWorkspaceTree)) {
+    mockWorkspaceTree.push(duplicateItem);
+  }
+
+  try {
+    const originalContent = await readRequestFile(sourcePath);
+    let rawContent = originalContent.raw_content;
+    if (rawContent.match(/^[ \t]*#[ \t]*@name\b/m)) {
+      rawContent = rawContent.replace(
+        /^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m,
+        `# @name ${newDisplay}`
+      );
+    } else {
+      rawContent = `# @name ${newDisplay}\n${rawContent}`;
+    }
+
+    const clonedSidecar = originalContent.sidecar
+      ? { ...originalContent.sidecar, name: newDisplay }
+      : undefined;
+
+    mockFileContents.set(newPath, {
+      path: newPath,
+      raw_content: rawContent,
+      metadata: {
+        ...originalContent.metadata,
+        name: newDisplay,
+      },
+      sidecar: clonedSidecar,
+    });
+  } catch {
+    mockFileContents.set(newPath, {
+      path: newPath,
+      raw_content: `# @name ${newDisplay}\ncurl -X GET "https://httpbin.org/get"`,
+      metadata: { name: newDisplay },
+    });
+  }
+
+  return newPath;
 }
 
 export async function importCollectionBundle(
@@ -439,4 +705,16 @@ export async function importCollectionBundle(
     });
   }
   return { imported_requests: files.length, env_file: `${collectionName}.env.json` };
+}
+
+export async function exportSpooledStream(
+  spoolPath: string,
+  destinationPath: string
+): Promise<number> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('export_spooled_stream', { spoolPath, destinationPath });
+  }
+  console.log('[Dev Mock] Exported stream from', spoolPath, 'to', destinationPath);
+  return 0;
 }

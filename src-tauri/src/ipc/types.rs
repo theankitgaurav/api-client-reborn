@@ -27,6 +27,8 @@ pub enum ResponseChunk {
     Finished {
         total_duration_ms: u64,
         total_bytes: usize,
+        #[serde(default)]
+        spool_file_path: Option<String>,
     },
     Failed {
         error: String,
