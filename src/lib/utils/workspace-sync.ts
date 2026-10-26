@@ -1,4 +1,4 @@
-import type { SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
+import type { RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
 
 export interface TabResponseData {
   status: number | null;
@@ -156,6 +156,52 @@ export function resolveTargetTabForOpenCurrent(
   }
 
   return { tabToReplace: null, shouldAppend: true };
+}
+
+export function openHistoryEntryInTabs(
+  tabs: TabItem[],
+  activeTabId: string | null,
+  entry: RequestHistoryEntry,
+  id: string
+): { tabs: TabItem[]; activeTabId: string; openedTab: TabItem } {
+  const { tabToReplace } = resolveTargetTabForOpenCurrent(tabs, activeTabId);
+  const openedTab: TabItem = {
+    id,
+    filePath: null,
+    name: entry.request_name,
+    method: entry.method,
+    rawContent: entry.raw_command,
+    isDirty: false,
+    isPinned: false,
+    sidecar: { tests: [] },
+    response: {
+      status: entry.status,
+      statusText: entry.status_text,
+      protocol: '',
+      ttfbMs: null,
+      durationMs: entry.duration_ms,
+      totalBytes: entry.total_bytes,
+      headers: entry.headers,
+      bodyText: entry.response_body,
+      streamMessages: [],
+      isStreaming: entry.is_streaming,
+      error: entry.error,
+      activeTab: 'body',
+      testResults: [],
+      scriptLogs: [],
+      isBodyTruncated: false,
+      totalEventsCount: 0,
+      spoolFilePath: null,
+    },
+  };
+
+  if (tabToReplace) {
+    const updatedTabs = tabs.map((tab) => tab.id === tabToReplace.id ? openedTab : tab);
+    return { tabs: updatedTabs, activeTabId: openedTab.id, openedTab };
+  }
+
+  const updatedTabs = [...tabs, openedTab];
+  return { tabs: updatedTabs, activeTabId: openedTab.id, openedTab };
 }
 
 /**

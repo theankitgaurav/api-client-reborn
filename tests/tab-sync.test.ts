@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
+  openHistoryEntryInTabs,
   resolveTargetTabForOpenCurrent,
   formatDuplicateRequestName,
   sanitizeRequestRename,
@@ -10,6 +11,25 @@ import {
   normalizeFolderPath,
   type TabItem,
 } from '../src/lib/utils/workspace-sync.ts';
+import type { RequestHistoryEntry } from '../src/lib/types.ts';
+
+const historyEntry: RequestHistoryEntry = {
+  id: 'history-1',
+  timestamp: '2026-10-26T10:00:00.000Z',
+  request_name: 'Saved Request',
+  request_path: 'api/saved.curl',
+  method: 'POST',
+  url: 'https://api.example.com/saved',
+  raw_command: 'curl -X POST https://api.example.com/saved -d \'{"ok":true}\'',
+  status: 201,
+  status_text: 'Created',
+  headers: [{ key: 'content-type', value: 'application/json' }],
+  response_body: '{"created":true}',
+  duration_ms: 42,
+  total_bytes: 16,
+  is_streaming: false,
+  error: null,
+};
 
 // Helper to construct sample TabItem for tests
 function makeTab(overrides: Partial<TabItem> = {}): TabItem {
@@ -388,6 +408,60 @@ test('resolveTargetTabForOpenCurrent (Tier 2) allows replacing an untitled clean
   const result = resolveTargetTabForOpenCurrent([draftTab], 'draft');
   assert.equal(result.shouldAppend, false);
   assert.equal(result.tabToReplace?.id, 'draft');
+});
+
+test('openHistoryEntryInTabs loads request and response data into a preview tab', () => {
+  const result = openHistoryEntryInTabs([], null, historyEntry, 'history-tab');
+  assert.equal(result.activeTabId, 'history-tab');
+  assert.equal(result.tabs.length, 1);
+  assert.equal(result.openedTab.filePath, null);
+  assert.equal(result.openedTab.name, historyEntry.request_name);
+  assert.equal(result.openedTab.method, historyEntry.method);
+  assert.equal(result.openedTab.rawContent, historyEntry.raw_command);
+  assert.deepEqual(result.openedTab.response, {
+    status: 201,
+    statusText: 'Created',
+    protocol: '',
+    ttfbMs: null,
+    durationMs: 42,
+    totalBytes: 16,
+    headers: historyEntry.headers,
+    bodyText: historyEntry.response_body,
+    streamMessages: [],
+    isStreaming: false,
+    error: null,
+    activeTab: 'body',
+    testResults: [],
+    scriptLogs: [],
+    isBodyTruncated: false,
+    totalEventsCount: 0,
+    spoolFilePath: null,
+  });
+});
+
+test('openHistoryEntryInTabs reuses a clean preview and preserves pinned or dirty tabs', () => {
+  const pinned = makeTab({ id: 'pinned', isPinned: true });
+  const dirty = makeTab({ id: 'dirty', isDirty: true });
+  const preview = makeTab({ id: 'preview', filePath: null, isPinned: false });
+  const result = openHistoryEntryInTabs([pinned, dirty, preview], 'pinned', historyEntry, 'new');
+
+  assert.equal(result.tabs.length, 3);
+  assert.equal(result.activeTabId, 'new');
+  assert.equal(result.tabs[0], pinned);
+  assert.equal(result.tabs[1], dirty);
+  assert.equal(result.tabs[2].id, 'new');
+  assert.equal(result.tabs[2].rawContent, historyEntry.raw_command);
+});
+
+test('openHistoryEntryInTabs appends when all existing tabs are pinned or dirty', () => {
+  const pinned = makeTab({ id: 'pinned', isPinned: true });
+  const dirty = makeTab({ id: 'dirty', isDirty: true });
+  const result = openHistoryEntryInTabs([pinned, dirty], 'pinned', historyEntry, 'history-tab');
+
+  assert.equal(result.tabs.length, 3);
+  assert.equal(result.tabs[0], pinned);
+  assert.equal(result.tabs[1], dirty);
+  assert.equal(result.activeTabId, 'history-tab');
 });
 
 // ============================================================================

@@ -78,7 +78,11 @@
     {:else}
       {#each filteredEntries as entry (entry.id)}
         <details class="rounded border border-[#e5e5e5] dark:border-[#303030] bg-white/70 dark:bg-[#202020]">
-          <summary class="list-none cursor-pointer px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-[#282828] rounded">
+          <summary
+            class="list-none cursor-pointer px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-[#282828] rounded"
+            title="Load request and response"
+            onclick={() => workspaceState.openHistoryEntry(entry)}
+          >
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="font-mono font-bold text-[9px] text-blue-600 dark:text-blue-400 shrink-0">{entry.method}</span>
               <span class="truncate text-[11px] text-neutral-800 dark:text-neutral-200" title={entry.url || entry.request_name}>

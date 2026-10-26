@@ -8,10 +8,11 @@ import {
   saveRequestFile,
   scanWorkspace,
 } from '../ipc';
-import type { FileDetails, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
+import type { FileDetails, RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
+  openHistoryEntryInTabs,
   removeWorkspaceItem,
   resolveTargetTabForOpenCurrent,
   sanitizeRequestRename,
@@ -186,6 +187,17 @@ export class WorkspaceState {
   // Alias for backward compatibility
   async openFile(path: string) {
     await this.openRequest(path, false);
+  }
+
+  openHistoryEntry(entry: RequestHistoryEntry) {
+    const opened = openHistoryEntryInTabs(
+      this.tabs,
+      this.activeTabId,
+      entry,
+      crypto.randomUUID()
+    );
+    this.tabs = opened.tabs;
+    this.activeTabId = opened.activeTabId;
   }
 
   createNewRequest() {
