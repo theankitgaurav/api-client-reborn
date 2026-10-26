@@ -10,6 +10,7 @@ export interface TabResponseData {
   headers: { key: string; value: string }[];
   bodyText: string;
   streamMessages: any[];
+  isStreaming?: boolean;
   error: string | null;
   activeTab: 'body' | 'headers' | 'stream' | 'tests' | 'raw';
   testResults: TestResultItem[];

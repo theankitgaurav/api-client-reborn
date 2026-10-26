@@ -112,14 +112,16 @@
       >
         Headers ({responseState.headers.length})
       </button>
-      <button
-        onclick={() => (responseState.activeTab = 'stream')}
-        class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'stream'
-          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
-      >
-        Stream ({responseState.streamMessages.length})
-      </button>
+      {#if responseState.isStreaming}
+        <button
+          onclick={() => (responseState.activeTab = 'stream')}
+          class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'stream'
+            ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
+            : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+        >
+          Stream ({responseState.streamMessages.length})
+        </button>
+      {/if}
       <button
         onclick={() => (responseState.activeTab = 'tests')}
         class="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'tests'

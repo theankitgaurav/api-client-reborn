@@ -57,11 +57,12 @@ export class ResponseState {
       this.headers = r.headers;
       this.bodyText = r.bodyText;
       this.streamMessages = r.streamMessages;
+      this.isStreaming = r.isStreaming ?? r.activeTab === 'stream';
       this.error = r.error;
       this.isBodyTruncated = r.isBodyTruncated ?? false;
       this.totalEventsCount = r.totalEventsCount ?? (r.streamMessages?.length || 0);
       this.spoolFilePath = r.spoolFilePath ?? null;
-      this.activeTab = r.activeTab;
+      this.activeTab = !this.isStreaming && r.activeTab === 'stream' ? 'body' : r.activeTab;
       this.testResults = r.testResults;
       this.scriptLogs = r.scriptLogs;
     } else if (tab && !this.isExecuting) {
@@ -81,6 +82,7 @@ export class ResponseState {
       headers: this.headers,
       bodyText: this.bodyText,
       streamMessages: this.streamMessages,
+      isStreaming: this.isStreaming,
       error: this.error,
       isBodyTruncated: this.isBodyTruncated,
       totalEventsCount: this.totalEventsCount,
@@ -101,6 +103,7 @@ export class ResponseState {
     this.headers = [];
     this.bodyText = '';
     this.streamMessages = [];
+    this.isStreaming = false;
     this.error = null;
     this.isBodyTruncated = false;
     this.totalEventsCount = 0;
