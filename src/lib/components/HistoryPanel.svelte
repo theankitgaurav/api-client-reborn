@@ -1,13 +1,29 @@
 <script lang="ts">
   import { historyState } from '$lib/state/history.svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
-  import { AlertCircle, Clock, Search } from '$lib/components/icons';
+  import { AlertCircle, Clock, Search, Trash2 } from '$lib/components/icons';
 
   $effect(() => {
     void historyState.load(workspaceState.workspacePath);
   });
 
   let filteredEntries = $derived(historyState.filteredEntries);
+  let isClearing = $state(false);
+
+  async function clearHistory() {
+    if (!historyState.entries.length || isClearing) return;
+    if (!confirm('Clear all request history? This cannot be undone.')) return;
+
+    isClearing = true;
+    try {
+      await historyState.clear(workspaceState.workspacePath);
+    } catch (error) {
+      console.error('Failed to clear request history:', error);
+      alert(`Failed to clear history: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      isClearing = false;
+    }
+  }
 
   function formatTimestamp(timestamp: string): string {
     const date = new Date(timestamp);
@@ -25,7 +41,7 @@
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col">
-  <div class="p-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+  <div class="p-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center gap-1.5">
     <div class="relative w-full">
       <Search size={13} class="absolute left-2 top-2 text-neutral-400" />
       <input
@@ -39,6 +55,17 @@
         class="w-full bg-white dark:bg-[#202020] border border-[#d2d2d7] dark:border-[#303030] rounded pl-7 pr-2 py-1 text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 shadow-sm"
       />
     </div>
+    <button
+      type="button"
+      onclick={clearHistory}
+      disabled={historyState.entries.length === 0 || isClearing}
+      title="Clear all history"
+      aria-label="Clear all history"
+      class="shrink-0 flex items-center gap-1 rounded border border-[#d2d2d7] dark:border-[#383838] px-1.5 py-1 text-[10px] text-neutral-600 dark:text-neutral-300 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <Trash2 size={11} />
+      <span>{isClearing ? 'Clearing' : 'Clear'}</span>
+    </button>
   </div>
 
   <div class="flex-1 overflow-y-auto p-1.5 space-y-1">

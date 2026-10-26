@@ -41,6 +41,15 @@ export async function appendRequestHistory(
   mockRequestHistory = [entry, ...mockRequestHistory];
 }
 
+export async function clearRequestHistory(workspacePath: string): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('clear_request_history', { workspacePath });
+  }
+
+  mockRequestHistory = [];
+}
+
 let mockWorkspaceTree: WorkspaceFileItem[] = [
   {
     name: 'examples',

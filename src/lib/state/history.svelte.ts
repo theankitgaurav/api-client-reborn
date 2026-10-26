@@ -1,4 +1,4 @@
-import { appendRequestHistory, getRequestHistory } from '../ipc';
+import { appendRequestHistory, clearRequestHistory, getRequestHistory } from '../ipc';
 import type { RequestHistoryEntry } from '../types';
 
 export class HistoryState {
@@ -48,6 +48,11 @@ export class HistoryState {
     } catch (error) {
       console.error('Failed to save request history:', error);
     }
+  }
+
+  async clear(workspacePath: string) {
+    await clearRequestHistory(workspacePath);
+    this.entries = [];
   }
 }
 

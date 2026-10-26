@@ -7,13 +7,12 @@ pub mod parser;
 
 use engine::cancel::CancellationManager;
 use ipc::{
-    cancel_request, create_collection_folder, create_request_file, delete_workspace_item,
-    duplicate_request_file, execute_request, export_spooled_stream, get_workspace_environments,
-    append_request_history, get_request_history, get_workspace_path, get_workspace_secrets,
-    get_workspace_variables,
-    import_collection_bundle,
-    parse_curl_preview, read_request_file, rename_workspace_item, save_request_file,
-    save_workspace_secrets, save_workspace_variables, scan_workspace,
+    append_request_history, cancel_request, clear_request_history, create_collection_folder,
+    create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
+    export_spooled_stream, get_request_history, get_workspace_environments, get_workspace_path,
+    get_workspace_secrets, get_workspace_variables, import_collection_bundle, parse_curl_preview,
+    read_request_file, rename_workspace_item, save_request_file, save_workspace_secrets,
+    save_workspace_variables, scan_workspace,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,6 +25,7 @@ pub fn run() {
             execute_request,
             get_request_history,
             append_request_history,
+            clear_request_history,
             cancel_request,
             export_spooled_stream,
             parse_curl_preview,

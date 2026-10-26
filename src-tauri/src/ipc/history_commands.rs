@@ -43,6 +43,13 @@ pub fn append_request_history(workspace_path: String, entry: RequestHistoryEntry
         .map_err(|e| AppError::FsError(format!("Failed to save request history: {}", e)))
 }
 
+#[tauri::command]
+pub fn clear_request_history(workspace_path: String) -> Result<()> {
+    let path = history_path(&workspace_path);
+    fs::write(&path, "[]")
+        .map_err(|e| AppError::FsError(format!("Failed to clear request history: {}", e)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,6 +91,19 @@ mod tests {
         assert_eq!(entries[0].id, "two");
         assert_eq!(entries[1].id, "one");
 
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn clear_history_writes_empty_list() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("history_clear_test_{}", uuid::Uuid::new_v4()));
+        let workspace = temp_dir.to_string_lossy().to_string();
+
+        append_request_history(workspace.clone(), sample_entry("one")).unwrap();
+        clear_request_history(workspace.clone()).unwrap();
+
+        assert!(get_request_history(workspace).unwrap().is_empty());
         let _ = fs::remove_dir_all(temp_dir);
     }
 }
