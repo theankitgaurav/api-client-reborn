@@ -6,6 +6,14 @@ export class HistoryState {
   searchQuery = $state('');
   isLoading = $state(false);
   private loadedWorkspacePath = '';
+  private loadGeneration = 0;
+  private persistenceQueue: Promise<void> = Promise.resolve();
+
+  private enqueuePersistence(operation: () => Promise<void>): Promise<void> {
+    const pending = this.persistenceQueue.then(operation, operation);
+    this.persistenceQueue = pending.catch(() => {});
+    return pending;
+  }
 
   get filteredEntries(): RequestHistoryEntry[] {
     const query = this.searchQuery.trim().toLowerCase();
@@ -30,29 +38,41 @@ export class HistoryState {
   async load(workspacePath: string) {
     if (this.loadedWorkspacePath === workspacePath) return;
     this.loadedWorkspacePath = workspacePath;
+    const generation = ++this.loadGeneration;
     this.isLoading = true;
     try {
-      this.entries = await getRequestHistory(workspacePath);
+      const entries = await getRequestHistory(workspacePath);
+      if (generation === this.loadGeneration) this.entries = entries;
     } catch (error) {
       console.error('Failed to load request history:', error);
-      this.entries = [];
+      if (generation === this.loadGeneration) this.entries = [];
     } finally {
-      this.isLoading = false;
+      if (generation === this.loadGeneration) this.isLoading = false;
     }
   }
 
   async record(workspacePath: string, entry: RequestHistoryEntry) {
+    this.loadGeneration++;
+    this.isLoading = false;
     this.entries = [entry, ...this.entries.filter((existing) => existing.id !== entry.id)];
     try {
-      await appendRequestHistory(workspacePath, entry);
+      await this.enqueuePersistence(() => appendRequestHistory(workspacePath, entry));
     } catch (error) {
       console.error('Failed to save request history:', error);
     }
   }
 
   async clear(workspacePath: string) {
-    await clearRequestHistory(workspacePath);
+    const previousEntries = this.entries;
+    this.loadGeneration++;
+    this.isLoading = false;
     this.entries = [];
+    try {
+      await this.enqueuePersistence(() => clearRequestHistory(workspacePath));
+    } catch (error) {
+      if (this.entries.length === 0) this.entries = previousEntries;
+      throw error;
+    }
   }
 }
 
