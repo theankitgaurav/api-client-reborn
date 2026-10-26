@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicepkg/tauri-schema/main/schema.json",
   "productName": "API Client Reborn",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.apiclient.reborn",
   "build": {
     "beforeDevCommand": "npm run dev",

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.2.0-blue?style=flat-square" alt="Release v0.2.0" /></a>
+  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.3.0-blue?style=flat-square" alt="Release v0.3.0" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24C8D8?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" /></a>
   <a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust 2021" /></a>
