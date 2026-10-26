@@ -41,6 +41,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 - 🚀 **Blazing Native Performance**: Powered by **Tauri v2** and **Rust** with native OS webviews. Cold startup is virtually instantaneous (<150 ms) and idle memory footprint is just **~35 MB** (instead of 500+ MB on Electron).
 - 💾 **100% Local & Git-Native**: Your API requests are saved as plain, human-readable `.curl` files directly on your filesystem. Version-control requests alongside your code with standard `git commit`, `git diff`, and pull requests.
+- 🕘 **Persistent Request History**: Every sent request and its response are recorded in `history.json` under the workspace directory (by default `~/.api-client-reborn`) and can be searched in the sidebar.
 - 🐚 **True CLI & cURL Interoperability**: Every request is a 100% valid, runnable command. Copy as cURL, run directly in your terminal, or export complete collections to zero-dependency standalone POSIX shell scripts (`.sh`).
 - 🛡️ **Zero Cloud Lock-In & Zero Telemetry**: No mandatory accounts, no cloud sync, no tracking, and no paywalls. Everything executes on your own machine.
 - 🌊 **Streaming & SSE Ready**: First-class support for chunked responses and Server-Sent Events with intelligent sliding-window memory defense and disk spooling for massive payloads.
@@ -118,6 +119,7 @@ graph TD
     D --> D2["auth/.apiclient/login.sidecar.json"]
     D --> D3["users/create_user.curl"]
     D --> D4["users/stream_events.curl"]
+    A --> E["history.json"]
   end
 ```
 
@@ -151,6 +153,9 @@ Optional sidecar file stored in `.apiclient/` containing test assertions and aut
   "post_response_script": "pm.test('Status is 201 Created', function() {\n  pm.expect(pm.response.code).to.equal(201);\n});\npm.test('User ID returned', function() {\n  var json = pm.response.json();\n  pm.expect(json.id).to.exist;\n  pm.environment.set('user_id', json.id);\n});"
 }
 ```
+
+### 3. `history.json` Request History
+The app stores a local JSON history in the workspace directory. Each entry includes the request name, method, URL, timestamp, response status, duration, headers, and the captured response body. Request commands retain their variable placeholders instead of storing resolved environment secrets.
 
 ---
 

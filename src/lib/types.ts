@@ -80,6 +80,24 @@ export interface EnvironmentItem {
   variables: [string, string][];
 }
 
+export interface RequestHistoryEntry {
+  id: string;
+  timestamp: string;
+  request_name: string;
+  request_path: string | null;
+  method: string;
+  url: string;
+  raw_command: string;
+  status: number | null;
+  status_text: string;
+  headers: { key: string; value: string }[];
+  response_body: string;
+  duration_ms: number | null;
+  total_bytes: number;
+  is_streaming: boolean;
+  error: string | null;
+}
+
 export type ResponseChunk =
   | { type: 'Started'; payload: { request_id: string } }
   | {

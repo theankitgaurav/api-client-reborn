@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import { cancelRequest, executeRequest, exportSpooledStream } from '../ipc';
-import type { ResponseChunk, TestResultItem } from '../types';
+import type { RequestHistoryEntry, ResponseChunk, TestResultItem } from '../types';
+import { parseCurlToPlayground } from '../utils/curl-serializer';
 import { runScript } from '../utils/script-runner';
 import {
   MAX_BODY_TEXT_BYTES,
@@ -8,6 +9,7 @@ import {
   type StreamItem,
 } from '../utils/stream-buffer';
 import { envState } from './env.svelte';
+import { historyState } from './history.svelte';
 import { workspaceState, type TabResponseData } from './workspace.svelte';
 
 export { MAX_BODY_TEXT_BYTES, MAX_STREAM_MESSAGES, type StreamItem };
@@ -38,6 +40,8 @@ export class ResponseState {
   scriptLogs = $state<string[]>([]);
 
   private currentExecutingTabId: string | null = null;
+  private currentHistoryEntry: RequestHistoryEntry | null = null;
+  private historyRecordedForRequest = false;
 
   // Sync state whenever the active tab in workspace changes
   loadTab(tabId: string | null) {
@@ -91,6 +95,30 @@ export class ResponseState {
       testResults: this.testResults,
       scriptLogs: this.scriptLogs,
     };
+  }
+
+  private recordHistory(errorOverride?: string | null) {
+    if (!this.currentHistoryEntry || this.historyRecordedForRequest) return;
+
+    this.historyRecordedForRequest = true;
+    const responseBody = this.bodyText || (
+      this.streamMessages.length > 0
+        ? JSON.stringify(this.streamMessages, null, 2)
+        : ''
+    );
+    const entry: RequestHistoryEntry = {
+      ...this.currentHistoryEntry,
+      status: this.status,
+      status_text: this.statusText,
+      headers: this.headers,
+      response_body: responseBody,
+      duration_ms: this.durationMs,
+      total_bytes: this.totalBytes,
+      is_streaming: this.isStreaming,
+      error: errorOverride ?? this.error,
+    };
+
+    void historyState.record(workspaceState.workspacePath, entry);
   }
 
   private clear() {
@@ -156,6 +184,25 @@ export class ResponseState {
 
     const requestId = crypto.randomUUID();
     this.activeRequestId = requestId;
+    const requestModel = parseCurlToPlayground(rawContent);
+    this.currentHistoryEntry = {
+      id: requestId,
+      timestamp: new Date().toISOString(),
+      request_name: tab.name,
+      request_path: tab.filePath,
+      method: tab.method,
+      url: requestModel.url,
+      raw_command: rawContent,
+      status: null,
+      status_text: '',
+      headers: [],
+      response_body: '',
+      duration_ms: null,
+      total_bytes: 0,
+      is_streaming: false,
+      error: null,
+    };
+    this.historyRecordedForRequest = false;
 
     try {
       await executeRequest(
@@ -170,6 +217,7 @@ export class ResponseState {
       this.error = e.toString();
       this.isExecuting = false;
       this.saveToActiveTab();
+      this.recordHistory();
     }
   }
 
@@ -255,12 +303,14 @@ export class ResponseState {
         // 2. Run Post-response script (Tests) if present
         this.runPostResponseScript();
         this.saveToActiveTab();
+        this.recordHistory(null);
         break;
 
       case 'Failed':
         this.error = chunk.payload.error;
         this.isExecuting = false;
         this.saveToActiveTab();
+        this.recordHistory();
         break;
     }
   }
@@ -335,7 +385,9 @@ export class ResponseState {
     if (this.activeRequestId && this.isExecuting) {
       await cancelRequest(this.activeRequestId);
       this.isExecuting = false;
+      this.error = 'Request cancelled';
       this.saveToActiveTab();
+      this.recordHistory(this.error);
     }
   }
 }

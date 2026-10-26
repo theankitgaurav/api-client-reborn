@@ -2,6 +2,7 @@ import type {
   EnvironmentItem,
   FileDetails,
   ParsedCurlRequest,
+  RequestHistoryEntry,
   ResponseChunk,
   WorkspaceFileItem,
 } from './types';
@@ -15,6 +16,29 @@ export async function getWorkspacePath(): Promise<string> {
     return invoke('get_workspace_path');
   }
   return '~/.api-client-reborn';
+}
+
+let mockRequestHistory: RequestHistoryEntry[] = [];
+
+export async function getRequestHistory(workspacePath: string): Promise<RequestHistoryEntry[]> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_request_history', { workspacePath });
+  }
+
+  return JSON.parse(JSON.stringify(mockRequestHistory));
+}
+
+export async function appendRequestHistory(
+  workspacePath: string,
+  entry: RequestHistoryEntry
+): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('append_request_history', { workspacePath, entry });
+  }
+
+  mockRequestHistory = [entry, ...mockRequestHistory];
 }
 
 let mockWorkspaceTree: WorkspaceFileItem[] = [

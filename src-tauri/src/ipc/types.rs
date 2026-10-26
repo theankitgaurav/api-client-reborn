@@ -51,3 +51,22 @@ pub struct EnvironmentItem {
     pub file_path: String,
     pub variables: Vec<(String, String)>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestHistoryEntry {
+    pub id: String,
+    pub timestamp: String,
+    pub request_name: String,
+    pub request_path: Option<String>,
+    pub method: String,
+    pub url: String,
+    pub raw_command: String,
+    pub status: Option<u16>,
+    pub status_text: String,
+    pub headers: Vec<HeaderPair>,
+    pub response_body: String,
+    pub duration_ms: Option<u64>,
+    pub total_bytes: usize,
+    pub is_streaming: bool,
+    pub error: Option<String>,
+}

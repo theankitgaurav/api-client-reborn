@@ -11,6 +11,7 @@ src-tauri/gen/
 
 # API Client Secrets (CRITICAL: Never commit secrets)
 .apiclient/.secrets.env
+history.json
 *.secret.env
 *.secrets.json
 

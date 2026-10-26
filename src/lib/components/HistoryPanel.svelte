@@ -1,0 +1,91 @@
+<script lang="ts">
+  import { historyState } from '$lib/state/history.svelte';
+  import { workspaceState } from '$lib/state/workspace.svelte';
+  import { AlertCircle, Clock, Search } from '$lib/components/icons';
+
+  $effect(() => {
+    void historyState.load(workspaceState.workspacePath);
+  });
+
+  let filteredEntries = $derived(historyState.filteredEntries);
+
+  function formatTimestamp(timestamp: string): string {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return timestamp;
+    return date.toLocaleString();
+  }
+
+  function statusClass(status: number | null): string {
+    if (status === null) return 'text-rose-500 dark:text-rose-400';
+    if (status >= 200 && status < 300) return 'text-emerald-600 dark:text-emerald-400';
+    if (status >= 300 && status < 400) return 'text-blue-600 dark:text-blue-400';
+    if (status >= 400) return 'text-amber-600 dark:text-amber-400';
+    return 'text-neutral-500';
+  }
+</script>
+
+<div class="flex-1 min-h-0 flex flex-col">
+  <div class="p-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+    <div class="relative w-full">
+      <Search size={13} class="absolute left-2 top-2 text-neutral-400" />
+      <input
+        id="history-filter-input"
+        type="text"
+        placeholder="Search history..."
+        value={historyState.searchQuery}
+        oninput={(event) => {
+          historyState.searchQuery = (event.currentTarget as HTMLInputElement).value;
+        }}
+        class="w-full bg-white dark:bg-[#202020] border border-[#d2d2d7] dark:border-[#303030] rounded pl-7 pr-2 py-1 text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 shadow-sm"
+      />
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto p-1.5 space-y-1">
+    {#if historyState.isLoading}
+      <div class="text-center py-6 text-neutral-400 dark:text-neutral-500">Loading history...</div>
+    {:else if filteredEntries.length === 0}
+      <div class="text-center py-8 text-neutral-400 dark:text-neutral-500 text-xs">
+        {historyState.searchQuery ? 'No matching history' : 'No requests sent yet'}
+      </div>
+    {:else}
+      {#each filteredEntries as entry (entry.id)}
+        <details class="rounded border border-[#e5e5e5] dark:border-[#303030] bg-white/70 dark:bg-[#202020]">
+          <summary class="list-none cursor-pointer px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-[#282828] rounded">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="font-mono font-bold text-[9px] text-blue-600 dark:text-blue-400 shrink-0">{entry.method}</span>
+              <span class="truncate text-[11px] text-neutral-800 dark:text-neutral-200" title={entry.url || entry.request_name}>
+                {entry.request_name}
+              </span>
+              <span class="ml-auto text-[10px] font-mono shrink-0 {statusClass(entry.status)}">
+                {entry.status ?? 'ERR'}
+              </span>
+            </div>
+            <div class="flex items-center gap-1 mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+              <Clock size={10} />
+              <span class="truncate">{formatTimestamp(entry.timestamp)}</span>
+            </div>
+          </summary>
+
+          <div class="px-2 pb-2 space-y-2 text-[10px] text-neutral-600 dark:text-neutral-400">
+            <div class="font-mono break-all text-neutral-700 dark:text-neutral-300">{entry.url || 'URL unavailable'}</div>
+            {#if entry.error}
+              <div class="flex gap-1 text-rose-600 dark:text-rose-400">
+                <AlertCircle size={12} class="shrink-0" />
+                <span class="break-all">{entry.error}</span>
+              </div>
+            {/if}
+            <details>
+              <summary class="cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-200">Request</summary>
+              <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-100 dark:bg-[#181818] p-1.5 font-mono">{entry.raw_command}</pre>
+            </details>
+            <details>
+              <summary class="cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-200">Response</summary>
+              <pre class="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-100 dark:bg-[#181818] p-1.5 font-mono">{entry.response_body || '// No response body'}</pre>
+            </details>
+          </div>
+        </details>
+      {/each}
+    {/if}
+  </div>
+</div>

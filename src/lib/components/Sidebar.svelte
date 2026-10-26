@@ -1,8 +1,10 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
+  import { historyState } from '$lib/state/history.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { readRequestFile } from '$lib/ipc';
+  import HistoryPanel from './HistoryPanel.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
   import type { WorkspaceFileItem } from '$lib/types';
   import {
@@ -16,10 +18,12 @@
     Check,
     Trash2,
     MoreVertical,
+    Clock,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
+  let activeSidebarTab = $state<'requests' | 'history'>('requests');
 
   let itemContextMenu = $state<{
     visible: boolean;
@@ -60,6 +64,10 @@
   }
 
   let filteredTree = $derived(filterItems(workspaceState.tree));
+
+  $effect(() => {
+    void historyState.load(workspaceState.workspacePath);
+  });
 
   function getBadgeClass(method?: string) {
     switch (method?.toUpperCase()) {
@@ -194,6 +202,33 @@
 <svelte:window onclick={closeContextMenu} />
 
 <aside class="w-64 bg-[#fbfbfd] dark:bg-[#181818] border-r border-[#d8d8dc] dark:border-[#2d2d2d] flex flex-col h-full select-none text-xs transition-colors">
+  <div class="px-2 pt-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+    <div class="flex items-center gap-1 p-0.5 rounded bg-neutral-100 dark:bg-[#202020]">
+      <button
+        type="button"
+        onclick={() => (activeSidebarTab = 'requests')}
+        class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors {activeSidebarTab === 'requests'
+          ? 'bg-white dark:bg-[#303030] text-neutral-900 dark:text-white shadow-sm'
+          : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      >
+        <span>Requests</span>
+        <span class="text-[9px] font-mono">{countRequests(workspaceState.tree)}</span>
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeSidebarTab = 'history')}
+        class="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors {activeSidebarTab === 'history'
+          ? 'bg-white dark:bg-[#303030] text-neutral-900 dark:text-white shadow-sm'
+          : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      >
+        <Clock size={11} />
+        <span>History</span>
+        <span class="text-[9px] font-mono">{historyState.entries.length}</span>
+      </button>
+    </div>
+  </div>
+
+  {#if activeSidebarTab === 'requests'}
   <!-- Requests Header & Actions -->
   <div class="px-3 py-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
     <div class="flex items-center gap-1.5" title="Storage directory: {workspaceState.workspacePath}">
@@ -349,6 +384,9 @@
       </div>
     {/if}
   </div>
+  {:else}
+    <HistoryPanel />
+  {/if}
 </aside>
 
 <!-- Right-Click Context Menu -->
