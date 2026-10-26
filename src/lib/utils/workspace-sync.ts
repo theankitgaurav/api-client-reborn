@@ -1,4 +1,4 @@
-import type { SidecarMetadata, TestResultItem } from '../types';
+import type { SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
 
 export interface TabResponseData {
   status: number | null;
@@ -39,6 +39,30 @@ export function normalizeFolderPath(path: string): string {
   if (!path || path === '.') return '.';
   const normalized = path.replace(/[\\\/]+$/, '');
   return normalized || '.';
+}
+
+/**
+ * Removes a workspace item from a scanned request tree without mutating the
+ * existing tree. Matching normalizes slash direction and trailing slashes so
+ * paths from the filesystem and the UI compare consistently.
+ */
+export function removeWorkspaceItem(
+  items: WorkspaceFileItem[],
+  targetPath: string
+): WorkspaceFileItem[] {
+  const normalizePath = (path: string) => {
+    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    return normalized || '/';
+  };
+  const normalizedTarget = normalizePath(targetPath);
+
+  return items
+    .filter((item) => normalizePath(item.path) !== normalizedTarget)
+    .map((item) =>
+      item.children
+        ? { ...item, children: removeWorkspaceItem(item.children, targetPath) }
+        : item
+    );
 }
 
 /**

@@ -643,4 +643,28 @@ mod tests {
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
+
+    #[test]
+    fn test_delete_workspace_item_removes_request_and_sidecar() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "test_delete_req_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let req_file = temp_dir.join("delete_me.curl");
+        let sidecar_file = temp_dir.join("delete_me.meta.json");
+        fs::write(&req_file, "curl https://example.com").unwrap();
+        fs::write(&sidecar_file, r#"{"name":"Delete Me","tests":[]}"#).unwrap();
+
+        delete_workspace_item(req_file.to_string_lossy().to_string()).unwrap();
+
+        assert!(!req_file.exists());
+        assert!(!sidecar_file.exists());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }

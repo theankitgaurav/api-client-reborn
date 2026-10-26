@@ -12,6 +12,7 @@ import type { FileDetails, SidecarMetadata, TestResultItem, WorkspaceFileItem } 
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
+  removeWorkspaceItem,
   resolveTargetTabForOpenCurrent,
   sanitizeRequestRename,
   updateRequestNameHeader,
@@ -32,6 +33,7 @@ export class WorkspaceState {
   isExportModalOpen = $state(false);
   exportTargetFolder = $state<WorkspaceFileItem | null>(null);
   targetNewRequestFolder = $state<string>('.');
+  private refreshRequestId = 0;
 
   // Active tab derivation
   activeTab = $derived(this.tabs.find((t) => t.id === this.activeTabId) || null);
@@ -61,6 +63,7 @@ export class WorkspaceState {
   }
 
   async refreshTree() {
+    const refreshRequestId = ++this.refreshRequestId;
     this.isLoading = true;
     try {
       if (this.workspacePath === '.' || !this.workspacePath) {
@@ -70,7 +73,11 @@ export class WorkspaceState {
           // fallback to '.' if IPC fails
         }
       }
-      this.tree = await scanWorkspace(this.workspacePath);
+      const scannedTree = await scanWorkspace(this.workspacePath);
+      // A delete/rename can start another refresh while this scan is in
+      // flight. Never let an older scan put a stale item back in the pane.
+      if (refreshRequestId !== this.refreshRequestId) return;
+      this.tree = scannedTree;
       // Auto-open first request if no tabs exist
       if (this.tabs.length === 0 && this.tree.length > 0) {
         const first = this.findFirstRequest(this.tree);
@@ -81,7 +88,9 @@ export class WorkspaceState {
     } catch (e) {
       console.error('Failed to load workspace:', e);
     } finally {
-      this.isLoading = false;
+      if (refreshRequestId === this.refreshRequestId) {
+        this.isLoading = false;
+      }
     }
   }
 
@@ -333,16 +342,15 @@ export class WorkspaceState {
 
   async deleteItem(itemPath: string, displayName?: string) {
     const isFolder = !itemPath.endsWith('.curl');
-    const label = displayName || itemPath.split('/').pop() || itemPath;
-    const confirmed = confirm(
-      `Are you sure you want to delete ${isFolder ? 'folder' : 'request'} "${label}"?${
-        isFolder ? ' All contained requests will be deleted.' : ''
-      }`
-    );
-    if (!confirmed) return;
+    const label = displayName || itemPath.split(/[\\/]/).pop() || itemPath;
 
     try {
       await deleteWorkspaceItem(itemPath);
+
+      // Remove the item immediately after the storage operation succeeds so
+      // the request pane reflects the deletion even if a filesystem rescan
+      // is delayed or overlaps with another refresh.
+      this.tree = removeWorkspaceItem(this.tree, itemPath);
 
       if (isFolder) {
         const { remainingTabs, closedTabs } = filterTabsOnFolderDelete(this.tabs, itemPath);
@@ -366,7 +374,7 @@ export class WorkspaceState {
       await this.refreshTree();
     } catch (e) {
       console.error('Failed to delete item:', e);
-      alert(`Failed to delete: ${e instanceof Error ? e.message : String(e)}`);
+      alert(`Failed to delete "${label}": ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

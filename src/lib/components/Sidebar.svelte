@@ -24,6 +24,8 @@
   let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
   let activeSidebarTab = $state<'requests' | 'history'>('requests');
+  let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
+  let isDeletingItem = $state(false);
 
   let itemContextMenu = $state<{
     visible: boolean;
@@ -189,6 +191,23 @@
 
   function closeContextMenu() {
     itemContextMenu = null;
+  }
+
+  function handleDeleteItem(item: WorkspaceFileItem) {
+    closeContextMenu();
+    pendingDeleteItem = item;
+  }
+
+  async function confirmDeleteItem() {
+    if (!pendingDeleteItem || isDeletingItem) return;
+    const item = pendingDeleteItem;
+    isDeletingItem = true;
+    try {
+      await workspaceState.deleteItem(item.path, item.name);
+      pendingDeleteItem = null;
+    } finally {
+      isDeletingItem = false;
+    }
   }
 
   function handleCreateFolder() {
@@ -391,6 +410,7 @@
 
 <!-- Right-Click Context Menu -->
 {#if itemContextMenu && itemContextMenu.visible}
+  {@const menuItem = itemContextMenu.item}
   <div
     role="menu"
     tabindex="-1"
@@ -456,12 +476,11 @@
       </button>
 
       <button
+        type="button"
         class="w-full text-left px-3 py-1.5 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 transition-colors"
-        onclick={() => {
-          if (itemContextMenu) {
-            workspaceState.deleteItem(itemContextMenu.item.path, itemContextMenu.item.name);
-          }
-          closeContextMenu();
+        onclick={(event) => {
+          event.stopPropagation();
+          handleDeleteItem(menuItem);
         }}
       >
         Delete Folder
@@ -530,17 +549,66 @@
       </button>
 
       <button
+        type="button"
         class="w-full text-left px-3 py-1.5 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 transition-colors"
-        onclick={() => {
-          if (itemContextMenu) {
-            workspaceState.deleteItem(itemContextMenu.item.path, itemContextMenu.item.name);
-          }
-          closeContextMenu();
+        onclick={(event) => {
+          event.stopPropagation();
+          handleDeleteItem(menuItem);
         }}
       >
         Delete Request
       </button>
     {/if}
+  </div>
+{/if}
+
+{#if pendingDeleteItem}
+  {@const deletingFolder = pendingDeleteItem.is_dir}
+  <div
+    class="fixed inset-0 z-[60] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    role="presentation"
+    onclick={(event) => {
+      if (event.target === event.currentTarget && !isDeletingItem) pendingDeleteItem = null;
+    }}
+  >
+    <div
+      role="alertdialog"
+      tabindex="-1"
+      aria-modal="true"
+      aria-labelledby="delete-item-title"
+      aria-describedby="delete-item-description"
+      class="w-full max-w-sm rounded-lg border border-neutral-200 dark:border-[#383838] bg-white dark:bg-[#202020] shadow-2xl text-xs overflow-hidden"
+    >
+      <div class="px-4 py-3 border-b border-neutral-200 dark:border-[#383838]">
+        <h2 id="delete-item-title" class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          Delete {deletingFolder ? 'Folder' : 'Request'}?
+        </h2>
+      </div>
+      <div id="delete-item-description" class="px-4 py-4 text-neutral-600 dark:text-neutral-300">
+        <p>“{pendingDeleteItem.display_name || pendingDeleteItem.name}” will be permanently deleted from the workspace.</p>
+        {#if deletingFolder}
+          <p class="mt-2">All requests inside this folder will also be deleted.</p>
+        {/if}
+      </div>
+      <div class="px-4 py-3 bg-neutral-50 dark:bg-[#252526] border-t border-neutral-200 dark:border-[#383838] flex justify-end gap-2">
+        <button
+          type="button"
+          disabled={isDeletingItem}
+          onclick={() => (pendingDeleteItem = null)}
+          class="px-3 py-1.5 rounded border border-neutral-300 dark:border-[#444] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-[#303030] disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={isDeletingItem}
+          onclick={confirmDeleteItem}
+          class="px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-medium disabled:opacity-50"
+        >
+          {isDeletingItem ? 'Deleting…' : `Delete ${deletingFolder ? 'Folder' : 'Request'}`}
+        </button>
+      </div>
+    </div>
   </div>
 {/if}
 

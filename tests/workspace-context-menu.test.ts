@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
+  removeWorkspaceItem,
   resolveTargetTabForOpenCurrent,
   formatDuplicateRequestName,
   sanitizeRequestRename,
@@ -1484,6 +1485,35 @@ test('F11 Delete Request (Tier 1): deletes request file from disk and tree', () 
   ws.deleteRequest('del.curl');
   assert.ok(!ws.files.has('del.curl'));
   assert.ok(!ws.tree.some((i) => i.path === 'del.curl'));
+});
+
+test('F11 Delete Request: removes the request from a nested sidebar tree', () => {
+  const tree: WorkspaceFileItem[] = [
+    {
+      name: 'api',
+      path: '/workspace/api',
+      is_dir: true,
+      children: [
+        {
+          name: 'keep.curl',
+          path: '/workspace/api/keep.curl',
+          is_dir: false,
+        },
+        {
+          name: 'remove.curl',
+          path: '/workspace/api/remove.curl',
+          is_dir: false,
+        },
+      ],
+    },
+  ];
+
+  const remaining = removeWorkspaceItem(tree, '/workspace/api/remove.curl');
+  const apiFolder = remaining[0];
+
+  assert.equal(apiFolder.children?.length, 1);
+  assert.equal(apiFolder.children?.[0].path, '/workspace/api/keep.curl');
+  assert.equal(tree[0].children?.length, 2, 'source tree should remain immutable');
 });
 
 test('F11 Delete Request (Tier 1): closes matching open tab cleanly', () => {
