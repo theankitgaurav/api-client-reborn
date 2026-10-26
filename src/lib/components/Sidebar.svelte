@@ -354,8 +354,12 @@
 <!-- Right-Click Context Menu -->
 {#if itemContextMenu && itemContextMenu.visible}
   <div
+    role="menu"
+    tabindex="-1"
     class="fixed z-50 bg-white dark:bg-[#252526] border border-neutral-200 dark:border-[#383838] rounded-md shadow-xl py-1 text-xs text-neutral-700 dark:text-neutral-200 w-48 select-none"
     style="left: {itemContextMenu.x}px; top: {itemContextMenu.y}px;"
+    onclick={(event) => event.stopPropagation()}
+    onkeydown={(event) => event.key === 'Escape' && closeContextMenu()}
   >
     {#if itemContextMenu.item.is_dir}
       <!-- Folder Context Menu -->
