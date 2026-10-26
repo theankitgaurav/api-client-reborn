@@ -1,6 +1,6 @@
 use crate::error::{AppError, Result};
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
-use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree};
+use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree, IGNORED_NAMES};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
@@ -502,42 +502,52 @@ pub fn import_collection_bundle(
 }
 
 #[tauri::command]
-pub fn get_workspace_proto_files() -> Result<Vec<String>> {
-    let ws_root = resolve_workspace_root(".");
-    let mut results = Vec::new();
+pub async fn get_workspace_proto_files(workspace_path: Option<String>) -> Result<Vec<String>> {
+    tokio::task::spawn_blocking(move || {
+        let ws_root = match workspace_path.as_deref() {
+            Some(p) if !p.is_empty() && p != "." => resolve_workspace_root(p),
+            _ => resolve_workspace_root("."),
+        };
 
-    fn scan_protos(dir: &Path, base: &Path, results: &mut Vec<String>) {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if file_name.starts_with('.') || file_name == "target" || file_name == "node_modules" {
-                    continue;
-                }
-                if path.is_dir() {
-                    scan_protos(&path, base, results);
-                } else if file_name.ends_with(".proto") {
-                    if let Ok(rel) = path.strip_prefix(base) {
-                        results.push(rel.to_string_lossy().to_string());
-                    } else {
-                        results.push(path.to_string_lossy().to_string());
+        let mut results = Vec::new();
+
+        fn scan_protos(dir: &Path, base: &Path, depth: usize, results: &mut Vec<String>) {
+            if depth > 5 || results.len() >= 100 {
+                return;
+            }
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    // Skip symlinks to completely prevent infinite directory cycles
+                    if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                        continue;
+                    }
+                    let path = entry.path();
+                    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if file_name.starts_with('.') || IGNORED_NAMES.contains(&file_name) {
+                        continue;
+                    }
+                    if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                        scan_protos(&path, base, depth + 1, results);
+                    } else if file_name.ends_with(".proto") {
+                        let rel_str = if let Ok(rel) = path.strip_prefix(base) {
+                            rel.to_string_lossy().replace('\\', "/")
+                        } else {
+                            path.to_string_lossy().replace('\\', "/")
+                        };
+                        results.push(rel_str);
                     }
                 }
             }
         }
-    }
 
-    scan_protos(&ws_root, &ws_root, &mut results);
+        scan_protos(&ws_root, &ws_root, 0, &mut results);
 
-    if let Ok(cwd) = std::env::current_dir() {
-        if cwd != ws_root {
-            scan_protos(&cwd, &cwd, &mut results);
-        }
-    }
-
-    results.sort();
-    results.dedup();
-    Ok(results)
+        results.sort();
+        results.dedup();
+        Ok(results)
+    })
+    .await
+    .map_err(|e| AppError::InternalError(format!("Failed to scan proto files: {}", e)))?
 }
 
 #[cfg(test)]
@@ -682,6 +692,21 @@ mod tests {
         assert!(target_file.exists());
         let content = fs::read_to_string(&target_file).unwrap();
         assert!(content.contains("# @name Saved"));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_get_workspace_proto_files_bounded_and_safe() {
+        let temp_dir = std::env::temp_dir().join(format!("proto_scan_test_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let protos_dir = temp_dir.join("protos");
+        fs::create_dir_all(&protos_dir).unwrap();
+        fs::write(protos_dir.join("service.proto"), "syntax = \"proto3\";").unwrap();
+
+        let res = get_workspace_proto_files(Some(temp_dir.to_string_lossy().to_string())).await.unwrap();
+        assert!(res.contains(&"protos/service.proto".to_string()));
+        assert!(res.contains(&"examples/user.proto".to_string()));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

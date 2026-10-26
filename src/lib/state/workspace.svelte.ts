@@ -96,7 +96,10 @@ export class WorkspaceState {
     return null;
   }
 
-  private inferMethod(content: string): string {
+  private inferMethod(content: string, path?: string): string {
+    if (path?.endsWith('.grpcurl') || content.trimStart().startsWith('grpcurl') || content.includes('grpcurl')) {
+      return 'GRPC';
+    }
     const match = content.match(/-X\s+([A-Za-z]+)/);
     if (match) return match[1].toUpperCase();
     if (content.includes('-d ') || content.includes('--data')) return 'POST';
@@ -107,7 +110,7 @@ export class WorkspaceState {
     const nameMatch = content.match(/#\s*@name\s+(.+)/);
     if (nameMatch) return nameMatch[1].trim();
     const fileName = path.split('/').pop() || 'Request';
-    return fileName.replace('.curl', '').replace(/[-_]/g, ' ');
+    return fileName.replace('.curl', '').replace('.grpcurl', '').replace(/[-_]/g, ' ');
   }
 
   async openRequest(path: string, openInNewTab: boolean = false) {
@@ -125,7 +128,7 @@ export class WorkspaceState {
     try {
       const details = await readRequestFile(path);
       const name = details.metadata.name || this.inferName(path, details.raw_content);
-      const method = details.metadata.method || this.inferMethod(details.raw_content);
+      const method = details.metadata.method || this.inferMethod(details.raw_content, path);
 
       if (openInNewTab) {
         const newTab: TabItem = {

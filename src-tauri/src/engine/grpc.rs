@@ -357,7 +357,7 @@ async fn make_h2_grpc_call(
         .uri(format!("http://{}{}", uri_host, uri_path))
         .header("content-type", "application/grpc")
         .header("te", "trailers")
-        .header("user-agent", "api-client-reborn/0.1.0");
+        .header("user-agent", concat!("api-client-reborn/", env!("CARGO_PKG_VERSION")));
 
     for (k, v) in headers {
         if let (Ok(hname), Ok(hval)) = (
@@ -420,8 +420,8 @@ async fn make_h2_grpc_call(
     Ok((http_status, response_headers, response_bytes, trailers))
 }
 
-fn find_proto_recursive(dir: &Path, file_name: &str) -> Option<PathBuf> {
-    if !dir.is_dir() {
+fn find_proto_recursive(dir: &Path, file_name: &str, depth: usize) -> Option<PathBuf> {
+    if depth > 4 || !dir.is_dir() {
         return None;
     }
     let direct = dir.join(file_name);
@@ -430,13 +430,16 @@ fn find_proto_recursive(dir: &Path, file_name: &str) -> Option<PathBuf> {
     }
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
             let path = entry.path();
-            if path.is_dir() {
+            if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                if name.starts_with('.') || name == "target" || name == "node_modules" {
+                if name.starts_with('.') || crate::fs::workspace::IGNORED_NAMES.contains(&name) {
                     continue;
                 }
-                if let Some(found) = find_proto_recursive(&path, file_name) {
+                if let Some(found) = find_proto_recursive(&path, file_name, depth + 1) {
                     return Some(found);
                 }
             }
@@ -473,11 +476,14 @@ pub fn load_proto_descriptor_pool(
             .and_then(|n| n.to_str())
             .unwrap_or(proto_file);
         if let Ok(cwd) = std::env::current_dir() {
-            resolved_proto = find_proto_recursive(&cwd, file_name);
+            // Guard against scanning root filesystem or user root
+            if cwd != Path::new("/") && !dirs::home_dir().map(|h| h == cwd).unwrap_or(false) {
+                resolved_proto = find_proto_recursive(&cwd, file_name, 0);
+            }
         }
         if resolved_proto.is_none() {
             let ws_default = crate::fs::workspace::get_default_workspace_dir();
-            resolved_proto = find_proto_recursive(&ws_default, file_name);
+            resolved_proto = find_proto_recursive(&ws_default, file_name, 0);
         }
     }
 

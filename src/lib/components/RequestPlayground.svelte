@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
@@ -40,7 +41,7 @@
   // Discover workspace proto files whenever Proto tab is active or gRPC request opened
   $effect(() => {
     if (model.method === 'GRPC' || activeTab === 'proto') {
-      getWorkspaceProtoFiles()
+      getWorkspaceProtoFiles(workspaceState.workspacePath)
         .then((files) => {
           workspaceProtoFiles = files;
         })
@@ -82,8 +83,12 @@
       model = parseCurlToPlayground(tab.rawContent);
       if (tab.filePath?.endsWith('.grpcurl') || tab.method?.toUpperCase() === 'GRPC') {
         model.method = 'GRPC';
-        if (activeTab === 'params') {
+        if (untrack(() => activeTab) === 'params') {
           activeTab = 'proto';
+        }
+      } else {
+        if (untrack(() => activeTab) === 'proto') {
+          activeTab = 'params';
         }
       }
       preRequestScript = tab.sidecar?.pre_request_script || '';
@@ -546,7 +551,7 @@
                   checked={Boolean(model.protoFile?.trim())}
                   onchange={() => {
                     if (!model.protoFile) {
-                      model.protoFile = 'examples/user.proto';
+                      model.protoFile = workspaceProtoFiles[0] || 'examples/user.proto';
                     }
                     syncToWorkspace();
                   }}
@@ -561,7 +566,7 @@
           </div>
         </div>
 
-        {#if model.protoFile !== undefined && (model.protoFile.trim() || activeTab === 'proto')}
+        {#if Boolean(model.protoFile?.trim())}
           <div class="max-w-xl space-y-4 pt-3 border-t border-[#e5e5e5] dark:border-[#2d2d2d]">
             <div>
               <label for="proto-file-path-input" class="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">

@@ -719,10 +719,10 @@ export async function exportSpooledStream(
   return 0;
 }
 
-export async function getWorkspaceProtoFiles(): Promise<string[]> {
+export async function getWorkspaceProtoFiles(workspacePath?: string): Promise<string[]> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
-    return invoke('get_workspace_proto_files');
+    return invoke('get_workspace_proto_files', { workspacePath: workspacePath || null });
   }
   return ['examples/user.proto'];
 }

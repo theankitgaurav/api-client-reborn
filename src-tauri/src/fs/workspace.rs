@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 pub const DEFAULT_APP_DIR_NAME: &str = ".api-client-reborn";
 
-const IGNORED_NAMES: &[&str] = &[
+pub const IGNORED_NAMES: &[&str] = &[
     "node_modules",
     "target",
     "dist",
@@ -22,8 +22,11 @@ const IGNORED_NAMES: &[&str] = &[
     ".gemini",
     ".vscode",
     ".idea",
+    ".svelte-kit",
     "environments",
     "tests",
+    "Library",
+    "Volumes",
 ];
 
 const DEFAULT_DEV_ENV: &str = r#"{
