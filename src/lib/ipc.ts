@@ -44,13 +44,6 @@ let mockWorkspaceTree: WorkspaceFileItem[] = [
         display_name: 'Stream Live SSE Events',
         method: 'GET',
       },
-      {
-        name: 'get_user_grpc.grpcurl',
-        path: '/examples/get_user_grpc.grpcurl',
-        is_dir: false,
-        display_name: 'Get User gRPC',
-        method: 'gRPC',
-      },
     ],
   },
 ];
@@ -81,13 +74,9 @@ function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
   const displayName = sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined);
 
   let method = 'GET';
-  if (path.endsWith('.grpcurl') || rawContent.trimStart().startsWith('grpcurl')) {
-    method = 'gRPC';
-  } else {
-    const methodMatch = rawContent.match(/curl\s+.*?-X\s+([A-Z]+)/i);
-    if (methodMatch) {
-      method = methodMatch[1].toUpperCase();
-    }
+  const methodMatch = rawContent.match(/curl\s+.*?-X\s+([A-Z]+)/i);
+  if (methodMatch) {
+    method = methodMatch[1].toUpperCase();
   }
 
   if (existing) {
@@ -104,7 +93,7 @@ function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
     name: fileName,
     path,
     is_dir: false,
-    display_name: displayName || fileName.replace(/\.(curl|grpcurl)$/, ''),
+    display_name: displayName || fileName.replace(/\.curl$/, ''),
     method,
   };
 
@@ -164,16 +153,6 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
       metadata: {
         name: 'Stream Live SSE Events',
         timeout_ms: 60000,
-      },
-    };
-  } else if (path.includes('get_user_grpc')) {
-    return {
-      path,
-      raw_content: `# @name Get User gRPC\n# @description Sample gRPC unary call using grpcurl with reflection and metadata\n# @timeout 15000\n\ngrpcurl -plaintext \\\n  -H "Authorization: Bearer {{auth_token}}" \\\n  -H "X-Client-Id: {{tenant_id}}" \\\n  -d '{\\n    "id": 42\\n  }' \\\n  {{grpc_host}} api.v1.UserService/GetUser`,
-      metadata: {
-        name: 'Get User gRPC',
-        description: 'Sample gRPC unary call using grpcurl with reflection and metadata',
-        timeout_ms: 15000,
       },
     };
   }
@@ -524,14 +503,14 @@ export async function renameWorkspaceItem(
     const normOld = normalizeMockPath(oldPath);
     for (const item of items) {
       if (item.path === oldPath || normalizeMockPath(item.path) === normOld) {
-        const isRequest = item.name.endsWith('.curl') || item.name.endsWith('.grpcurl');
+        const isRequest = item.name.endsWith('.curl');
         if (isRequest) {
-          const ext = item.name.endsWith('.grpcurl') ? 'grpcurl' : 'curl';
+          const ext = 'curl';
           const trimmed = newName.trim();
           let displayName = trimmed;
           let fileName = trimmed;
-          if (trimmed.endsWith('.curl') || trimmed.endsWith('.grpcurl')) {
-            displayName = trimmed.replace(/\.(curl|grpcurl)$/, '');
+          if (trimmed.endsWith('.curl')) {
+            displayName = trimmed.replace(/\.curl$/, '');
           } else {
             const slug =
               trimmed
@@ -589,13 +568,11 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     return invoke('duplicate_request_file', { sourcePath });
   }
 
-  const isGrpc = sourcePath.endsWith('.grpcurl');
-  const ext = isGrpc ? 'grpcurl' : 'curl';
-
+  const ext = 'curl';
   const lastSlash = sourcePath.lastIndexOf('/');
   const dir = lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : '';
   const fileBasename = lastSlash >= 0 ? sourcePath.substring(lastSlash + 1) : sourcePath;
-  const stem = fileBasename.replace(/\.(curl|grpcurl)$/, '');
+  const stem = fileBasename.replace(/\.curl$/, '');
 
   function getSiblingNames(items: WorkspaceFileItem[], targetPath: string): string[] {
     const normTarget = normalizeMockPath(targetPath);
@@ -631,7 +608,7 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     path: newPath,
     is_dir: false,
     display_name: newDisplay,
-    method: originalItem?.method || (isGrpc ? 'gRPC' : 'GET'),
+    method: originalItem?.method || 'GET',
   };
 
   function insertDuplicate(items: WorkspaceFileItem[]): boolean {
@@ -717,13 +694,5 @@ export async function exportSpooledStream(
   }
   console.log('[Dev Mock] Exported stream from', spoolPath, 'to', destinationPath);
   return 0;
-}
-
-export async function getWorkspaceProtoFiles(workspacePath?: string): Promise<string[]> {
-  if (isTauri) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke('get_workspace_proto_files', { workspacePath: workspacePath || null });
-  }
-  return ['examples/user.proto'];
 }
 

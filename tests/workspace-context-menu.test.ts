@@ -80,10 +80,8 @@ class SimulatedWorkspace {
     for (const [filePath, data] of this.files.entries()) {
       const parts = filePath.split('/');
       const fileName = parts[parts.length - 1];
-      const displayName = fileName.replace(/\.(curl|grpcurl)$/, '');
-      const method = filePath.endsWith('.grpcurl')
-        ? 'gRPC'
-        : data.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
+      const displayName = fileName.replace(/\.curl$/, '');
+      const method = data.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
 
       const fileItem: WorkspaceFileItem = {
         name: fileName,
@@ -124,11 +122,11 @@ class SimulatedWorkspace {
   saveActiveDraft(fileName: string) {
     if (!this.activeTab) return;
     const folder = this.targetNewRequestFolder;
-    const cleanFileName = fileName.endsWith('.curl') || fileName.endsWith('.grpcurl')
+    const cleanFileName = fileName.endsWith('.curl')
       ? fileName
       : `${fileName}.curl`;
     const targetPath = folder === '.' ? cleanFileName : `${folder}/${cleanFileName}`;
-    const displayName = cleanFileName.replace(/\.(curl|grpcurl)$/, '');
+    const displayName = cleanFileName.replace(/\.curl$/, '');
 
     this.activeTab.filePath = targetPath;
     this.activeTab.name = displayName;
@@ -164,7 +162,6 @@ class SimulatedWorkspace {
       name: string;
       method: string;
       command: string;
-      isGrpc: boolean;
     }[] = [];
 
     const traverse = (item: WorkspaceFileItem) => {
@@ -176,13 +173,11 @@ class SimulatedWorkspace {
         const rawContent = openTab && openTab.isDirty
           ? openTab.rawContent
           : this.files.get(item.path)?.content || '';
-        const isGrpc = item.path.endsWith('.grpcurl');
         collected.push({
           path: item.path,
           name: item.display_name || item.name,
-          method: isGrpc ? 'gRPC' : item.method || 'GET',
+          method: item.method || 'GET',
           command: rawContent,
-          isGrpc,
         });
       }
     };
@@ -285,10 +280,8 @@ class SimulatedWorkspace {
     if (!file) throw new Error(`File not found: ${filePath}`);
 
     const fileName = filePath.split('/').pop() || 'request';
-    const displayName = fileName.replace(/\.(curl|grpcurl)$/, '');
-    const method = filePath.endsWith('.grpcurl')
-      ? 'gRPC'
-      : file.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
+    const displayName = fileName.replace(/\.curl$/, '');
+    const method = file.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
 
     const newTab: TabItem = {
       id: `tab-${Math.random().toString(36).slice(2, 9)}`,
@@ -316,10 +309,8 @@ class SimulatedWorkspace {
     if (!file) throw new Error(`File not found: ${filePath}`);
 
     const fileName = filePath.split('/').pop() || 'request';
-    const displayName = fileName.replace(/\.(curl|grpcurl)$/, '');
-    const method = filePath.endsWith('.grpcurl')
-      ? 'gRPC'
-      : file.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
+    const displayName = fileName.replace(/\.curl$/, '');
+    const method = file.content.match(/-X\s+([A-Z]+)/)?.[1] || 'GET';
 
     const { tabToReplace, shouldAppend } = resolveTargetTabForOpenCurrent(this.tabs, this.activeTabId);
 
@@ -389,8 +380,8 @@ class SimulatedWorkspace {
     const parts = sourcePath.split('/');
     const sourceFileName = parts.pop()!;
     const parentDir = parts.join('/');
-    const ext = sourceFileName.endsWith('.grpcurl') ? 'grpcurl' : 'curl';
-    const stem = sourceFileName.replace(/\.(curl|grpcurl)$/, '');
+    const ext = 'curl';
+    const stem = sourceFileName.replace(/\.curl$/, '');
 
     const existingInDir = Array.from(this.files.keys())
       .filter((p) => (parentDir ? p.startsWith(parentDir + '/') : !p.includes('/')))
@@ -398,7 +389,7 @@ class SimulatedWorkspace {
 
     const newFileName = formatDuplicateRequestName(stem, existingInDir, ext);
     const newPath = parentDir ? `${parentDir}/${newFileName}` : newFileName;
-    const newDisplayName = newFileName.replace(/\.(curl|grpcurl)$/, '');
+    const newDisplayName = newFileName.replace(/\.curl$/, '');
 
     const newContent = updateRequestNameHeader(file.content, `${newDisplayName} (Copy)`);
     let newSidecar: SidecarMetadata | undefined;
@@ -425,7 +416,7 @@ class SimulatedWorkspace {
     parts.pop();
     const parent = parts.join('/');
     const newPath = parent ? `${parent}/${newFileName}` : newFileName;
-    const displayName = newFileName.replace(/\.(curl|grpcurl)$/, '');
+    const displayName = newFileName.replace(/\.curl$/, '');
 
     const newContent = updateRequestNameHeader(file.content, displayName);
     let newSidecar = file.sidecar;
@@ -535,11 +526,11 @@ test('F1 New Request Here (Tier 2): handles deep nested directories (5 levels)',
   assert.equal(ws.tabs[0].filePath, 'a/b/c/d/e/deep.curl');
 });
 
-test('F1 New Request Here (Tier 2): preserves .grpcurl extension when saving gRPC request', () => {
+test('F1 New Request Here (Tier 2): preserves .curl extension when saving request', () => {
   const ws = new SimulatedWorkspace();
-  ws.createNewRequestInFolder('services/grpc');
-  ws.saveActiveDraft('stream.grpcurl');
-  assert.equal(ws.tabs[0].filePath, 'services/grpc/stream.grpcurl');
+  ws.createNewRequestInFolder('services/api');
+  ws.saveActiveDraft('stream.curl');
+  assert.equal(ws.tabs[0].filePath, 'services/api/stream.curl');
   assert.equal(ws.tabs[0].name, 'stream');
 });
 
@@ -658,12 +649,12 @@ test('F3 Export Collection (Tier 1): substitutes active environment variables', 
   assert.ok(script.includes('Bearer secret123'));
 });
 
-test('F3 Export Collection (Tier 1): handles gRPC requests in collection', () => {
+test('F3 Export Collection (Tier 1): handles post requests in collection', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/rpc.grpcurl', 'grpcurl -d \'{"id":1}\' grpc.example.com Service/Method');
+  ws.addFileToDisk('col/rpc.curl', 'curl -X POST -d \'{"id":1}\' https://api.example.com/items');
   ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
   const script = ws.generateExportScript();
-  assert.ok(script.includes('grpcurl -d'));
+  assert.ok(script.includes('-X POST'));
 });
 
 test('F3 Export Collection (Tier 1): uses in-memory unsaved content from dirty open tabs', () => {
@@ -997,11 +988,11 @@ test('F6 Open in New Tab (Tier 1): extracts HTTP method from curl content', () =
   assert.equal(ws.tabs[0].method, 'POST');
 });
 
-test('F6 Open in New Tab (Tier 2): handles gRPC request method detection', () => {
+test('F6 Open in New Tab (Tier 2): handles request method detection', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('service.grpcurl', 'grpcurl grpc.example.com Service/Call');
-  ws.openInNewTab('service.grpcurl');
-  assert.equal(ws.tabs[0].method, 'gRPC');
+  ws.addFileToDisk('service.curl', 'curl -X DELETE https://example.com/items/1');
+  ws.openInNewTab('service.curl');
+  assert.equal(ws.tabs[0].method, 'DELETE');
 });
 
 test('F6 Open in New Tab (Tier 2): throws descriptive error when opening non-existent file', () => {
@@ -1185,16 +1176,16 @@ test('F7 Open in Current Tab (Tier 2): handles replacing untitled clean draft ta
   assert.equal(ws.tabs[0].filePath, 'file.curl');
 });
 
-test('F7 Open in Current Tab (Tier 2): handles gRPC replacement correctly updating method', () => {
+test('F7 Open in Current Tab (Tier 2): handles replacement correctly updating method', () => {
   const ws = new SimulatedWorkspace();
   ws.addFileToDisk('http.curl', 'curl https://http.com');
-  ws.addFileToDisk('grpc.grpcurl', 'grpcurl grpc.com Svc/Call');
+  ws.addFileToDisk('post.curl', 'curl -X POST https://api.com');
 
   ws.openInCurrentTab('http.curl');
   assert.equal(ws.tabs[0].method, 'GET');
 
-  ws.openInCurrentTab('grpc.grpcurl');
-  assert.equal(ws.tabs[0].method, 'gRPC');
+  ws.openInCurrentTab('post.curl');
+  assert.equal(ws.tabs[0].method, 'POST');
 });
 
 // ============================================================================
@@ -1343,11 +1334,11 @@ test('F9 Duplicate Request (Tier 1): increments to _copy_2.curl when _copy.curl 
   assert.equal(dupPath, 'login_copy_2.curl');
 });
 
-test('F9 Duplicate Request (Tier 1): preserves .grpcurl extension on gRPC duplicates', () => {
+test('F9 Duplicate Request (Tier 1): preserves .curl extension on duplicates in subfolders', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('svc/call.grpcurl', 'grpcurl svc Call');
-  const dupPath = ws.duplicateRequest('svc/call.grpcurl');
-  assert.equal(dupPath, 'svc/call_copy.grpcurl');
+  ws.addFileToDisk('svc/call.curl', 'curl https://api.com/svc');
+  const dupPath = ws.duplicateRequest('svc/call.curl');
+  assert.equal(dupPath, 'svc/call_copy.curl');
 });
 
 test('F9 Duplicate Request (Tier 2): increments to _copy_3 when _copy and _copy_2 exist', () => {
@@ -1403,11 +1394,11 @@ test('F10 Rename Request (Tier 1): safely renames file preserving valid .curl ex
   assert.ok(!ws.files.has('users/get.curl'));
 });
 
-test('F10 Rename Request (Tier 1): safely renames .grpcurl file preserving .grpcurl extension', () => {
+test('F10 Rename Request (Tier 1): safely renames file preserving .curl extension', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('services/query.grpcurl', 'grpcurl svc');
-  const newPath = ws.renameRequest('services/query.grpcurl', 'execute_query');
-  assert.equal(newPath, 'services/execute_query.grpcurl');
+  ws.addFileToDisk('services/query.curl', 'curl https://api.com/svc');
+  const newPath = ws.renameRequest('services/query.curl', 'execute_query');
+  assert.equal(newPath, 'services/execute_query.curl');
 });
 
 test('F10 Rename Request (Tier 1): updates # @name comment header in file content', () => {
@@ -1564,12 +1555,14 @@ test('F11 Delete Request (Tier 2): deletes nested file preserving sibling files 
   assert.ok(!ws.files.has('api/v1/remove.curl'));
 });
 
-test('F11 Delete Request (Tier 2): deletes gRPC file (.grpcurl) cleanly', () => {
+test('F11 Delete Request (Tier 2): deletes open file cleanly from disk and restores a draft tab', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('service.grpcurl', 'grpcurl test');
-  ws.openInNewTab('service.grpcurl');
-  ws.deleteRequest('service.grpcurl');
-  assert.ok(!ws.files.has('service.grpcurl'));
+  ws.addFileToDisk('service.curl', 'curl test');
+  ws.openInNewTab('service.curl');
+  ws.deleteRequest('service.curl');
+  assert.ok(!ws.files.has('service.curl'));
+  assert.equal(ws.tabs.length, 1);
+  assert.equal(ws.tabs[0].filePath, null);
 });
 
 test('F11 Delete Request (Tier 2): closes middle tab in 3-tab layout and maintains tab order', () => {
@@ -1691,14 +1684,14 @@ test('Tier 3 Combination 8: Copy as cURL on an unsaved duplicated request', () =
   assert.ok(mockClip.text.includes('https://service.local/custom_run'));
 });
 
-test('Tier 3 Combination 9: Duplicate gRPC request then Rename Request with no extension (still .grpcurl)', () => {
+test('Tier 3 Combination 9: Duplicate request then Rename Request with no extension (still .curl)', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('svc.grpcurl', 'grpcurl svc');
-  const dupPath = ws.duplicateRequest('svc.grpcurl');
-  assert.equal(dupPath, 'svc_copy.grpcurl');
+  ws.addFileToDisk('svc.curl', 'curl svc');
+  const dupPath = ws.duplicateRequest('svc.curl');
+  assert.equal(dupPath, 'svc_copy.curl');
 
   const renamedPath = ws.renameRequest(dupPath, 'renamed_svc');
-  assert.equal(renamedPath, 'renamed_svc.grpcurl');
+  assert.equal(renamedPath, 'renamed_svc.curl');
 });
 
 test('Tier 3 Combination 10: Create nested subfolder, move/rename folder, delete nested folder with active tabs', () => {
@@ -1796,7 +1789,7 @@ test('Tier 4 Scenario 2: Multi-Tab State Machine (Mixed pinned, preview, dirty, 
   assert.equal(ws.tabs[1].isPinned, false);
 });
 
-test('Tier 4 Scenario 3: Collection Clone & Refactor (.grpcurl and .curl preservation, sidecar clone)', () => {
+test('Tier 4 Scenario 3: Collection Clone & Refactor (.curl preservation, sidecar clone)', () => {
   const ws = new SimulatedWorkspace();
   const sidecar: SidecarMetadata = {
     name: 'User Svc',
@@ -1804,26 +1797,26 @@ test('Tier 4 Scenario 3: Collection Clone & Refactor (.grpcurl and .curl preserv
     tab_color: '#3498db',
   };
   ws.addFileToDisk('v1/get_user.curl', 'curl api/v1/user', sidecar);
-  ws.addFileToDisk('v1/stream_user.grpcurl', 'grpcurl Svc Stream');
+  ws.addFileToDisk('v1/stream_user.curl', 'curl api/v1/stream');
 
   // Duplicate both
-  const dupCurl = ws.duplicateRequest('v1/get_user.curl');
-  const dupGrpc = ws.duplicateRequest('v1/stream_user.grpcurl');
+  const dup1 = ws.duplicateRequest('v1/get_user.curl');
+  const dup2 = ws.duplicateRequest('v1/stream_user.curl');
 
-  assert.equal(dupCurl, 'v1/get_user_copy.curl');
-  assert.equal(dupGrpc, 'v1/stream_user_copy.grpcurl');
+  assert.equal(dup1, 'v1/get_user_copy.curl');
+  assert.equal(dup2, 'v1/stream_user_copy.curl');
 
   // Rename folder to v2
   ws.renameFolder('v1', 'v2');
   assert.ok(ws.files.has('v2/get_user_copy.curl'));
-  assert.ok(ws.files.has('v2/stream_user_copy.grpcurl'));
+  assert.ok(ws.files.has('v2/stream_user_copy.curl'));
 
   // Rename requests with display names
-  const finalCurl = ws.renameRequest('v2/get_user_copy.curl', 'Get User Detail');
-  const finalGrpc = ws.renameRequest('v2/stream_user_copy.grpcurl', 'Stream User Updates');
+  const final1 = ws.renameRequest('v2/get_user_copy.curl', 'Get User Detail');
+  const final2 = ws.renameRequest('v2/stream_user_copy.curl', 'Stream User Updates');
 
-  assert.equal(finalCurl, 'v2/Get User Detail.curl');
-  assert.equal(finalGrpc, 'v2/Stream User Updates.grpcurl');
+  assert.equal(final1, 'v2/Get User Detail.curl');
+  assert.equal(final2, 'v2/Stream User Updates.curl');
 });
 
 test('Tier 4 Scenario 4: Sibling Folder Isolation Stress Test (/v1, /v1-backup, /v1_staging, /v10)', () => {

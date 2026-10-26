@@ -40,7 +40,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 **API Client Reborn** is built on a clean, modern philosophy:
 
 - 🚀 **Blazing Native Performance**: Powered by **Tauri v2** and **Rust** with native OS webviews. Cold startup is virtually instantaneous (<150 ms) and idle memory footprint is just **~35 MB** (instead of 500+ MB on Electron).
-- 💾 **100% Local & Git-Native**: Your API requests are saved as plain, human-readable `.curl` and `.grpcurl` files directly on your filesystem. Version-control requests alongside your code with standard `git commit`, `git diff`, and pull requests.
+- 💾 **100% Local & Git-Native**: Your API requests are saved as plain, human-readable `.curl` files directly on your filesystem. Version-control requests alongside your code with standard `git commit`, `git diff`, and pull requests.
 - 🐚 **True CLI & cURL Interoperability**: Every request is a 100% valid, runnable command. Copy as cURL, run directly in your terminal, or export complete collections to zero-dependency standalone POSIX shell scripts (`.sh`).
 - 🛡️ **Zero Cloud Lock-In & Zero Telemetry**: No mandatory accounts, no cloud sync, no tracking, and no paywalls. Everything executes on your own machine.
 - 🌊 **Streaming & SSE Ready**: First-class support for chunked responses and Server-Sent Events with intelligent sliding-window memory defense and disk spooling for massive payloads.
@@ -55,10 +55,9 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 | **Installed Binary Size** | **~12 MB** | ~180 MB | ~160 MB | ~140 MB | < 5 MB |
 | **Idle Memory (RAM)** | **~35 MB** | 400–800 MB | 350–650 MB | 150–250 MB | N/A |
 | **Cold Startup Time** | **< 150 ms** | 3–8 s | 2–5 s | 1–2 s | Instant |
-| **Storage Format** | **Plain `.curl` / `.grpcurl`** | Proprietary JSON / Cloud | Proprietary JSON / Cloud | Custom `.bru` DSL | Shell commands |
+| **Storage Format** | **Plain `.curl`** | Proprietary JSON / Cloud | Proprietary JSON / Cloud | Custom `.bru` DSL | Shell commands |
 | **Git-Native Versioning** | **Yes (Direct Files)** | Paid Teams / Cloud | Cloud / Git Sync | Yes | Manual scripts |
 | **Mandatory Cloud Login** | **No (100% Local)** | Yes | Yes (v8+) | No | No |
-| **gRPC Support** | **Yes (`grpcurl` syntax)** | Yes | Yes | Limited | No |
 | **Real-time SSE & Streams** | **Yes (Spooler + Defense)** | Basic | Basic | No | Terminal only |
 | **Zero-Dependency CLI Export** | **Yes (Standalone `.sh`)** | Newman CLI (Node.js) | Inso CLI | Bru CLI | Manual |
 | **License** | **MIT (Free forever)** | Proprietary | Proprietary (Free tier) | Open Core | MIT / curl |
@@ -67,12 +66,8 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ## ✨ Features
 
-### 🔌 Dual-Protocol Engine: REST & gRPC
+### 🔌 HTTP Request Engine
 - **Full HTTP/REST Support**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS`.
-- **Native Pure-Rust gRPC Engine**: Inspect and invoke gRPC unary methods directly inside the native Rust core (no external `grpcurl` or `protoc` installation required).
-  - **Server Reflection**: Dynamically discover services and schemas on reflection-enabled endpoints (e.g. `localhost:50051`).
-  - **Local Proto Schema**: Point directly to local `.proto` files with custom import paths via the dedicated **Proto** tab UI or `-proto` flag for endpoints without server reflection (e.g. `localhost:50052`).
-  - **Built-in Demo Service**: Launch a local dual-mode gRPC test server with `npm run demo:grpc`.
 
 ### 🌊 Real-Time Streaming & Server-Sent Events (SSE)
 - **Live Event Streamer**: Inspect chunked HTTP streaming endpoints and Server-Sent Events with structured event IDs, types, and payloads.
@@ -123,7 +118,6 @@ graph TD
     D --> D2["auth/.apiclient/login.sidecar.json"]
     D --> D3["users/create_user.curl"]
     D --> D4["users/stream_events.curl"]
-    D --> D5["grpc/get_user.grpcurl"]
   end
 ```
 
@@ -146,20 +140,7 @@ curl -X POST "{{base_url}}/users" \
   }'
 ```
 
-### 2. `.grpcurl` gRPC Request File
-gRPC unary requests using `grpcurl` CLI syntax:
-
-```bash
-# @name Get User gRPC
-# @timeout 10000
-
-grpcurl -plaintext \
-  -H "Authorization: Bearer {{auth_token}}" \
-  -d '{"id": 42}' \
-  {{grpc_host}} api.v1.UserService/GetUser
-```
-
-### 3. `.sidecar.json` Metadata & Test File
+### 2. `.sidecar.json` Metadata & Test File
 Optional sidecar file stored in `.apiclient/` containing test assertions and automation scripts:
 
 ```json

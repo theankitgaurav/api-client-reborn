@@ -143,7 +143,7 @@ export function formatDuplicateRequestName(
   ext?: string
 ): string {
   const extension = (ext || 'curl').replace(/^\./, '');
-  let cleanStem = stem.replace(/\.(curl|grpcurl)$/i, '');
+  let cleanStem = stem.replace(/\.curl$/i, '');
 
   // Strip trailing extension if matching
   if (cleanStem.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
@@ -175,15 +175,13 @@ export function formatDuplicateRequestName(
 }
 
 /**
- * Sanitizes request rename input, strictly preserving the original extension (.curl or .grpcurl)
+ * Sanitizes request rename input, strictly preserving the .curl extension
  * even if omitted or mismatched in user input.
  */
 export function sanitizeRequestRename(currentPath: string, newNameInput: string): string {
   let ext = '.curl';
   const lowerCurrent = currentPath.toLowerCase();
-  if (lowerCurrent.endsWith('.grpcurl')) {
-    ext = '.grpcurl';
-  } else if (lowerCurrent.endsWith('.curl')) {
+  if (lowerCurrent.endsWith('.curl')) {
     ext = '.curl';
   } else {
     const match = currentPath.match(/\.([a-zA-Z0-9]+)$/);
@@ -194,8 +192,8 @@ export function sanitizeRequestRename(currentPath: string, newNameInput: string)
 
   let base = newNameInput.trim();
 
-  // Strip any typed .curl or .grpcurl extension
-  base = base.replace(/\.(curl|grpcurl)$/i, '');
+  // Strip any typed .curl extension
+  base = base.replace(/\.curl$/i, '');
 
   // If ext is non-standard, also strip if present
   if (ext && base.toLowerCase().endsWith(ext.toLowerCase())) {
@@ -208,7 +206,7 @@ export function sanitizeRequestRename(currentPath: string, newNameInput: string)
   // Fallback if base is empty
   if (!base) {
     const currentLeaf = currentPath.split(/[\\\/]/).pop() || 'request';
-    base = currentLeaf.replace(/\.(curl|grpcurl)$/i, '') || 'request';
+    base = currentLeaf.replace(/\.curl$/i, '') || 'request';
   }
 
   return `${base}${ext}`;

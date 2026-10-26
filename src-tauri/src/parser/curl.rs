@@ -101,20 +101,15 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
 
     let mut iter = tokens.into_iter().peekable();
 
-    // Consume leading 'curl' or 'grpcurl' if present
-    let mut is_grpc = false;
+    // Consume leading 'curl' if present
     if let Some(first) = iter.peek() {
         if first == "curl" {
             iter.next();
-        } else if first == "grpcurl" {
-            iter.next();
-            is_grpc = true;
         }
     }
 
     let mut explicit_method: Option<HttpMethod> = None;
     let mut url: Option<String> = None;
-    let mut positional_args: Vec<String> = Vec::new();
     let mut headers = Vec::new();
     let mut body_parts = Vec::new();
     let mut basic_auth = None;
@@ -230,23 +225,12 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
             arg => {
                 if arg.starts_with('-') {
                     unsupported_flags.push(arg.to_string());
-                } else if is_grpc {
-                    positional_args.push(arg.to_string());
                 } else if url.is_none() {
                     url = Some(arg.to_string());
                 } else {
                     unsupported_flags.push(format!("Unexpected positional argument: {}", arg));
                 }
             }
-        }
-    }
-
-    if is_grpc {
-        if !positional_args.is_empty() {
-            url = Some(positional_args.join(" "));
-        }
-        if explicit_method.is_none() {
-            explicit_method = Some(HttpMethod::CUSTOM("GRPC".to_string()));
         }
     }
 
@@ -324,16 +308,5 @@ mod tests {
         assert!(parsed.insecure);
         assert!(parsed.follow_redirects);
         assert_eq!(parsed.timeout_ms, Some(15000));
-    }
-
-    #[test]
-    fn test_parse_grpcurl() {
-        let cmd = "grpcurl -plaintext -H 'Authorization: Bearer token123' -d '{\"id\": 42}' localhost:50051 api.v1.UserService/GetUser";
-        let parsed = parse_curl_command(cmd).unwrap();
-        assert_eq!(parsed.method, HttpMethod::CUSTOM("GRPC".to_string()));
-        assert_eq!(parsed.url, "localhost:50051 api.v1.UserService/GetUser");
-        assert_eq!(parsed.headers.len(), 1);
-        assert_eq!(parsed.headers[0].key, "Authorization");
-        assert_eq!(parsed.body, Some("{\"id\": 42}".to_string()));
     }
 }

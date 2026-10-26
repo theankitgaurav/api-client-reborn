@@ -73,8 +73,6 @@
         return 'badge-delete';
       case 'PATCH':
         return 'badge-patch';
-      case 'GRPC':
-        return 'badge-grpc';
       default:
         return 'bg-neutral-800 text-neutral-400 border border-neutral-700';
     }
@@ -478,7 +476,7 @@
           if (itemContextMenu) {
             const item = itemContextMenu.item;
             const currentName =
-              item.display_name || item.name.replace(/\.(curl|grpcurl)$/, '');
+              item.display_name || item.name.replace(/\.curl$/, '');
             closeContextMenu();
             workspaceState.renameItem(item.path, currentName);
           } else {

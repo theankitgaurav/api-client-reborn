@@ -46,13 +46,11 @@
         }
       }
 
-      const isGrpc = item.name.endsWith('.grpcurl') || content.trimStart().startsWith('grpcurl');
       list.push({
         path: item.path,
         name: openTab?.name || item.display_name || item.name,
-        method: openTab?.method || item.method || (isGrpc ? 'gRPC' : 'GET'),
+        method: openTab?.method || item.method || 'GET',
         command: content,
-        isGrpc,
       });
     }
 

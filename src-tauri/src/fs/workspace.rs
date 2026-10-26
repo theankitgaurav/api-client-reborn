@@ -33,16 +33,14 @@ const DEFAULT_DEV_ENV: &str = r#"{
   "api_host": "httpbin.org",
   "port": "443",
   "base_url": "https://httpbin.org",
-  "tenant_id": "dev-tenant-101",
-  "grpc_host": "localhost:50051"
+  "tenant_id": "dev-tenant-101"
 }"#;
 
 const DEFAULT_PROD_ENV: &str = r#"{
   "api_host": "api.example.com",
   "port": "443",
   "base_url": "https://api.example.com",
-  "tenant_id": "prod-enterprise",
-  "grpc_host": "grpc.example.com:443"
+  "tenant_id": "prod-enterprise"
 }"#;
 
 const SAMPLE_GET_USERS: &str = r#"# @name Get All Users
@@ -75,63 +73,6 @@ const SAMPLE_STREAM_EVENTS: &str = r#"# @name Stream Live Events
 
 curl -N "{{base_url}}/stream/10" \
   -H "Accept: application/json, text/event-stream"
-"#;
-
-const SAMPLE_GET_USER_GRPC: &str = r#"# @name Get User gRPC
-# @description Sample gRPC unary call using grpcurl with reflection and metadata
-# @timeout 15000
-
-grpcurl -plaintext \
-  -H "Authorization: Bearer {{auth_token}}" \
-  -H "X-Client-Id: {{tenant_id}}" \
-  -d '{
-    "id": 42
-  }' \
-  {{grpc_host}} api.v1.UserService/GetUser
-"#;
-
-const SAMPLE_GET_USER_PROTO: &str = r#"# @name Get User with Proto File
-# @description Sample gRPC unary call pointing to a .proto file for endpoints without server reflection
-# @timeout 15000
-
-grpcurl -plaintext \
-  -proto "examples/user.proto" \
-  -import-path "." \
-  -H "Authorization: Bearer dev_token" \
-  -d '{
-    "id": 99
-  }' \
-  localhost:50052 api.v1.UserService/GetUser
-"#;
-
-const SAMPLE_USER_PROTO: &str = r#"syntax = "proto3";
-
-package api.v1;
-
-service UserService {
-  rpc GetUser (UserRequest) returns (UserResponse);
-  rpc Echo (EchoRequest) returns (EchoResponse);
-}
-
-message UserRequest {
-  int32 id = 1;
-}
-
-message UserResponse {
-  int32 id = 1;
-  string name = 2;
-  string email = 3;
-  string role = 4;
-}
-
-message EchoRequest {
-  string message = 1;
-}
-
-message EchoResponse {
-  string message = 1;
-  int64 timestamp = 2;
-}
 "#;
 
 /// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
@@ -189,17 +130,14 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
         let _ = fs::write(&secrets_file, content);
     }
 
-    // 3. Seed starter requests and proto schemas in examples/
+    // 3. Seed starter requests in examples/
     let examples_dir = dir.join("examples");
     let _ = fs::create_dir_all(&examples_dir);
 
-    let starter_files: [(&str, &str); 6] = [
+    let starter_files: [(&str, &str); 3] = [
         ("get_users.curl", SAMPLE_GET_USERS),
         ("create_user.curl", SAMPLE_CREATE_USER),
         ("stream_events.curl", SAMPLE_STREAM_EVENTS),
-        ("get_user_grpc.grpcurl", SAMPLE_GET_USER_GRPC),
-        ("get_user_proto.grpcurl", SAMPLE_GET_USER_PROTO),
-        ("user.proto", SAMPLE_USER_PROTO),
     ];
 
     for (name, content) in starter_files {
@@ -262,7 +200,7 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
                 method: None,
                 children: Some(children),
             });
-        } else if file_name.ends_with(".curl") || file_name.ends_with(".grpcurl") {
+        } else if file_name.ends_with(".curl") {
             let mut display_name = None;
             let mut method = None;
 
@@ -270,12 +208,8 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
                 let (meta, cmd) = extract_comments_and_command(&content);
                 display_name = meta.name;
 
-                if file_name.ends_with(".curl") {
-                    if let Ok(parsed) = parse_curl_command(&cmd) {
-                        method = Some(parsed.method.to_string());
-                    }
-                } else if file_name.ends_with(".grpcurl") {
-                    method = Some("gRPC".to_string());
+                if let Ok(parsed) = parse_curl_command(&cmd) {
+                    method = Some(parsed.method.to_string());
                 }
             }
 
@@ -319,11 +253,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(children.len(), 5, "Expected 5 sample requests in examples folder");
-
-        let grpc_samples: Vec<_> = children.iter().filter(|i| i.name.ends_with(".grpcurl")).collect();
-        assert_eq!(grpc_samples.len(), 2, "Expected 2 .grpcurl sample requests in examples folder");
-        assert!(grpc_samples.iter().all(|i| i.method.as_deref() == Some("gRPC")));
+        assert_eq!(children.len(), 3, "Expected 3 sample requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));

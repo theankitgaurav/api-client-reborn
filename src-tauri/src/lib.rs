@@ -11,7 +11,7 @@ use ipc::{
     duplicate_request_file, execute_request, export_spooled_stream, get_workspace_environments,
     get_workspace_path, get_workspace_secrets, get_workspace_variables, import_collection_bundle,
     parse_curl_preview, read_request_file, rename_workspace_item, save_request_file,
-    save_workspace_secrets, save_workspace_variables, scan_workspace, get_workspace_proto_files,
+    save_workspace_secrets, save_workspace_variables, scan_workspace,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,7 +40,6 @@ pub fn run() {
             save_workspace_secrets,
             get_workspace_variables,
             save_workspace_variables,
-            get_workspace_proto_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

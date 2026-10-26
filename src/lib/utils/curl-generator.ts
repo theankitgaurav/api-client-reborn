@@ -1,6 +1,6 @@
 /**
  * Resolves variables and extracts the clean executable terminal command
- * (cURL or grpcurl) from the raw file content.
+ * (cURL) from the raw file content.
  */
 export function getResolvedCommand(
   rawContent: string,

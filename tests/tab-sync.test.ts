@@ -404,11 +404,6 @@ test('formatDuplicateRequestName (Tier 1) increments to _copy_2 when _copy exist
   assert.equal(name, 'get_user_copy_2.curl');
 });
 
-test('formatDuplicateRequestName (Tier 1) preserves custom extension (.grpcurl)', () => {
-  const name = formatDuplicateRequestName('user_service.grpcurl', [], 'grpcurl');
-  assert.equal(name, 'user_service_copy.grpcurl');
-});
-
 test('formatDuplicateRequestName (Tier 1) defaults extension to curl when omitted', () => {
   const name = formatDuplicateRequestName('query', []);
   assert.equal(name, 'query_copy.curl');
@@ -440,12 +435,6 @@ test('formatDuplicateRequestName (Tier 2) strips existing .curl extension from s
   assert.ok(!name.includes('.curl.curl'));
 });
 
-test('formatDuplicateRequestName (Tier 2) strips existing .grpcurl extension from stem', () => {
-  const name = formatDuplicateRequestName('stream.grpcurl', [], 'grpcurl');
-  assert.equal(name, 'stream_copy.grpcurl');
-  assert.ok(!name.includes('.grpcurl.grpcurl'));
-});
-
 test('formatDuplicateRequestName (Tier 2) handles stem containing dots, hyphens, and spaces', () => {
   const name = formatDuplicateRequestName('api-v1.0.users detail', []);
   assert.equal(name, 'api-v1.0.users detail_copy.curl');
@@ -468,19 +457,9 @@ test('sanitizeRequestRename (Tier 1) appends .curl if extension is omitted by us
   assert.equal(sanitized, 'Sign In.curl');
 });
 
-test('sanitizeRequestRename (Tier 1) preserves .grpcurl when renaming a grpcurl file', () => {
-  const sanitized = sanitizeRequestRename('services/echo.grpcurl', 'Echo Service');
-  assert.equal(sanitized, 'Echo Service.grpcurl');
-});
-
 test('sanitizeRequestRename (Tier 1) keeps explicit typed .curl extension without duplicating', () => {
   const sanitized = sanitizeRequestRename('collections/test.curl', 'new_test.curl');
   assert.equal(sanitized, 'new_test.curl');
-});
-
-test('sanitizeRequestRename (Tier 1) keeps explicit typed .grpcurl extension without duplicating', () => {
-  const sanitized = sanitizeRequestRename('services/test.grpcurl', 'new_service.grpcurl');
-  assert.equal(sanitized, 'new_service.grpcurl');
 });
 
 test('sanitizeRequestRename (Tier 1) sanitizes directory slashes to prevent path traversal', () => {
@@ -502,9 +481,6 @@ test('sanitizeRequestRename (Tier 2) enforces .curl when user types mismatched e
 test('sanitizeRequestRename (Tier 2) falls back to current file stem when user enters empty/whitespace name', () => {
   const sanitized1 = sanitizeRequestRename('collections/auth/login.curl', '   ');
   assert.equal(sanitized1, 'login.curl');
-
-  const sanitized2 = sanitizeRequestRename('services/stream.grpcurl', '');
-  assert.equal(sanitized2, 'stream.grpcurl');
 });
 
 test('sanitizeRequestRename (Tier 2) trims leading and trailing whitespace', () => {
@@ -512,12 +488,9 @@ test('sanitizeRequestRename (Tier 2) trims leading and trailing whitespace', () 
   assert.equal(sanitized, 'My Query.curl');
 });
 
-test('sanitizeRequestRename (Tier 2) handles case-insensitive typed extensions (.CURL / .GRPCURL)', () => {
+test('sanitizeRequestRename (Tier 2) handles case-insensitive typed extensions (.CURL)', () => {
   const sanitized1 = sanitizeRequestRename('query.curl', 'fetch_data.CURL');
   assert.equal(sanitized1, 'fetch_data.curl');
-
-  const sanitized2 = sanitizeRequestRename('query.grpcurl', 'fetch_data.GRPCURL');
-  assert.equal(sanitized2, 'fetch_data.grpcurl');
 });
 
 test('sanitizeRequestRename (Tier 2) handles custom multi-part extensions properly', () => {

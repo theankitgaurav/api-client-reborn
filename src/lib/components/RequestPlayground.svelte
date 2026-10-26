@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { responseState } from '$lib/state/response.svelte';
@@ -15,7 +14,6 @@
     getVariableInfo,
     type VariableInfo,
   } from '$lib/utils/variable-tooltip';
-  import { getWorkspaceProtoFiles } from '$lib/ipc';
   import {
     Play,
     Square,
@@ -24,48 +22,15 @@
     Trash2,
   } from '$lib/components/icons';
 
-  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'raw' | 'proto'>('params');
+  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'raw'>('params');
   let scriptSubTab = $state<'pre' | 'post'>('pre');
   let preRequestScript = $state('');
   let postResponseScript = $state('');
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
   let rawEditMode = $state(false);
-  let workspaceProtoFiles = $state<string[]>([]);
 
-  let activeFilePath = $derived(workspaceState.activeFilePath);
-  let isGrpcurl = $derived(activeFilePath?.endsWith('.grpcurl') ?? false);
-  let commandLabel = $derived(isGrpcurl ? 'grpcurl' : 'cURL');
   let isMac = $derived(shortcutsState.isMac);
-
-  // Discover workspace proto files whenever Proto tab is active or gRPC request opened
-  $effect(() => {
-    if (model.method === 'GRPC' || activeTab === 'proto') {
-      getWorkspaceProtoFiles(workspaceState.workspacePath)
-        .then((files) => {
-          workspaceProtoFiles = files;
-        })
-        .catch(() => {});
-    }
-  });
-
-  function handleBrowseProtoFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.proto';
-    input.onchange = () => {
-      if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const selectedName = file.name;
-        const matched = workspaceProtoFiles.find(
-          (p) => p.endsWith('/' + selectedName) || p === selectedName
-        );
-        model.protoFile = (file as any).path || matched || selectedName;
-        syncToWorkspace();
-      }
-    };
-    input.click();
-  }
 
   $effect(() => {
     registerBeautifyHandler(() => {
@@ -81,16 +46,6 @@
     const tab = workspaceState.activeTab;
     if (tab) {
       model = parseCurlToPlayground(tab.rawContent);
-      if (tab.filePath?.endsWith('.grpcurl') || tab.method?.toUpperCase() === 'GRPC') {
-        model.method = 'GRPC';
-        if (untrack(() => activeTab) === 'params') {
-          activeTab = 'proto';
-        }
-      } else {
-        if (untrack(() => activeTab) === 'proto') {
-          activeTab = 'params';
-        }
-      }
       preRequestScript = tab.sidecar?.pre_request_script || '';
       postResponseScript = tab.sidecar?.post_response_script || '';
       rawEditMode = false;
@@ -235,8 +190,6 @@
         return 'text-rose-500 font-bold';
       case 'PATCH':
         return 'text-purple-500 font-bold';
-      case 'GRPC':
-        return 'text-cyan-500 font-bold';
       default:
         return 'text-neutral-400 font-bold';
     }
@@ -349,17 +302,9 @@
     <div class="relative">
       <select
         bind:value={model.method}
-        onchange={() => {
-          if (model.method === 'GRPC' && activeTab === 'params') {
-            activeTab = 'proto';
-          } else if (model.method !== 'GRPC' && activeTab === 'proto') {
-            activeTab = 'params';
-          }
-          syncToWorkspace();
-        }}
+        onchange={syncToWorkspace}
         class="bg-[#f0f0f2] dark:bg-[#2a2a2c] border border-[#d2d2d7] dark:border-[#3a3a3c] rounded px-2.5 py-1.5 font-mono text-xs cursor-pointer outline-none {getMethodColor(model.method)}"
       >
-        <option value="GRPC" class="text-cyan-500 font-bold">GRPC</option>
         <option value="GET" class="text-blue-500 font-bold">GET</option>
         <option value="POST" class="text-emerald-500 font-bold">POST</option>
         <option value="PUT" class="text-amber-500 font-bold">PUT</option>
@@ -381,9 +326,7 @@
         onmouseleave={handleVarLeave}
         onblur={handleVarLeave}
         title="Request URL ({isMac ? '⌘L' : 'Ctrl+L'})"
-        placeholder={isGrpcurl || model.method === 'GRPC'
-          ? "Enter host and endpoint (e.g. {{grpc_host}} api.v1.UserService/GetUser)"
-          : "Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
+        placeholder={"Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
         class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-blue-500 transition-colors"
       />
     </div>
@@ -408,37 +351,18 @@
 
   <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts | Raw) -->
   <div class="px-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center gap-1 select-none">
-    {#if model.method === 'GRPC'}
-      <button
-        onclick={() => (activeTab = 'proto')}
-        class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'proto'
-          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
-      >
-        Proto {#if model.protoFile?.trim()}
-          <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-cyan-500/10 text-cyan-500 font-mono">
-            File
-          </span>
-        {:else}
-          <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-500 font-mono">
-            Reflection
-          </span>
-        {/if}
-      </button>
-    {:else}
-      <button
-        onclick={() => (activeTab = 'params')}
-        class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'params'
-          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
-      >
-        Params {#if model.params.filter((p) => p.enabled && p.key).length > 0}
-          <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-500 font-mono">
-            {model.params.filter((p) => p.enabled && p.key).length}
-          </span>
-        {/if}
-      </button>
-    {/if}
+    <button
+      onclick={() => (activeTab = 'params')}
+      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'params'
+        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+    >
+      Params {#if model.params.filter((p) => p.enabled && p.key).length > 0}
+        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-500 font-mono">
+          {model.params.filter((p) => p.enabled && p.key).length}
+        </span>
+      {/if}
+    </button>
 
     <button
       onclick={() => (activeTab = 'headers')}
@@ -493,149 +417,12 @@
         ? 'border-blue-500 text-blue-600 dark:text-blue-400'
         : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
     >
-      Raw {commandLabel}
+      Raw cURL
     </button>
   </div>
 
   <!-- Tab Content Body -->
   <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#1a1a1a]">
-    <!-- 0. PROTO TAB (for gRPC) -->
-    {#if activeTab === 'proto'}
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <div>
-          <h3 class="text-xs font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
-            Schema Discovery & Definition
-          </h3>
-          <p class="text-[11px] text-neutral-500 dark:text-neutral-400 mb-3">
-            Configure how the gRPC client resolves service definitions, method schemas, and types.
-          </p>
-
-          <div class="grid grid-cols-2 gap-3 max-w-xl">
-            <!-- Option 1: Server Reflection -->
-            <label
-              class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-all {!(model.protoFile?.trim())
-                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs'
-                : 'border-[#e5e5e5] dark:border-[#2d2d2d] bg-white dark:bg-[#202020] hover:border-neutral-300 dark:hover:border-neutral-700'}"
-            >
-              <div class="flex items-center gap-2 mb-1">
-                <input
-                  type="radio"
-                  name="proto-mode"
-                  value="reflection"
-                  checked={!model.protoFile?.trim()}
-                  onchange={() => {
-                    model.protoFile = '';
-                    model.protoImportPath = '';
-                    syncToWorkspace();
-                  }}
-                  class="accent-blue-600"
-                />
-                <span class="font-semibold text-neutral-800 dark:text-neutral-200 text-xs">Server Reflection</span>
-              </div>
-              <p class="text-[11px] text-neutral-500 dark:text-neutral-400 pl-5">
-                Automatically introspects services, methods, and message types via gRPC reflection from the endpoint.
-              </p>
-            </label>
-
-            <!-- Option 2: Local Proto File -->
-            <label
-              class="relative flex flex-col p-3 rounded-lg border cursor-pointer transition-all {model.protoFile?.trim()
-                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs'
-                : 'border-[#e5e5e5] dark:border-[#2d2d2d] bg-white dark:bg-[#202020] hover:border-neutral-300 dark:hover:border-neutral-700'}"
-            >
-              <div class="flex items-center gap-2 mb-1">
-                <input
-                  type="radio"
-                  name="proto-mode"
-                  value="file"
-                  checked={Boolean(model.protoFile?.trim())}
-                  onchange={() => {
-                    if (!model.protoFile) {
-                      model.protoFile = workspaceProtoFiles[0] || 'examples/user.proto';
-                    }
-                    syncToWorkspace();
-                  }}
-                  class="accent-blue-600"
-                />
-                <span class="font-semibold text-neutral-800 dark:text-neutral-200 text-xs">Proto File (.proto)</span>
-              </div>
-              <p class="text-[11px] text-neutral-500 dark:text-neutral-400 pl-5">
-                Point directly to a .proto file for endpoints which do not support or have disabled server reflection.
-              </p>
-            </label>
-          </div>
-        </div>
-
-        {#if Boolean(model.protoFile?.trim())}
-          <div class="max-w-xl space-y-4 pt-3 border-t border-[#e5e5e5] dark:border-[#2d2d2d]">
-            <div>
-              <label for="proto-file-path-input" class="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                Proto File Path (.proto)
-              </label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="proto-file-path-input"
-                  type="text"
-                  placeholder="e.g. examples/user.proto or /path/to/service.proto"
-                  bind:value={model.protoFile}
-                  oninput={syncToWorkspace}
-                  class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onclick={handleBrowseProtoFile}
-                  class="px-3 py-1.5 bg-[#f0f0f2] dark:bg-[#2a2a2c] hover:bg-[#e4e4e7] dark:hover:bg-[#333336] text-neutral-800 dark:text-neutral-200 border border-[#d2d2d7] dark:border-[#3a3a3c] rounded text-xs font-medium transition-colors"
-                >
-                  Browse...
-                </button>
-              </div>
-              {#if workspaceProtoFiles.length > 0}
-                <div class="flex items-center gap-1.5 flex-wrap mt-2">
-                  <span class="text-[10px] text-neutral-400 dark:text-neutral-500">Detected in workspace:</span>
-                  {#each workspaceProtoFiles as p}
-                    <button
-                      type="button"
-                      onclick={() => {
-                        model.protoFile = p;
-                        syncToWorkspace();
-                      }}
-                      class="px-2 py-0.5 rounded text-[10px] font-mono transition-colors {model.protoFile === p
-                        ? 'bg-blue-600 text-white font-semibold'
-                        : 'bg-[#f0f0f2] dark:bg-[#252525] hover:bg-neutral-200 dark:hover:bg-[#333] text-neutral-700 dark:text-neutral-300 border border-[#d2d2d7] dark:border-[#3a3a3c]'}"
-                    >
-                      {p}
-                    </button>
-                  {/each}
-                </div>
-              {/if}
-              <p class="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1">
-                Point to your schema file. Relative paths (relative to workspace) or absolute paths are supported.
-              </p>
-            </div>
-
-            <div>
-              <label for="proto-import-dir-input" class="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
-                Import Path / Directory (Optional)
-              </label>
-              <div class="flex items-center gap-2">
-                <input
-                  id="proto-import-dir-input"
-                  type="text"
-                  placeholder="e.g. . or ./protos (defaults to proto file directory)"
-                  bind:value={model.protoImportPath}
-                  oninput={syncToWorkspace}
-                  class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <p class="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1">
-                Base directory used by the compiler to resolve relative <code class="font-mono">import</code> statements.
-              </p>
-            </div>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
     <!-- 1. PARAMS TAB -->
     {#if activeTab === 'params'}
       <div class="flex-1 overflow-y-auto p-3">

@@ -1,6 +1,6 @@
 use crate::error::{AppError, Result};
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
-use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree, IGNORED_NAMES};
+use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
@@ -132,7 +132,7 @@ pub fn create_request_file(
     template_type: Option<String>,
 ) -> Result<String> {
     let mut file_name = file_name;
-    if !file_name.ends_with(".curl") && !file_name.ends_with(".grpcurl") {
+    if !file_name.ends_with(".curl") {
         file_name.push_str(".curl");
     }
 
@@ -154,7 +154,6 @@ pub fn create_request_file(
 
     let initial_name = file_name
         .trim_end_matches(".curl")
-        .trim_end_matches(".grpcurl")
         .replace(['-', '_'], " ");
 
     let meta = RequestMetadata {
@@ -166,7 +165,6 @@ pub fn create_request_file(
     let command_body = match template_type.as_deref() {
         Some("post") => "curl -X POST \"https://httpbin.org/post\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"message\": \"Hello World\"}'",
         Some("stream") => "curl -N \"https://httpbin.org/stream/20\"",
-        Some("grpc") => "grpcurl -plaintext -d '{\"id\": 1}' localhost:50051 api.v1.UserService/GetUser",
         _ => "curl -X GET \"https://httpbin.org/get\" \\\n  -H \"Accept: application/json\"",
     };
 
@@ -267,14 +265,13 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
 
     // It's a file
     let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-    let is_request = ext == "curl" || ext == "grpcurl";
+    let is_request = ext == "curl";
 
     if is_request {
         let sanitized = trimmed_name.replace(['/', '\\'], "_");
-        let (display_name, target_file_name) = if sanitized.ends_with(".curl") || sanitized.ends_with(".grpcurl") {
+        let (display_name, target_file_name) = if sanitized.ends_with(".curl") {
             let name_without_ext = sanitized
                 .trim_end_matches(".curl")
-                .trim_end_matches(".grpcurl")
                 .to_string();
             let file_name = format!("{}.{}", name_without_ext, ext);
             (name_without_ext, file_name)
@@ -501,55 +498,6 @@ pub fn import_collection_bundle(
     })
 }
 
-#[tauri::command]
-pub async fn get_workspace_proto_files(workspace_path: Option<String>) -> Result<Vec<String>> {
-    tokio::task::spawn_blocking(move || {
-        let ws_root = match workspace_path.as_deref() {
-            Some(p) if !p.is_empty() && p != "." => resolve_workspace_root(p),
-            _ => resolve_workspace_root("."),
-        };
-
-        let mut results = Vec::new();
-
-        fn scan_protos(dir: &Path, base: &Path, depth: usize, results: &mut Vec<String>) {
-            if depth > 5 || results.len() >= 100 {
-                return;
-            }
-            if let Ok(entries) = fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    // Skip symlinks to completely prevent infinite directory cycles
-                    if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
-                        continue;
-                    }
-                    let path = entry.path();
-                    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                    if file_name.starts_with('.') || IGNORED_NAMES.contains(&file_name) {
-                        continue;
-                    }
-                    if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
-                        scan_protos(&path, base, depth + 1, results);
-                    } else if file_name.ends_with(".proto") {
-                        let rel_str = if let Ok(rel) = path.strip_prefix(base) {
-                            rel.to_string_lossy().replace('\\', "/")
-                        } else {
-                            path.to_string_lossy().replace('\\', "/")
-                        };
-                        results.push(rel_str);
-                    }
-                }
-            }
-        }
-
-        scan_protos(&ws_root, &ws_root, 0, &mut results);
-
-        results.sort();
-        results.dedup();
-        Ok(results)
-    })
-    .await
-    .map_err(|e| AppError::InternalError(format!("Failed to scan proto files: {}", e)))?
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,21 +640,6 @@ mod tests {
         assert!(target_file.exists());
         let content = fs::read_to_string(&target_file).unwrap();
         assert!(content.contains("# @name Saved"));
-
-        let _ = fs::remove_dir_all(&temp_dir);
-    }
-
-    #[tokio::test]
-    async fn test_get_workspace_proto_files_bounded_and_safe() {
-        let temp_dir = std::env::temp_dir().join(format!("proto_scan_test_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&temp_dir).unwrap();
-        let protos_dir = temp_dir.join("protos");
-        fs::create_dir_all(&protos_dir).unwrap();
-        fs::write(protos_dir.join("service.proto"), "syntax = \"proto3\";").unwrap();
-
-        let res = get_workspace_proto_files(Some(temp_dir.to_string_lossy().to_string())).await.unwrap();
-        assert!(res.contains(&"protos/service.proto".to_string()));
-        assert!(res.contains(&"examples/user.proto".to_string()));
 
         let _ = fs::remove_dir_all(&temp_dir);
     }

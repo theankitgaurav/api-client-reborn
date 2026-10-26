@@ -70,6 +70,3 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .badge-patch {
   @apply bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30;
 }
-.badge-grpc {
-  @apply bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30;
-}

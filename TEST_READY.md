@@ -67,7 +67,7 @@ All tests run natively with `node:test` and `node:assert/strict` via `--experime
    - Recursive request gathering across nested directories.
    - Variable substitution (`{{baseUrl}}`, `{{token}}`).
    - Prioritization of in-memory dirty tabs over stale disk content.
-   - Zero-dependency bash script generation with HTTP status checks and gRPC command handling.
+   - Zero-dependency bash script generation with HTTP status checks.
 4. **Rename Folder**:
    - Directory renaming cascading to all open tabs residing within directory.
    - Preservation of dirty state, response snapshots, pinned status, and raw content.
@@ -100,9 +100,8 @@ All tests run natively with `node:test` and `node:assert/strict` via `--experime
    - `# @name` updated to include `(Copy)`.
    - Companion `.meta.json` sidecar copied alongside request file.
    - New duplicate opened in a new pinned tab and focused.
-   - Preservation of `.grpcurl` extension on gRPC duplicates.
 10. **Rename Request**:
-    - Extension preservation: typing name without extension keeps `.curl` or `.grpcurl`.
+   - Extension preservation: typing name without extension keeps `.curl`.
     - Mismatched extension replaced (e.g. typing `.json` enforces `.curl`).
     - Updating `# @name` in file content and sidecar name.
     - Synchronizing active tab title, path, and raw content.
@@ -149,13 +148,10 @@ Exit code: 0
 > cargo test --manifest-path src-tauri/Cargo.toml
 
 running 16 tests
-test engine::grpc::tests::test_parse_grpcurl_args ... ok
-test engine::grpc::tests::test_parse_grpcurl_args_multiline ... ok
 test engine::stream::tests::test_sse_parser ... ok
 test ipc::workspace_commands::tests::test_slugify ... ok
 test parser::comment_meta::tests::test_extract_and_compose ... ok
 test parser::curl::tests::test_parse_get ... ok
-test parser::curl::tests::test_parse_grpcurl ... ok
 test parser::curl::tests::test_parse_flags_and_auth ... ok
 test parser::curl::tests::test_parse_post_with_inferred_method ... ok
 test parser::lexer::tests::test_multiline_continuation ... ok

@@ -31,7 +31,7 @@ Every feature from the Survey phase and user requirements is cataloged and assig
 | F8 | Open in Current Tab | Replace currently active tab if unpinned or clean, preserve tab position and request state | M3 | DONE |
 | F9 | Copy as cURL | Extract clean resolved executable command with active variables, write to clipboard with fallback, display visual confirmation feedback | M3 | DONE |
 | F10 | Duplicate Request | Clone request file and `.meta.json` sidecar with unique `<stem>_copy.curl`, update `# @name` comment header to include "(Copy)", open in tab | M3 | DONE |
-| F11 | Rename Request | Safely rename file preserving valid extension (`.curl` or `.grpcurl`), update `# @name` in file content, sync tab title and path | M3 | DONE |
+| F11 | Rename Request | Safely rename file preserving the `.curl` extension, update `# @name` in file content, sync tab title and path | M3 | DONE |
 | F12 | Delete Request | Delete file and `.meta.json` sidecar from disk, force-close tab without redundant dirty prompt | M3 | DONE |
 | F13 | Automated Test Suite (E2E Track) | Automated regression test suite in `tests/` covering all 11 operations, nested resolution, tab sync, prefix matching, extension preservation | M-E2E / M4 | DONE |
 | F14 | Verification Quality Bar | Svelte check (`npm run check`), frontend tests (`npm run test:frontend`), backend tests (`npm run test:backend`), production build (`npm run build`) | M4 | DONE |
@@ -61,7 +61,7 @@ Every feature from the Survey phase and user requirements is cataloged and assig
 - `formatDuplicateRequestName(stem: string, existingNames: string[], ext?: string): string`
   - Generates `<stem>_copy.<ext>` or `<stem>_copy_{n}.<ext>`.
 - `sanitizeRequestRename(currentPath: string, newNameInput: string): string`
-  - Preserves original extension (`.curl` or `.grpcurl`) even if omitted or mismatched by user input.
+  - Preserves the `.curl` extension even if omitted or mismatched by user input.
 - `updateRequestNameHeader(rawContent: string, newDisplayName: string): string`
   - Updates or adds `# @name <newDisplayName>` comment line.
 

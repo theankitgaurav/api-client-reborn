@@ -12,14 +12,12 @@ test('generateCollectionShellScript creates executable bash script with status c
       name: 'List Users',
       method: 'GET',
       command: '# @name List Users\ncurl -X GET "{{base_url}}/users"',
-      isGrpc: false,
     },
     {
-      path: '/workspace/users/get_user_grpc.grpcurl',
-      name: 'Get User gRPC',
-      method: 'gRPC',
-      command: 'grpcurl -plaintext -d \'{"id": 42}\' localhost:50051 users.UserService/GetUser',
-      isGrpc: true,
+      path: '/workspace/users/create_user.curl',
+      name: 'Create User',
+      method: 'POST',
+      command: 'curl -X POST "{{base_url}}/users" -d \'{"name":"Alice"}\'',
     },
   ];
 
@@ -34,7 +32,5 @@ test('generateCollectionShellScript creates executable bash script with status c
   assert.ok(script.includes('export base_url="${base_url:-"https://staging.api.com"}"'));
   assert.ok(script.includes('List Users'));
   assert.ok(script.includes('HTTP_CODE='));
-  assert.ok(script.includes('grpcurl -plaintext'));
-  assert.ok(script.includes('[gRPC OK]'));
   assert.ok(script.includes('Summary: ${TOTAL_REQUESTS} Total'));
 });

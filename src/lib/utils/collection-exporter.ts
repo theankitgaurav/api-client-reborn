@@ -6,7 +6,6 @@ export interface FlattenedRequest {
   name: string;
   method: string;
   command: string;
-  isGrpc: boolean;
 }
 
 /**
@@ -23,13 +22,11 @@ export function flattenWorkspaceRequests(
       result.push(...flattenWorkspaceRequests(item.children, readContentFn));
     } else if (!item.is_dir) {
       const rawContent = readContentFn(item.path);
-      const isGrpc = item.name.endsWith('.grpcurl') || rawContent.trimStart().startsWith('grpcurl');
       result.push({
         path: item.path,
         name: item.display_name || item.name,
-        method: item.method || (isGrpc ? 'gRPC' : 'GET'),
+        method: item.method || 'GET',
         command: rawContent,
-        isGrpc,
       });
     }
   }
@@ -100,39 +97,21 @@ export function generateCollectionShellScript(
     lines.push('TOTAL_REQUESTS=$((TOTAL_REQUESTS + 1))');
     lines.push(`echo -e "\\n\${BOLD}[${reqNum}/${requests.length}] ${req.method} \${NC}${req.name}"`);
 
-    if (req.isGrpc) {
-      // gRPC execution
-      lines.push('START_TIME=$(date +%s%N 2>/dev/null || date +%s)');
-      lines.push('RESPONSE_FILE=$(mktemp 2>/dev/null || mktemp -t api_client)');
-      lines.push('ERROR_FILE=$(mktemp 2>/dev/null || mktemp -t api_client)');
-      lines.push('');
-      lines.push(`if ${resolvedCmd} > "$RESPONSE_FILE" 2> "$ERROR_FILE"; then`);
-      lines.push('  END_TIME=$(date +%s%N 2>/dev/null || date +%s)');
-      lines.push('  echo -e "  Status: ${GREEN}[gRPC OK]${NC}"');
-      lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
-      lines.push('else');
-      lines.push('  echo -e "  Status: ${RED}[gRPC FAILED]${NC}"');
-      lines.push('  cat "$ERROR_FILE"');
-      lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
-      lines.push('fi');
-      lines.push('rm -f "$RESPONSE_FILE" "$ERROR_FILE"');
-    } else {
-      // cURL execution with status code and TTFB formatting
-      lines.push('RESPONSE_FILE=$(mktemp 2>/dev/null || mktemp -t api_client)');
-      lines.push('');
-      // Wrap curl to write output and get HTTP status code
-      lines.push(
-        `HTTP_CODE=$(${resolvedCmd} -s -o "$RESPONSE_FILE" -w "%{http_code}" 2>/dev/null || echo "000")`
-      );
-      lines.push('if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then');
-      lines.push('  echo -e "  Status: ${GREEN}[HTTP $HTTP_CODE OK]${NC}"');
-      lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
-      lines.push('else');
-      lines.push('  echo -e "  Status: ${RED}[HTTP $HTTP_CODE FAILED]${NC}"');
-      lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
-      lines.push('fi');
-      lines.push('rm -f "$RESPONSE_FILE"');
-    }
+    // cURL execution with status code and TTFB formatting
+    lines.push('RESPONSE_FILE=$(mktemp 2>/dev/null || mktemp -t api_client)');
+    lines.push('');
+    // Wrap curl to write output and get HTTP status code
+    lines.push(
+      `HTTP_CODE=$(${resolvedCmd} -s -o "$RESPONSE_FILE" -w "%{http_code}" 2>/dev/null || echo "000")`
+    );
+    lines.push('if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then');
+    lines.push('  echo -e "  Status: ${GREEN}[HTTP $HTTP_CODE OK]${NC}"');
+    lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
+    lines.push('else');
+    lines.push('  echo -e "  Status: ${RED}[HTTP $HTTP_CODE FAILED]${NC}"');
+    lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
+    lines.push('fi');
+    lines.push('rm -f "$RESPONSE_FILE"');
     lines.push('');
   });
 

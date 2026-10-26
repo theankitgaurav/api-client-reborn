@@ -33,7 +33,7 @@
 |---|----------|--------------------|------------|
 | 1 | Deep nested folder hierarchy creation, new request creation, folder rename cascading, and recursive deletion | F1, F2, F3, F4, F5 | High |
 | 2 | Multi-tab workflow with mixed pinned, dirty, and preview tabs, switching and opening in current tab | F6, F7, F8, F12 | High |
-| 3 | Cloning request collection, duplicating with sidecars, renaming grpcurl/curl preserving extension, exporting bash script | F4, F9, F10, F11 | High |
+| 3 | Cloning request collection, duplicating with sidecars, renaming cURL requests, exporting bash script | F4, F9, F10, F11 | High |
 | 4 | Sibling folder isolation test: delete folder with common prefix (`/api/v1` vs `/api/v1-legacy`) without affecting sibling tabs | F5, F6, F12 | High |
 | 5 | Request command resolution with active environment variables and fallback clipboard copy | F8, F9 | Medium |
 

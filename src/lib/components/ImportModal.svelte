@@ -66,11 +66,10 @@
           return;
         }
         parseResult = result;
-      } else if (content.trim().startsWith('curl ') || content.trim().startsWith('grpcurl ') || content.trim().startsWith('#')) {
-        // Raw cURL or grpcurl command input
-        const isGrpc = content.trim().startsWith('grpcurl');
-        const ext = isGrpc ? 'grpcurl' : 'curl';
-        const defaultName = isGrpc ? 'Imported gRPC Request' : 'Imported cURL Request';
+      } else if (content.trim().startsWith('curl ') || content.trim().startsWith('#')) {
+        // Raw cURL command input
+        const ext = 'curl';
+        const defaultName = 'Imported cURL Request';
 
         const lines = content.split('\n');
         let customName = defaultName;
@@ -95,7 +94,7 @@
           totalFolders: 1,
         };
       } else {
-        parseError = 'Unrecognized format. Please provide a Postman Collection JSON or cURL/grpcurl command.';
+        parseError = 'Unrecognized format. Please provide a Postman Collection JSON or cURL command.';
       }
     } catch (e) {
       parseError = `Failed to parse import content: ${e instanceof Error ? e.message : String(e)}`;
@@ -210,11 +209,11 @@
               {fileName ? fileName : 'Choose a file or drag & drop it here'}
             </span>
             <span class="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              Supports Postman Collection v2.0 / v2.1 (.json) or .curl / .grpcurl files
+              Supports Postman Collection v2.0 / v2.1 (.json) or .curl files
             </span>
             <input
               type="file"
-              accept=".json,.curl,.grpcurl"
+              accept=".json,.curl"
               class="hidden"
               onchange={handleFileSelect}
             />
@@ -223,7 +222,7 @@
           <!-- Text Input -->
           <div>
             <label for="raw-import-text" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1.5">
-              Paste Postman Collection JSON, cURL command, or grpcurl command:
+              Paste Postman Collection JSON or cURL command:
             </label>
             <textarea
               id="raw-import-text"

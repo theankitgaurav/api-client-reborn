@@ -96,10 +96,7 @@ export class WorkspaceState {
     return null;
   }
 
-  private inferMethod(content: string, path?: string): string {
-    if (path?.endsWith('.grpcurl') || content.trimStart().startsWith('grpcurl') || content.includes('grpcurl')) {
-      return 'GRPC';
-    }
+  private inferMethod(content: string, _path?: string): string {
     const match = content.match(/-X\s+([A-Za-z]+)/);
     if (match) return match[1].toUpperCase();
     if (content.includes('-d ') || content.includes('--data')) return 'POST';
@@ -110,7 +107,7 @@ export class WorkspaceState {
     const nameMatch = content.match(/#\s*@name\s+(.+)/);
     if (nameMatch) return nameMatch[1].trim();
     const fileName = path.split('/').pop() || 'Request';
-    return fileName.replace('.curl', '').replace('.grpcurl', '').replace(/[-_]/g, ' ');
+    return fileName.replace('.curl', '').replace(/[-_]/g, ' ');
   }
 
   async openRequest(path: string, openInNewTab: boolean = false) {
@@ -335,7 +332,7 @@ export class WorkspaceState {
   }
 
   async deleteItem(itemPath: string, displayName?: string) {
-    const isFolder = !itemPath.endsWith('.curl') && !itemPath.endsWith('.grpcurl');
+    const isFolder = !itemPath.endsWith('.curl');
     const label = displayName || itemPath.split('/').pop() || itemPath;
     const confirmed = confirm(
       `Are you sure you want to delete ${isFolder ? 'folder' : 'request'} "${label}"?${
@@ -378,7 +375,7 @@ export class WorkspaceState {
     if (!newName || !newName.trim() || newName.trim() === currentName) return;
 
     try {
-      const isFolder = !oldPath.endsWith('.curl') && !oldPath.endsWith('.grpcurl');
+      const isFolder = !oldPath.endsWith('.curl');
 
       if (isFolder) {
         const newPath = await renameWorkspaceItem(oldPath, newName.trim());
@@ -395,7 +392,7 @@ export class WorkspaceState {
       } else {
         const sanitized = sanitizeRequestRename(oldPath, newName.trim());
         const newPath = await renameWorkspaceItem(oldPath, sanitized);
-        const displayName = sanitized.replace(/\.(curl|grpcurl)$/, '');
+        const displayName = sanitized.replace(/\.curl$/, '');
 
         const openTab = this.tabs.find((t) => t.filePath === oldPath);
         if (openTab) {
