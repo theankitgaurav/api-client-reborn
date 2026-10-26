@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { cancelRequest, executeRequest, exportSpooledStream } from '../ipc';
 import type { ResponseChunk, TestResultItem } from '../types';
 import { runScript } from '../utils/script-runner';
@@ -117,6 +118,10 @@ export class ResponseState {
     this.isStreaming = false;
     this.clear();
     this.currentExecutingTabId = tab.id;
+
+    // Flush reactive state to the DOM so the Send button immediately
+    // switches to Cancel (color change) before any synchronous work.
+    await tick();
 
     // 1. Run Pre-request script if present
     let rawContent = tab.rawContent;

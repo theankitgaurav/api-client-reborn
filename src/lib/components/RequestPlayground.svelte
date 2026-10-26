@@ -215,11 +215,11 @@
   }
 
 
-  function handleSend() {
+  async function handleSend() {
     if (responseState.isExecuting) {
-      responseState.cancel();
+      await responseState.cancel();
     } else {
-      responseState.runCurrentRequest();
+      await responseState.runCurrentRequest();
     }
   }
 

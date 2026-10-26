@@ -729,10 +729,25 @@ pub async fn execute_grpc_request(
 
     // 2. Resolve DescriptorPool: via proto file or server reflection
     let pool = if let Some(ref proto_file) = parsed.proto_file {
-        match load_proto_descriptor_pool(proto_file, parsed.import_path.as_deref()) {
-            Ok(p) => p,
-            Err(e) => {
+        // Proto compilation uses blocking filesystem I/O and CPU-intensive
+        // protox::compile(). Run on a dedicated blocking thread so we don't
+        // starve the tokio async runtime (which would freeze IPC delivery
+        // and make the UI unresponsive).
+        let proto_file_owned = proto_file.clone();
+        let import_path_owned = parsed.import_path.clone();
+        match tokio::task::spawn_blocking(move || {
+            load_proto_descriptor_pool(&proto_file_owned, import_path_owned.as_deref())
+        })
+        .await
+        {
+            Ok(Ok(p)) => p,
+            Ok(Err(e)) => {
                 let err_msg = e.to_string();
+                let _ = channel.send(ResponseChunk::Failed { error: err_msg.clone() });
+                return Err(AppError::InternalError(err_msg));
+            }
+            Err(e) => {
+                let err_msg = format!("Proto compilation task panicked: {}", e);
                 let _ = channel.send(ResponseChunk::Failed { error: err_msg.clone() });
                 return Err(AppError::InternalError(err_msg));
             }
