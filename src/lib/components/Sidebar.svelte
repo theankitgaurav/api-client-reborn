@@ -9,6 +9,7 @@
   import type { WorkspaceFileItem } from '$lib/types';
   import {
     FolderOpen,
+    Folder,
     RefreshCw,
     Search,
     Plus,
@@ -24,6 +25,7 @@
   let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
   let activeSidebarTab = $state<'requests' | 'history'>('requests');
+  let collapsedFolderPaths = $state<string[]>([]);
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
   let isDeletingItem = $state(false);
 
@@ -66,6 +68,16 @@
   }
 
   let filteredTree = $derived(filterItems(workspaceState.tree));
+
+  function isFolderExpanded(path: string): boolean {
+    return !collapsedFolderPaths.includes(path);
+  }
+
+  function toggleFolder(path: string) {
+    collapsedFolderPaths = isFolderExpanded(path)
+      ? [...collapsedFolderPaths, path]
+      : collapsedFolderPaths.filter((collapsedPath) => collapsedPath !== path);
+  }
 
   $effect(() => {
     void historyState.load(workspaceState.workspacePath);
@@ -312,15 +324,26 @@
       {#if item.is_dir}
         <div class="mb-1" style="padding-left: {depth * 6}px;">
           <div
-            role="button"
-            tabindex="0"
+            role="group"
+            aria-label="Collection {item.name}"
             oncontextmenu={(e) => handleItemContextMenu(e, item)}
-            class="group flex items-center justify-between px-2 py-1 text-neutral-500 dark:text-neutral-400 font-semibold uppercase tracking-wider text-[10px] hover:bg-neutral-200/50 dark:hover:bg-[#202020] rounded cursor-pointer"
+            class="group flex items-center justify-between px-2 py-1 text-neutral-500 dark:text-neutral-400 font-semibold uppercase tracking-wider text-[10px] hover:bg-neutral-200/50 dark:hover:bg-[#202020] rounded"
           >
-            <div class="flex items-center gap-1.5 truncate flex-1">
-              <FolderOpen size={12} class="text-neutral-400 shrink-0" />
+            <button
+              type="button"
+              aria-expanded={isFolderExpanded(item.path)}
+              aria-label="{isFolderExpanded(item.path) ? 'Collapse' : 'Expand'} collection {item.name}"
+              onclick={() => toggleFolder(item.path)}
+              class="flex items-center gap-1.5 truncate flex-1 text-left outline-none"
+              title="Click to {isFolderExpanded(item.path) ? 'collapse' : 'expand'}"
+            >
+              {#if isFolderExpanded(item.path)}
+                <FolderOpen size={12} class="text-neutral-400 shrink-0" />
+              {:else}
+                <Folder size={12} class="text-neutral-400 shrink-0" />
+              {/if}
               <span class="truncate">{item.name}</span>
-            </div>
+            </button>
             <div class="flex items-center gap-0.5 transition-opacity {itemContextMenu?.visible && itemContextMenu.item.path === item.path ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}">
               <button
                 type="button"
@@ -343,16 +366,18 @@
               </button>
             </div>
           </div>
-          {#if item.children && item.children.length > 0}
-            <div class="space-y-0.5">
-              {#each item.children as child}
-                {@render renderNode(child, depth + 1)}
-              {/each}
-            </div>
-          {:else}
-            <div class="pl-4 py-1 text-[10px] text-neutral-400 dark:text-neutral-600 italic">
-              Empty folder
-            </div>
+          {#if isFolderExpanded(item.path)}
+            {#if item.children && item.children.length > 0}
+              <div class="space-y-0.5">
+                {#each item.children as child}
+                  {@render renderNode(child, depth + 1)}
+                {/each}
+              </div>
+            {:else}
+              <div class="pl-4 py-1 text-[10px] text-neutral-400 dark:text-neutral-600 italic">
+                Empty folder
+              </div>
+            {/if}
           {/if}
         </div>
       {:else}
