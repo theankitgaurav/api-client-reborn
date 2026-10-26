@@ -21,6 +21,7 @@ pub struct TestCase {
 pub struct SidecarMetadata {
     pub name: Option<String>,
     pub description: Option<String>,
+    #[serde(default)]
     pub tests: Vec<TestCase>,
     pub tab_color: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

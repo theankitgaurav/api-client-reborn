@@ -251,6 +251,20 @@ npm run tauri build
 
 The resulting distribution packages will be generated in `src-tauri/target/release/bundle/`.
 
+### Manual Capability Checks
+
+The **Examples** collection is seeded into `~/.api-client-reborn/examples` and includes requests for manual feature checks. The HTTP examples use `https://httpbin.org`; the finite SSE example uses HTTPCan's `/sse/5` endpoint, so these checks require an internet connection.
+
+| Example folder | What to try |
+| :--- | :--- |
+| `methods/` | PUT, PATCH, DELETE, HEAD, and OPTIONS requests |
+| `auth/` | Basic authentication and Bearer authentication with the local `auth_token` secret |
+| `responses/` | HTTP 404 handling, redirects with and without `-L`, and a timeout that intentionally fails |
+| `scripting/` | Pre-request variable setup and post-response assertions; view results in the Tests tab |
+| `streaming/` | Five SSE events arrive, then the response completes automatically |
+
+The existing root examples cover query parameters, headers, dynamic variables, JSON bodies, and chunked streaming. The timeout example is expected to fail after one second; raise its `# @timeout` value to `5000` to see the delayed response succeed.
+
 ---
 
 ## ⌨️ Keyboard Shortcuts

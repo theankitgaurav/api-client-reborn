@@ -1,0 +1,5 @@
+# @name Response Status - 404
+# @description Returns HTTP 404 intentionally. This is an HTTP response, not a transport failure.
+# @timeout 15000
+
+curl "{{base_url}}/status/404"

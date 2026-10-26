@@ -1,0 +1,10 @@
+# @name PATCH - Update User Fields
+# @description Exercises PATCH with a partial JSON update.
+# @timeout 15000
+
+curl -X PATCH "{{base_url}}/patch" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "role": "editor"
+  }'

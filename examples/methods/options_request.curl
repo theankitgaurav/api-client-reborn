@@ -1,0 +1,6 @@
+# @name OPTIONS - Inspect Allowed Methods
+# @description Exercises OPTIONS against an endpoint that accepts arbitrary methods.
+# @timeout 15000
+
+curl -X OPTIONS "{{base_url}}/anything/example" \
+  -H "Accept: application/json"

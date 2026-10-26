@@ -3,7 +3,6 @@
 curl -X POST "{{base_url}}/post" \
   -H "Content-Type: application/json" \
   -H "X-Client-Id: {{tenant_id}}" \
-  -H "Authorization: Bearer {{auth_token}}" \
   -d '{
   "username": "alex_developer",
   "email": "alex@example.com",

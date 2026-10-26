@@ -1,0 +1,5 @@
+# @name Basic Auth - Success
+# @description Exercises cURL basic authentication using harmless demo credentials.
+# @timeout 15000
+
+curl -u "demo-user:demo-pass" "{{base_url}}/basic-auth/demo-user/demo-pass"

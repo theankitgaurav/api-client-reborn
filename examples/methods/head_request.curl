@@ -1,0 +1,5 @@
+# @name HEAD - Inspect Headers
+# @description Exercises HEAD. Expect response headers with an empty body.
+# @timeout 15000
+
+curl -X HEAD "{{base_url}}/get"

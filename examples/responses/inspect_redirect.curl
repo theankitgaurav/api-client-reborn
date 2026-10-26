@@ -1,0 +1,5 @@
+# @name Redirect - Inspect 302
+# @description Does not follow redirects; inspect the 302 status and Location response header.
+# @timeout 15000
+
+curl "{{base_url}}/redirect/2"

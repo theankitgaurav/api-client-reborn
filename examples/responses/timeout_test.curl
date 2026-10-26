@@ -1,0 +1,5 @@
+# @name Timeout - Expected Failure
+# @description Intentionally times out after 1 second. Raise @timeout to 5000 to see the 3-second response succeed.
+# @timeout 1000
+
+curl "{{base_url}}/delay/3"

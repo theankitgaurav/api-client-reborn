@@ -43,37 +43,33 @@ const DEFAULT_PROD_ENV: &str = r#"{
   "tenant_id": "prod-enterprise"
 }"#;
 
-const SAMPLE_GET_USERS: &str = r#"# @name Get All Users
-# @description List registered users with pagination and trace id
-# @timeout 30000
+const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description Connects to a public SSE demo. Let a few events arrive, then press Cancel to close the live stream.\n# @timeout 60000\n\ncurl -N \"https://sse.dev/test\" \\\n  -H \"Accept: text/event-stream\"\n";
 
-curl -X GET "{{base_url}}/get?page=1&limit=20" \
-  -H "Accept: application/json" \
-  -H "X-Trace-Id: {{$uuid}}" \
-  -H "Authorization: Bearer {{auth_token}}"
-"#;
-
-const SAMPLE_CREATE_USER: &str = r#"# @name Create User Profile
-# @timeout 15000
-curl -X POST "{{base_url}}/post" \
-  -H "Content-Type: application/json" \
-  -H "X-Client-Id: {{tenant_id}}" \
-  -H "Authorization: Bearer {{auth_token}}" \
-  -d '{
-  "username": "alex_developer",
-  "email": "alex@example.com",
-  "role": "admin",
-  "registered_at": "{{$isoTimestamp}}"
-}'
-"#;
-
-const SAMPLE_STREAM_EVENTS: &str = r#"# @name Stream Live Events
-# @description Consumes a chunked streaming response or SSE endpoint
-# @timeout 60000
-
-curl -N "{{base_url}}/stream/10" \
-  -H "Accept: application/json, text/event-stream"
-"#;
+const STARTER_EXAMPLES: &[(&str, &str)] = &[
+    ("get_users.curl", include_str!("../../../examples/get_users.curl")),
+    ("create_user.curl", include_str!("../../../examples/create_user.curl")),
+    ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
+    ("methods/put_user.curl", include_str!("../../../examples/methods/put_user.curl")),
+    ("methods/patch_user.curl", include_str!("../../../examples/methods/patch_user.curl")),
+    ("methods/delete_user.curl", include_str!("../../../examples/methods/delete_user.curl")),
+    ("methods/head_request.curl", include_str!("../../../examples/methods/head_request.curl")),
+    ("methods/options_request.curl", include_str!("../../../examples/methods/options_request.curl")),
+    ("auth/basic_auth.curl", include_str!("../../../examples/auth/basic_auth.curl")),
+    ("auth/bearer_auth.curl", include_str!("../../../examples/auth/bearer_auth.curl")),
+    ("responses/status_404.curl", include_str!("../../../examples/responses/status_404.curl")),
+    ("responses/inspect_redirect.curl", include_str!("../../../examples/responses/inspect_redirect.curl")),
+    ("responses/follow_redirect.curl", include_str!("../../../examples/responses/follow_redirect.curl")),
+    ("responses/timeout_test.curl", include_str!("../../../examples/responses/timeout_test.curl")),
+    (
+        "scripting/pre_post_scripts.curl",
+        include_str!("../../../examples/scripting/pre_post_scripts.curl"),
+    ),
+    (
+        "scripting/pre_post_scripts.meta.json",
+        include_str!("../../../examples/scripting/pre_post_scripts.meta.json"),
+    ),
+    ("streaming/sse_events.curl", include_str!("../../../examples/streaming/sse_events.curl")),
+];
 
 /// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
 pub fn get_default_workspace_dir() -> PathBuf {
@@ -134,15 +130,16 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
     let examples_dir = dir.join("examples");
     let _ = fs::create_dir_all(&examples_dir);
 
-    let starter_files: [(&str, &str); 3] = [
-        ("get_users.curl", SAMPLE_GET_USERS),
-        ("create_user.curl", SAMPLE_CREATE_USER),
-        ("stream_events.curl", SAMPLE_STREAM_EVENTS),
-    ];
-
-    for (name, content) in starter_files {
+    for (name, content) in STARTER_EXAMPLES {
         let path = examples_dir.join(name);
-        if !path.exists() {
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let is_unchanged_legacy_sse_example = *name == "streaming/sse_events.curl"
+            && fs::read_to_string(&path)
+                .map(|existing| existing == LEGACY_SSE_EXAMPLE)
+                .unwrap_or(false);
+        if !path.exists() || is_unchanged_legacy_sse_example {
             let _ = fs::write(&path, content);
         }
     }
@@ -242,6 +239,19 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
 mod tests {
     use super::*;
 
+    fn count_requests(items: &[WorkspaceFileItem]) -> usize {
+        items
+            .iter()
+            .map(|item| {
+                if item.is_dir {
+                    count_requests(item.children.as_deref().unwrap_or_default())
+                } else {
+                    1
+                }
+            })
+            .sum()
+    }
+
     #[test]
     fn test_scan_workspace() {
         let temp_dir = std::env::temp_dir().join(format!("test_api_client_ws_{}", uuid::Uuid::new_v4()));
@@ -253,7 +263,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(children.len(), 3, "Expected 3 sample requests in examples folder");
+        assert_eq!(count_requests(children), 16, "Expected all manual test requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));

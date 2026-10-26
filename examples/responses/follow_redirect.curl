@@ -1,0 +1,5 @@
+# @name Redirect - Follow Chain
+# @description Exercises the -L flag and follows the redirect chain to the final response.
+# @timeout 15000
+
+curl -L "{{base_url}}/redirect/2"

@@ -1,0 +1,12 @@
+# @name PUT - Replace User
+# @description Exercises PUT with a JSON request body. httpbin echoes the submitted payload.
+# @timeout 15000
+
+curl -X PUT "{{base_url}}/put" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 42,
+    "name": "Ada Lovelace",
+    "role": "admin"
+  }'

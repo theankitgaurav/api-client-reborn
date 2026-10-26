@@ -1,0 +1,6 @@
+# @name DELETE - Remove User
+# @description Exercises DELETE and inspects the echoed request details.
+# @timeout 15000
+
+curl -X DELETE "{{base_url}}/delete?id=42" \
+  -H "Accept: application/json"

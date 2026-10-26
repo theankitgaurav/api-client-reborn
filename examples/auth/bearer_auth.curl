@@ -1,0 +1,7 @@
+# @name Bearer Auth - Success
+# @description Exercises the secret variable and Bearer authentication without echoing the token.
+# @timeout 15000
+
+curl "{{base_url}}/bearer" \
+  -H "Authorization: Bearer {{auth_token}}" \
+  -H "Accept: application/json"

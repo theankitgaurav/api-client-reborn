@@ -1,0 +1,6 @@
+# @name SSE - Five Demo Events
+# @description Receives five finite server-sent events and then completes automatically.
+# @timeout 15000
+
+curl -N "https://httpcan.org/sse/5" \
+  -H "Accept: text/event-stream"

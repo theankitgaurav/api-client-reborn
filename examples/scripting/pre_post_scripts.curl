@@ -1,0 +1,6 @@
+# @name Scripts - Pre-request and Assertions
+# @description A pre-request script sets a query variable; the post-response script checks the echoed value.
+# @timeout 15000
+
+curl "{{base_url}}/get?script_probe={{script_probe}}" \
+  -H "Accept: application/json"

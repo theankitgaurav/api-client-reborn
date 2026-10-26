@@ -1,0 +1,6 @@
+{
+  "name": "Scripts - Pre-request and Assertions",
+  "tests": [],
+  "pre_request_script": "pm.environment.set('script_probe', 'set-before-send');\nconsole.log('Set script_probe before sending');",
+  "post_response_script": "pm.test('HTTP status is 200', function () {\n  pm.response.to.have.status(200);\n});\nconst body = pm.response.json();\npm.test('Pre-request variable reached the server', function () {\n  pm.expect(body.args.script_probe).to.equal('set-before-send');\n});\nconsole.log('Response time:', pm.response.responseTime, 'ms');"
+}
