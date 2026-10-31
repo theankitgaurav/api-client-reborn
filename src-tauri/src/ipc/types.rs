@@ -42,6 +42,8 @@ pub struct WorkspaceFileItem {
     pub is_dir: bool,
     pub display_name: Option<String>,
     pub method: Option<String>,
+    #[serde(default)]
+    pub kind: Option<String>,
     pub children: Option<Vec<WorkspaceFileItem>>,
 }
 

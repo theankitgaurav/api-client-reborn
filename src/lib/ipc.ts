@@ -1,6 +1,8 @@
 import type {
   EnvironmentItem,
   FileDetails,
+  GrpcRequestConfig,
+  GrpcServiceInfo,
   ParsedCurlRequest,
   RequestHistoryEntry,
   ResponseChunk,
@@ -103,10 +105,15 @@ function findMockItem(items: WorkspaceFileItem[], targetPath: string): Workspace
 
 function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
   const existing = findMockItem(mockWorkspaceTree, path);
+  const isGrpc = path.toLowerCase().endsWith('.grpc');
   const nameMatch = rawContent.match(/^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m);
-  const displayName = sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined);
+  let grpcRequest: Partial<GrpcRequestConfig> = {};
+  if (isGrpc) {
+    try { grpcRequest = JSON.parse(rawContent); } catch { /* malformed mock request remains visible */ }
+  }
+  const displayName = (isGrpc ? grpcRequest.name : sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined));
 
-  let method = 'GET';
+  let method = isGrpc ? `${grpcRequest.service || ''}/${grpcRequest.method || ''}` : 'GET';
   const methodMatch = rawContent.match(/curl\s+.*?-X\s+([A-Z]+)/i);
   if (methodMatch) {
     method = methodMatch[1].toUpperCase();
@@ -115,6 +122,7 @@ function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
   if (existing) {
     if (displayName) existing.display_name = displayName;
     existing.method = method;
+    existing.kind = isGrpc ? 'grpc' : 'http';
     return;
   }
 
@@ -126,8 +134,9 @@ function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
     name: fileName,
     path,
     is_dir: false,
-    display_name: displayName || fileName.replace(/\.curl$/, ''),
+    display_name: displayName || fileName.replace(/\.(?:curl|grpc)$/i, ''),
     method,
+    kind: isGrpc ? 'grpc' : 'http',
   };
 
   if (!dir || dir === '.' || dir === '/') {
@@ -344,6 +353,43 @@ export async function executeRequest(
   }, 120);
 }
 
+export async function discoverGrpcServices(config: GrpcRequestConfig): Promise<GrpcServiceInfo[]> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('discover_grpc_services', { config });
+  }
+  return [];
+}
+
+export async function executeGrpcRequest(
+  requestId: string,
+  config: GrpcRequestConfig,
+  workspacePath: string,
+  onChunk: (chunk: ResponseChunk) => void
+): Promise<void> {
+  if (isTauri) {
+    const { invoke, Channel } = await import('@tauri-apps/api/core');
+    const channel = new Channel<ResponseChunk>();
+    channel.onmessage = onChunk;
+    return invoke('execute_grpc_request', {
+      requestId,
+      config,
+      workspacePath,
+      channel,
+    });
+  }
+
+  onChunk({ type: 'Started', payload: { request_id: requestId } });
+  onChunk({
+    type: 'HeaderReceived',
+    payload: { status: 200, status_text: 'gRPC', headers: [], protocol: 'gRPC/HTTP2', ttfb_ms: 1, is_streaming: false },
+  });
+  setTimeout(() => {
+    onChunk({ type: 'BodyChunk', payload: { text: `// Dev preview for ${config.service}/${config.method}`, bytes_received: 0 } });
+    onChunk({ type: 'Finished', payload: { total_duration_ms: 1, total_bytes: 0 } });
+  }, 0);
+}
+
 export async function cancelRequest(requestId: string): Promise<boolean> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -536,14 +582,15 @@ export async function renameWorkspaceItem(
     const normOld = normalizeMockPath(oldPath);
     for (const item of items) {
       if (item.path === oldPath || normalizeMockPath(item.path) === normOld) {
-        const isRequest = item.name.endsWith('.curl');
+        const isGrpc = item.name.toLowerCase().endsWith('.grpc');
+        const isRequest = item.name.endsWith('.curl') || isGrpc;
         if (isRequest) {
-          const ext = 'curl';
+          const ext = isGrpc ? 'grpc' : 'curl';
           const trimmed = newName.trim();
           let displayName = trimmed;
           let fileName = trimmed;
-          if (trimmed.endsWith('.curl')) {
-            displayName = trimmed.replace(/\.curl$/, '');
+          if (trimmed.toLowerCase().endsWith(`.${ext}`)) {
+            displayName = trimmed.slice(0, -(ext.length + 1));
           } else {
             const slug =
               trimmed
@@ -564,6 +611,13 @@ export async function renameWorkspaceItem(
             mockFileContents.delete(oldPath);
             details.path = newPath;
             if (details.metadata) details.metadata.name = displayName;
+            if (isGrpc) {
+              try {
+                const grpcConfig = JSON.parse(details.raw_content);
+                grpcConfig.name = displayName;
+                details.raw_content = JSON.stringify(grpcConfig, null, 2);
+              } catch { /* preserve malformed request data */ }
+            }
             if (details.sidecar) details.sidecar.name = displayName;
             mockFileContents.set(newPath, details);
           }
@@ -601,11 +655,11 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     return invoke('duplicate_request_file', { sourcePath });
   }
 
-  const ext = 'curl';
+  const ext = sourcePath.toLowerCase().endsWith('.grpc') ? 'grpc' : 'curl';
   const lastSlash = sourcePath.lastIndexOf('/');
   const dir = lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : '';
   const fileBasename = lastSlash >= 0 ? sourcePath.substring(lastSlash + 1) : sourcePath;
-  const stem = fileBasename.replace(/\.curl$/, '');
+  const stem = fileBasename.replace(/\.(?:curl|grpc)$/i, '');
 
   function getSiblingNames(items: WorkspaceFileItem[], targetPath: string): string[] {
     const normTarget = normalizeMockPath(targetPath);
@@ -642,6 +696,7 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     is_dir: false,
     display_name: newDisplay,
     method: originalItem?.method || 'GET',
+    kind: ext === 'grpc' ? 'grpc' : 'http',
   };
 
   function insertDuplicate(items: WorkspaceFileItem[]): boolean {
@@ -668,7 +723,11 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
   try {
     const originalContent = await readRequestFile(sourcePath);
     let rawContent = originalContent.raw_content;
-    if (rawContent.match(/^[ \t]*#[ \t]*@name\b/m)) {
+    if (ext === 'grpc') {
+      const grpcConfig = JSON.parse(rawContent);
+      grpcConfig.name = newDisplay;
+      rawContent = JSON.stringify(grpcConfig, null, 2);
+    } else if (rawContent.match(/^[ \t]*#[ \t]*@name\b/m)) {
       rawContent = rawContent.replace(
         /^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m,
         `# @name ${newDisplay}`

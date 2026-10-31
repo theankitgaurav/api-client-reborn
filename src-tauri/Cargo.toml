@@ -1,6 +1,6 @@
 [package]
 name = "api_client_reborn"
-version = "0.3.1"
+version = "0.4.0"
 description = "A lightweight native API client for macOS, Windows, and Linux"
 authors = ["API Client Authors"]
 license = "MIT"
@@ -18,6 +18,7 @@ tauri-build = { version = "2.0.0", features = [] }
 tauri = { version = "2.0.0", features = [] }
 tauri-plugin-shell = "2.0.0"
 tauri-plugin-fs = "2.0.0"
+tauri-plugin-dialog = "2.0.0"
 
 # Async & Networking
 tokio = { version = "1.38", features = ["full"] }
@@ -25,6 +26,14 @@ tokio-util = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "json", "gzip", "brotli"] }
 bytes = "1.6"
 futures-util = "0.3"
+tonic = { version = "0.14.7", features = ["tls-native-roots", "tls-webpki-roots", "tls-ring"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
+tonic-reflection = "0.14.7"
+prost-reflect = { version = "0.16.5", features = ["serde"] }
+prost = "0.14"
+prost-types = "0.14"
+protox = "0.10.0"
+tokio-stream = "0.1"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

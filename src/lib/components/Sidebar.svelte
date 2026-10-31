@@ -6,6 +6,7 @@
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
+  import { parseGrpcRequest, resolveGrpcVariables, toGrpcurl } from '$lib/utils/grpc';
   import type { WorkspaceFileItem } from '$lib/types';
   import {
     FolderOpen,
@@ -141,12 +142,15 @@
         rawContent = details.raw_content;
       }
 
-      const resolved = getResolvedCommand(rawContent, envState.mergedVariables);
+      const isGrpc = item.kind === 'grpc' || item.name.toLowerCase().endsWith('.grpc');
+      const resolved = isGrpc
+        ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(rawContent), envState.mergedVariables))
+        : getResolvedCommand(rawContent, envState.mergedVariables);
       await copyToClipboardWithFallback(resolved);
 
       if (copyTimeout) clearTimeout(copyTimeout);
       copyNotification = {
-        text: `cURL copied for "${item.display_name || item.name}"`,
+        text: `${isGrpc ? 'grpcurl' : 'cURL'} copied for "${item.display_name || item.name}"`,
         visible: true,
       };
       copyTimeout = setTimeout(() => {
@@ -277,6 +281,14 @@
         <Plus size={11} />
         <span>New</span>
       </button>
+      <button
+        onclick={() => workspaceState.createNewGrpcRequest()}
+        title="New gRPC Request"
+        class="flex items-center gap-0.5 bg-neutral-200 hover:bg-neutral-300 dark:bg-[#303030] dark:hover:bg-[#3a3a3a] text-neutral-700 dark:text-neutral-200 px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors active:scale-95"
+      >
+        <Plus size={11} />
+        <span>gRPC</span>
+      </button>
 
       <button
         onclick={handleCreateFolder}
@@ -397,7 +409,7 @@
               <span
                 class="text-[9px] font-mono font-bold px-1 py-0.5 rounded leading-none {getBadgeClass(item.method)}"
               >
-                {item.method || 'REQ'}
+                {item.kind === 'grpc' ? 'gRPC' : item.method || 'REQ'}
               </span>
               <span class="truncate">{item.display_name || item.name}</span>
             </div>
@@ -454,6 +466,16 @@
         }}
       >
         <span>New Request Here</span>
+      </button>
+
+      <button
+        class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-between"
+        onclick={() => {
+          if (itemContextMenu) workspaceState.createNewGrpcRequestInFolder(itemContextMenu.item.path);
+          closeContextMenu();
+        }}
+      >
+        <span>New gRPC Request Here</span>
       </button>
 
       <button
@@ -541,7 +563,7 @@
           closeContextMenu();
         }}
       >
-        Copy as cURL
+        {itemContextMenu.item.kind === 'grpc' || itemContextMenu.item.name.toLowerCase().endsWith('.grpc') ? 'Copy as grpcurl' : 'Copy as cURL'}
       </button>
 
       <button

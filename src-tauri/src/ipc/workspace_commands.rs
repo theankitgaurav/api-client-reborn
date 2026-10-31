@@ -265,13 +265,13 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
 
     // It's a file
     let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-    let is_request = ext == "curl";
+    let is_request = ext == "curl" || ext == "grpc";
 
     if is_request {
         let sanitized = trimmed_name.replace(['/', '\\'], "_");
-        let (display_name, target_file_name) = if sanitized.ends_with(".curl") {
-            let name_without_ext = sanitized
-                .trim_end_matches(".curl")
+        let suffix = format!(".{ext}");
+        let (display_name, target_file_name) = if sanitized.to_lowercase().ends_with(&suffix) {
+            let name_without_ext = sanitized[..sanitized.len() - suffix.len()]
                 .to_string();
             let file_name = format!("{}.{}", name_without_ext, ext);
             (name_without_ext, file_name)
@@ -305,12 +305,21 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
             }
         }
 
-        // Update @name in the target file content
+        // Update request name using the storage format for this request type.
         if let Ok(content) = fs::read_to_string(&target) {
-            let (mut meta, cmd) = extract_comments_and_command(&content);
-            meta.name = Some(display_name.clone());
-            let updated_content = compose_file_content(&meta, &cmd);
-            let _ = fs::write(&target, updated_content);
+            if ext == "grpc" {
+                if let Ok(mut config) = serde_json::from_str::<crate::engine::grpc::GrpcRequestConfig>(&content) {
+                    config.name = display_name.clone();
+                    if let Ok(updated_content) = serde_json::to_string_pretty(&config) {
+                        let _ = fs::write(&target, updated_content);
+                    }
+                }
+            } else {
+                let (mut meta, cmd) = extract_comments_and_command(&content);
+                meta.name = Some(display_name.clone());
+                let updated_content = compose_file_content(&meta, &cmd);
+                let _ = fs::write(&target, updated_content);
+            }
         }
 
         // Update sidecar metadata name if present
@@ -390,6 +399,17 @@ pub fn duplicate_request_file(source_path: String) -> Result<String> {
     let target = parent.join(&candidate_name);
     let content = fs::read_to_string(&source)
         .map_err(|e| AppError::FsError(format!("Failed to read file: {}", e)))?;
+
+    if ext == "grpc" {
+        let mut config = serde_json::from_str::<crate::engine::grpc::GrpcRequestConfig>(&content)
+            .map_err(|e| AppError::FsError(format!("Invalid gRPC request file: {e}")))?;
+        config.name = format!("{} (Copy)", config.name);
+        let updated_content = serde_json::to_string_pretty(&config)
+            .map_err(|e| AppError::FsError(format!("Could not serialize gRPC request: {e}")))?;
+        fs::write(&target, updated_content)
+            .map_err(|e| AppError::FsError(format!("Failed to write duplicate file: {e}")))?;
+        return Ok(target.to_string_lossy().to_string());
+    }
 
     // Update @name if present
     let (mut meta, cmd) = extract_comments_and_command(&content);

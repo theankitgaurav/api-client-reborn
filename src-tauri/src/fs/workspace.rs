@@ -1,4 +1,5 @@
 use crate::error::{AppError, Result};
+use crate::engine::grpc::GrpcRequestConfig;
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::parse_curl_command;
@@ -195,7 +196,30 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
                 is_dir: true,
                 display_name: None,
                 method: None,
+                kind: None,
                 children: Some(children),
+            });
+        } else if file_name.ends_with(".grpc") {
+            let mut display_name = None;
+            let mut method = None;
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(config) = serde_json::from_str::<GrpcRequestConfig>(&content) {
+                    display_name = Some(config.name);
+                    method = Some(if config.service.is_empty() || config.method.is_empty() {
+                        "gRPC".to_string()
+                    } else {
+                        format!("{}/{}", config.service, config.method)
+                    });
+                }
+            }
+            items.push(WorkspaceFileItem {
+                name: file_name,
+                path: path.to_string_lossy().to_string(),
+                is_dir: false,
+                display_name,
+                method,
+                kind: Some("grpc".to_string()),
+                children: None,
             });
         } else if file_name.ends_with(".curl") {
             let mut display_name = None;
@@ -216,6 +240,7 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
                 is_dir: false,
                 display_name,
                 method,
+                kind: Some("http".to_string()),
                 children: None,
             });
         }

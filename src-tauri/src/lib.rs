@@ -9,7 +9,7 @@ use engine::cancel::CancellationManager;
 use ipc::{
     append_request_history, cancel_request, clear_request_history, create_collection_folder,
     create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
-    export_spooled_stream, get_request_history, get_workspace_environments, get_workspace_path,
+    execute_grpc_request, discover_grpc_services, export_spooled_stream, get_request_history, get_workspace_environments, get_workspace_path,
     get_workspace_secrets, get_workspace_variables, import_collection_bundle, parse_curl_preview,
     read_request_file, rename_workspace_item, save_request_file, save_workspace_secrets,
     save_workspace_variables, scan_workspace,
@@ -20,9 +20,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(CancellationManager::new())
         .invoke_handler(tauri::generate_handler![
             execute_request,
+            execute_grpc_request,
+            discover_grpc_services,
             get_request_history,
             append_request_history,
             clear_request_history,

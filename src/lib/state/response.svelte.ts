@@ -1,7 +1,8 @@
 import { tick } from 'svelte';
-import { cancelRequest, executeRequest, exportSpooledStream } from '../ipc';
+import { cancelRequest, executeGrpcRequest, executeRequest, exportSpooledStream } from '../ipc';
 import type { RequestHistoryEntry, ResponseChunk, TestResultItem } from '../types';
 import { parseCurlToPlayground } from '../utils/curl-serializer';
+import { parseGrpcRequest, resolveGrpcVariables } from '../utils/grpc';
 import { runScript } from '../utils/script-runner';
 import {
   MAX_BODY_TEXT_BYTES,
@@ -184,6 +185,42 @@ export class ResponseState {
 
     const requestId = crypto.randomUUID();
     this.activeRequestId = requestId;
+    if (tab.requestType === 'grpc') {
+      const grpcConfig = resolveGrpcVariables(parseGrpcRequest(rawContent), envState.mergedVariables);
+      this.currentHistoryEntry = {
+        id: requestId,
+        timestamp: new Date().toISOString(),
+        request_name: grpcConfig.name || tab.name,
+        request_path: tab.filePath,
+        method: [grpcConfig.service, grpcConfig.method].filter(Boolean).join('/'),
+        url: grpcConfig.endpoint,
+        raw_command: rawContent,
+        status: null,
+        status_text: '',
+        headers: [],
+        response_body: '',
+        duration_ms: null,
+        total_bytes: 0,
+        is_streaming: false,
+        error: null,
+      };
+      this.historyRecordedForRequest = false;
+      try {
+        await executeGrpcRequest(
+          requestId,
+          grpcConfig,
+          workspaceState.workspacePath,
+          (chunk: ResponseChunk) => this.handleChunk(chunk)
+        );
+      } catch (e: any) {
+        this.error = e.toString();
+        this.isExecuting = false;
+        this.saveToActiveTab();
+        this.recordHistory();
+      }
+      return;
+    }
+
     const requestModel = parseCurlToPlayground(rawContent);
     this.currentHistoryEntry = {
       id: requestId,

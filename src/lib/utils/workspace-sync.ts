@@ -25,6 +25,7 @@ export interface TabItem {
   filePath: string | null; // null if unsaved draft ("Untitled Request")
   name: string;
   method: string;
+  requestType?: 'http' | 'grpc';
   rawContent: string;
   isDirty: boolean;
   isPinned: boolean;       // false = preview tab; true = pinned tab
@@ -170,6 +171,9 @@ export function openHistoryEntryInTabs(
     filePath: null,
     name: entry.request_name,
     method: entry.method,
+    requestType: entry.request_path?.toLowerCase().endsWith('.grpc') || entry.raw_command.trimStart().startsWith('{')
+      ? 'grpc'
+      : 'http',
     rawContent: entry.raw_command,
     isDirty: false,
     isPinned: false,
@@ -246,25 +250,16 @@ export function formatDuplicateRequestName(
 }
 
 /**
- * Sanitizes request rename input, strictly preserving the .curl extension
- * even if omitted or mismatched in user input.
+ * Sanitizes request rename input, strictly preserving its request extension.
  */
 export function sanitizeRequestRename(currentPath: string, newNameInput: string): string {
-  let ext = '.curl';
   const lowerCurrent = currentPath.toLowerCase();
-  if (lowerCurrent.endsWith('.curl')) {
-    ext = '.curl';
-  } else {
-    const match = currentPath.match(/\.([a-zA-Z0-9]+)$/);
-    if (match) {
-      ext = `.${match[1]}`;
-    }
-  }
+  const ext = lowerCurrent.endsWith('.grpc') ? '.grpc' : '.curl';
 
   let base = newNameInput.trim();
 
-  // Strip any typed .curl extension
-  base = base.replace(/\.curl$/i, '');
+  // Strip a typed request extension before preserving the source type.
+  base = base.replace(/\.(?:curl|grpc)$/i, '');
 
   // If ext is non-standard, also strip if present
   if (ext && base.toLowerCase().endsWith(ext.toLowerCase())) {
@@ -277,7 +272,7 @@ export function sanitizeRequestRename(currentPath: string, newNameInput: string)
   // Fallback if base is empty
   if (!base) {
     const currentLeaf = currentPath.split(/[\\\/]/).pop() || 'request';
-    base = currentLeaf.replace(/\.curl$/i, '') || 'request';
+    base = currentLeaf.replace(/\.(?:curl|grpc)$/i, '') || 'request';
   }
 
   return `${base}${ext}`;

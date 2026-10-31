@@ -30,12 +30,13 @@
     if (workspaceState.isSaveModalOpen) {
       requestName = workspaceState.activeTab?.name || 'New Request';
       selectedFolder = workspaceState.targetNewRequestFolder || '.';
+      const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpc' : '.curl';
       customFileName = requestName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
       if (!customFileName) customFileName = 'new_request';
-      if (!customFileName.endsWith('.curl')) customFileName += '.curl';
+      if (!customFileName.toLowerCase().endsWith(extension)) customFileName += extension;
     }
   });
 
@@ -45,13 +46,15 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '');
-    customFileName = `${slug || 'request'}.curl`;
+    const extension = workspaceState.activeTab?.requestType === 'grpc' ? 'grpc' : 'curl';
+    customFileName = `${slug || 'request'}.${extension}`;
   }
 
   async function handleSave() {
     if (!requestName.trim()) return;
     let fileName = customFileName.trim();
-    if (!fileName.endsWith('.curl')) fileName += '.curl';
+    const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpc' : '.curl';
+    if (!fileName.toLowerCase().endsWith(extension)) fileName += extension;
 
     const fullPath = selectedFolder === '.' ? fileName : `${selectedFolder}/${fileName}`;
     await workspaceState.saveActiveFileAs(fullPath, requestName.trim());
@@ -65,7 +68,7 @@
       <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
         <div class="flex items-center gap-2">
           <Save size={15} class="text-blue-500" />
-          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Save Request</h2>
+          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Save {workspaceState.activeTab?.requestType === 'grpc' ? 'gRPC' : 'HTTP'} Request</h2>
         </div>
         <button
           onclick={() => (workspaceState.isSaveModalOpen = false)}

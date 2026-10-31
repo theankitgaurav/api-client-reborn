@@ -71,7 +71,36 @@ export interface WorkspaceFileItem {
   is_dir: boolean;
   display_name?: string;
   method?: string;
+  kind?: 'http' | 'grpc';
   children?: WorkspaceFileItem[];
+}
+
+export interface GrpcRequestConfig {
+  name: string;
+  endpoint: string;
+  service: string;
+  method: string;
+  request_json: string;
+  metadata: { key: string; value: string }[];
+  proto_file?: string | null;
+  use_reflection: boolean;
+  tls_enabled: boolean;
+  tls_insecure: boolean;
+  tls_ca_file?: string | null;
+  timeout_ms: number;
+}
+
+export interface GrpcMethodInfo {
+  name: string;
+  input_type: string;
+  output_type: string;
+  client_streaming: boolean;
+  server_streaming: boolean;
+}
+
+export interface GrpcServiceInfo {
+  name: string;
+  methods: GrpcMethodInfo[];
 }
 
 export interface EnvironmentItem {

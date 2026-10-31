@@ -9,6 +9,7 @@ import {
   scanWorkspace,
 } from '../ipc';
 import type { FileDetails, RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
+import { createDefaultGrpcRequest, parseGrpcRequest, serializeGrpcRequest } from '../utils/grpc';
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
@@ -134,8 +135,10 @@ export class WorkspaceState {
     // 2. Read from disk
     try {
       const details = await readRequestFile(path);
-      const name = details.metadata.name || this.inferName(path, details.raw_content);
-      const method = details.metadata.method || this.inferMethod(details.raw_content, path);
+      const requestType = path.toLowerCase().endsWith('.grpc') ? 'grpc' : 'http';
+      const grpcConfig = requestType === 'grpc' ? parseGrpcRequest(details.raw_content) : null;
+      const name = grpcConfig?.name || details.metadata.name || this.inferName(path, details.raw_content);
+      const method = grpcConfig ? 'gRPC' : details.metadata.method || this.inferMethod(details.raw_content, path);
 
       if (openInNewTab) {
         const newTab: TabItem = {
@@ -143,6 +146,7 @@ export class WorkspaceState {
           filePath: path,
           name,
           method,
+          requestType,
           rawContent: details.raw_content,
           isDirty: false,
           isPinned: true,
@@ -159,6 +163,7 @@ export class WorkspaceState {
           tabToReplace.filePath = path;
           tabToReplace.name = name;
           tabToReplace.method = method;
+          tabToReplace.requestType = requestType;
           tabToReplace.rawContent = details.raw_content;
           tabToReplace.isDirty = false;
           tabToReplace.sidecar = details.sidecar;
@@ -170,6 +175,7 @@ export class WorkspaceState {
             filePath: path,
             name,
             method,
+            requestType,
             rawContent: details.raw_content,
             isDirty: false,
             isPinned: false, // preview tab
@@ -207,6 +213,7 @@ export class WorkspaceState {
       filePath: null,
       name: 'Untitled Request',
       method: 'GET',
+      requestType: 'http',
       rawContent: defaultContent,
       isDirty: false,
       isPinned: true,
@@ -214,6 +221,28 @@ export class WorkspaceState {
     };
     this.tabs.push(newTab);
     this.activeTabId = newTab.id;
+  }
+
+  createNewGrpcRequest() {
+    const config = createDefaultGrpcRequest();
+    const newTab: TabItem = {
+      id: crypto.randomUUID(),
+      filePath: null,
+      name: config.name,
+      method: 'gRPC',
+      requestType: 'grpc',
+      rawContent: serializeGrpcRequest(config),
+      isDirty: false,
+      isPinned: true,
+      sidecar: { tests: [] },
+    };
+    this.tabs.push(newTab);
+    this.activeTabId = newTab.id;
+  }
+
+  createNewGrpcRequestInFolder(folderPath: string) {
+    this.targetNewRequestFolder = folderPath;
+    this.createNewGrpcRequest();
   }
 
   closeActiveTab() {
@@ -353,7 +382,7 @@ export class WorkspaceState {
   }
 
   async deleteItem(itemPath: string, displayName?: string) {
-    const isFolder = !itemPath.endsWith('.curl');
+    const isFolder = !/\.(curl|grpc)$/i.test(itemPath);
     const label = displayName || itemPath.split(/[\\/]/).pop() || itemPath;
 
     try {
@@ -395,7 +424,7 @@ export class WorkspaceState {
     if (!newName || !newName.trim() || newName.trim() === currentName) return;
 
     try {
-      const isFolder = !oldPath.endsWith('.curl');
+      const isFolder = !/\.(curl|grpc)$/i.test(oldPath);
 
       if (isFolder) {
         const newPath = await renameWorkspaceItem(oldPath, newName.trim());
@@ -412,13 +441,19 @@ export class WorkspaceState {
       } else {
         const sanitized = sanitizeRequestRename(oldPath, newName.trim());
         const newPath = await renameWorkspaceItem(oldPath, sanitized);
-        const displayName = sanitized.replace(/\.curl$/, '');
+        const displayName = sanitized.replace(/\.(curl|grpc)$/i, '');
 
         const openTab = this.tabs.find((t) => t.filePath === oldPath);
         if (openTab) {
           openTab.filePath = newPath;
           openTab.name = displayName;
-          openTab.rawContent = updateRequestNameHeader(openTab.rawContent, displayName);
+          if (openTab.requestType === 'grpc') {
+            const config = parseGrpcRequest(openTab.rawContent);
+            config.name = displayName;
+            openTab.rawContent = serializeGrpcRequest(config);
+          } else {
+            openTab.rawContent = updateRequestNameHeader(openTab.rawContent, displayName);
+          }
           if (openTab.sidecar) {
             openTab.sidecar.name = displayName;
           }

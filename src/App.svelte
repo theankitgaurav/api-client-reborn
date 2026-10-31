@@ -3,6 +3,7 @@
   import Sidebar from '$lib/components/Sidebar.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
   import RequestPlayground from '$lib/components/RequestPlayground.svelte';
+  import GrpcRequestPlayground from '$lib/components/GrpcRequestPlayground.svelte';
   import ResponseViewer from '$lib/components/ResponseViewer.svelte';
   import EnvModal from '$lib/components/EnvModal.svelte';
   import SaveRequestModal from '$lib/components/SaveRequestModal.svelte';
@@ -102,7 +103,11 @@
       <!-- Parallel Split View below TabBar -->
       <div class="flex-1 flex min-h-0 overflow-hidden">
         <!-- Request Editor Pane -->
-        <RequestPlayground />
+        {#if workspaceState.activeTab?.requestType === 'grpc'}
+          <GrpcRequestPlayground />
+        {:else}
+          <RequestPlayground />
+        {/if}
 
         <!-- Response Viewer Pane -->
         <ResponseViewer />
