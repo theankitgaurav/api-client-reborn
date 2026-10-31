@@ -1,14 +1,14 @@
 {
-  "name": "gRPC Watch (Server Streaming)",
-  "endpoint": "http://127.0.0.1:50051",
-  "service": "demo.DemoService",
-  "method": "Watch",
-  "request_json": "{\n  \"message\": \"update\",\n  \"count\": 5\n}",
+  "name": "gRPC Lots of Replies (Server Stream, Spooled)",
+  "endpoint": "grpc.postman-echo.com:443",
+  "service": "HelloService",
+  "method": "LotsOfReplies",
+  "request_json": "{\n  \"greeting\": \"Send several replies so the client can spool the stream\"\n}",
   "metadata": [],
-  "proto_file": null,
-  "use_reflection": true,
+  "proto_file": "examples/grpc/hello.proto",
+  "use_reflection": false,
   "tls_enabled": false,
   "tls_insecure": false,
   "tls_ca_file": null,
-  "timeout_ms": 30000
+  "timeout_ms": 60000
 }

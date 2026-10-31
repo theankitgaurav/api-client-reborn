@@ -212,15 +212,43 @@ async fn connect(config: &GrpcRequestConfig) -> Result<GrpcChannel> {
         .map_err(|e| AppError::NetworkError(format!("Could not connect to gRPC server: {e}")))
 }
 
-async fn reflect_request(channel: GrpcChannel, request: tonic_reflection::pb::v1::ServerReflectionRequest) -> Result<tonic_reflection::pb::v1::ServerReflectionResponse> {
+async fn reflect_request_v1(
+    channel: GrpcChannel,
+    request: tonic_reflection::pb::v1::ServerReflectionRequest,
+) -> std::result::Result<tonic_reflection::pb::v1::ServerReflectionResponse, Status> {
     use tonic_reflection::pb::v1::server_reflection_client::ServerReflectionClient;
     let mut client = ServerReflectionClient::new(channel);
     let mut stream = client.server_reflection_info(tokio_stream::iter([request])).await
-        .map_err(|e| AppError::NetworkError(format!("gRPC reflection failed: {e}")))?
+        ?
         .into_inner();
     stream.message().await
-        .map_err(|e| AppError::NetworkError(format!("gRPC reflection failed: {e}")))?
-        .ok_or_else(|| AppError::NetworkError("gRPC reflection returned no response".into()))
+        ?
+        .ok_or_else(|| Status::unknown("gRPC reflection returned no response"))
+}
+
+async fn reflect_request(channel: GrpcChannel, request: tonic_reflection::pb::v1::ServerReflectionRequest) -> Result<tonic_reflection::pb::v1::ServerReflectionResponse> {
+    use tonic_reflection::pb::v1::ServerReflectionResponse as V1Response;
+    use tonic_reflection::pb::v1alpha::server_reflection_client::ServerReflectionClient as V1AlphaClient;
+    use tonic_reflection::pb::v1alpha::{ServerReflectionRequest as V1AlphaRequest, ServerReflectionResponse as V1AlphaResponse};
+
+    match reflect_request_v1(channel.clone(), request.clone()).await {
+        Ok(response) => Ok(response),
+        Err(status) if status.code() == tonic::Code::Unimplemented => {
+            // Reflection v1alpha has the same protobuf wire shape, so decode its response into v1 types.
+            let request = V1AlphaRequest::decode(request.encode_to_vec().as_slice())
+                .map_err(|e| AppError::InternalError(format!("Could not encode reflection request: {e}")))?;
+            let mut client = V1AlphaClient::new(channel);
+            let mut stream = client.server_reflection_info(tokio_stream::iter([request])).await
+                .map_err(|e| AppError::NetworkError(format!("gRPC reflection failed: {e}")))?
+                .into_inner();
+            let response: V1AlphaResponse = stream.message().await
+                .map_err(|e| AppError::NetworkError(format!("gRPC reflection failed: {e}")))?
+                .ok_or_else(|| AppError::NetworkError("gRPC reflection returned no response".into()))?;
+            V1Response::decode(response.encode_to_vec().as_slice())
+                .map_err(|e| AppError::InternalError(format!("Invalid gRPC reflection response: {e}")))
+        }
+        Err(status) => Err(AppError::NetworkError(format!("gRPC reflection failed: {status}"))),
+    }
 }
 
 async fn descriptor_pool_from_proto(proto_file: &str, workspace_root: Option<&Path>) -> Result<DescriptorPool> {

@@ -46,13 +46,13 @@ const DEFAULT_PROD_ENV: &str = r#"{
 
 const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description Connects to a public SSE demo. Let a few events arrive, then press Cancel to close the live stream.\n# @timeout 60000\n\ncurl -N \"https://sse.dev/test\" \\\n  -H \"Accept: text/event-stream\"\n";
 
+const LEGACY_GRPC_DEMO_PROTO: &str = "syntax = \"proto3\";\npackage demo;\n\nservice DemoService {\n  rpc Echo (EchoRequest) returns (EchoResponse);\n  rpc Watch (EchoRequest) returns (stream EchoResponse);\n  rpc Collect (stream EchoRequest) returns (EchoResponse);\n  rpc Chat (stream EchoRequest) returns (stream EchoResponse);\n}\n\nmessage EchoRequest {\n  string message = 1;\n  int32 count = 2;\n}\n\nmessage EchoResponse {\n  string message = 1;\n  int32 sequence = 2;\n}\n";
+
 const STARTER_EXAMPLES: &[(&str, &str)] = &[
-    ("grpc/demo.proto", include_str!("../../../examples/grpc/demo.proto")),
+    ("grpc/hello.proto", include_str!("../../../examples/grpc/hello.proto")),
     ("grpc/echo.grpc", include_str!("../../../examples/grpc/echo.grpc")),
     ("grpc/watch_stream.grpc", include_str!("../../../examples/grpc/watch_stream.grpc")),
     ("grpc/echo_local_proto.grpc", include_str!("../../../examples/grpc/echo_local_proto.grpc")),
-    ("grpc/collect_100k_client_stream.grpc", include_str!("../../../examples/grpc/collect_100k_client_stream.grpc")),
-    ("grpc/chat_stream.grpc", include_str!("../../../examples/grpc/chat_stream.grpc")),
     ("get_users.curl", include_str!("../../../examples/get_users.curl")),
     ("create_user.curl", include_str!("../../../examples/create_user.curl")),
     ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
@@ -146,9 +146,48 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
             && fs::read_to_string(&path)
                 .map(|existing| existing == LEGACY_SSE_EXAMPLE)
                 .unwrap_or(false);
-        if !path.exists() || is_unchanged_legacy_sse_example {
+        let is_legacy_local_grpc_example = name.starts_with("grpc/")
+            && fs::read_to_string(&path)
+                .map(|existing| {
+                    existing.contains("127.0.0.1:50051")
+                        && existing.contains("demo.DemoService")
+                })
+                .unwrap_or(false);
+        let is_legacy_postman_grpc_example = name.starts_with("grpc/")
+            && fs::read_to_string(&path)
+                .map(|existing| {
+                    existing.contains("https://grpc.postman-echo.com")
+                        && existing.contains("\"tls_enabled\": true")
+                })
+                .unwrap_or(false);
+        if !path.exists()
+            || is_unchanged_legacy_sse_example
+            || is_legacy_local_grpc_example
+            || is_legacy_postman_grpc_example
+        {
             let _ = fs::write(&path, content);
         }
+    }
+
+    let grpc_examples_dir = examples_dir.join("grpc");
+    for obsolete_name in ["collect_100k_client_stream.grpc", "chat_stream.grpc", "echo_variables.grpc"] {
+        let path = grpc_examples_dir.join(obsolete_name);
+        if fs::read_to_string(&path)
+            .map(|existing| {
+                existing.contains("127.0.0.1:50051")
+                    && existing.contains("demo.DemoService")
+            })
+            .unwrap_or(false)
+        {
+            let _ = fs::remove_file(path);
+        }
+    }
+    let legacy_proto = grpc_examples_dir.join("demo.proto");
+    if fs::read_to_string(&legacy_proto)
+        .map(|existing| existing == LEGACY_GRPC_DEMO_PROTO)
+        .unwrap_or(false)
+    {
+        let _ = fs::remove_file(legacy_proto);
     }
 
     Ok(())
