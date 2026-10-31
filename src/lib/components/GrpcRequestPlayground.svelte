@@ -53,6 +53,29 @@
   function chooseService(name: string) {
     config.service = name;
     config.method = services.find((service) => service.name === name)?.methods[0]?.name || '';
+    updateRequestShapeForMethod(config.method);
+    sync();
+  }
+
+  function updateRequestShapeForMethod(methodName: string) {
+    const method = methods.find((item) => item.name === methodName);
+    if (!method) return;
+
+    try {
+      const request = JSON.parse(config.request_json || '{}');
+      if (method.client_streaming && !Array.isArray(request)) {
+        config.request_json = JSON.stringify([request], null, 2);
+      } else if (!method.client_streaming && Array.isArray(request) && request.length === 1) {
+        config.request_json = JSON.stringify(request[0], null, 2);
+      }
+    } catch {
+      // Keep invalid JSON editable so the user can correct it.
+    }
+  }
+
+  function chooseMethod(name: string) {
+    config.method = name;
+    updateRequestShapeForMethod(name);
     sync();
   }
 
@@ -181,7 +204,7 @@
       <select
         aria-label="gRPC method"
         value={config.method}
-        onchange={(event) => { config.method = (event.target as HTMLSelectElement).value; sync(); }}
+        onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
         class="flex-1 min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
       >
         <option value="">{methods.length ? 'Select method' : 'Method name'}</option>

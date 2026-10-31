@@ -1,0 +1,14 @@
+{
+  "name": "gRPC Chat (Bidirectional Streaming)",
+  "endpoint": "http://127.0.0.1:50051",
+  "service": "demo.DemoService",
+  "method": "Chat",
+  "request_json": "[\n  {\n    \"message\": \"hello from client\"\n  },\n  {\n    \"message\": \"another client message\"\n  }\n]",
+  "metadata": [],
+  "proto_file": null,
+  "use_reflection": true,
+  "tls_enabled": false,
+  "tls_insecure": false,
+  "tls_ca_file": null,
+  "timeout_ms": 30000
+}
