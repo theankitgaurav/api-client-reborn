@@ -85,7 +85,9 @@
     void historyState.load(workspaceState.workspacePath);
   });
 
-  function getBadgeClass(method?: string) {
+  function getBadgeClass(method?: string, kind?: string) {
+    if (kind === 'grpc') return 'badge-grpc';
+
     switch (method?.toUpperCase()) {
       case 'GET':
         return 'badge-get';
@@ -438,7 +440,7 @@
           >
             <div class="flex items-center gap-2 truncate flex-1 mr-1">
               <span
-                class="text-[9px] font-mono font-bold px-1 py-0.5 rounded leading-none {getBadgeClass(item.method)}"
+                class="text-[9px] font-mono font-bold px-1 py-0.5 rounded leading-none {getBadgeClass(item.method, item.kind)}"
               >
                 {item.kind === 'grpc' ? 'gRPC' : item.method || 'REQ'}
               </span>
