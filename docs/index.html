@@ -55,10 +55,13 @@
       .button.secondary { background:rgba(255,255,255,.035); }
       .button svg { width:17px; height:17px; }
       .microcopy { margin-top:16px; color:#839087; font-size:12px; }
-      .app-preview { position:relative; margin:0; }
-      .app-preview::before { content:""; position:absolute; inset:10% -6% -10% 8%; z-index:-1; background:radial-gradient(ellipse, rgba(95,214,148,.18), transparent 68%); filter:blur(24px); }
-      .app-preview img { display:block; width:100%; height:auto; border:1px solid rgba(230,246,233,.22); border-radius:12px; background:#fff; box-shadow:0 28px 90px rgba(0,0,0,.38); }
-      .app-preview figcaption { margin-top:12px; color:#849187; font-size:12px; text-align:center; }
+      .app-preview { position:relative; margin:0; padding:12px 0 34px; }
+      .app-preview::before { content:""; position:absolute; inset:6% -6% 2% 8%; z-index:0; background:radial-gradient(ellipse, rgba(95,126,255,.25), rgba(95,214,148,.12) 38%, transparent 72%); filter:blur(32px); }
+      .preview-stack { position:relative; z-index:1; width:100%; aspect-ratio:1.62; }
+      .preview-window { position:absolute; display:block; width:87%; height:auto; border:1px solid rgba(230,246,233,.28); border-radius:12px; background:#151820; box-shadow:0 28px 80px rgba(0,0,0,.44); }
+      .preview-window.light { top:0; left:0; z-index:1; transform:rotate(-2.4deg); }
+      .preview-window.dark { right:0; bottom:0; z-index:2; transform:rotate(1.8deg); box-shadow:0 34px 90px rgba(0,0,0,.58),0 0 0 1px rgba(116,169,255,.16); }
+      .app-preview figcaption { position:relative; z-index:3; margin-top:6px; color:#a6b2aa; font-size:12px; text-align:center; }
       .proof { display:flex; flex-wrap:wrap; justify-content:center; gap:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
       .proof div { flex:1; min-width:170px; padding:23px 18px; text-align:center; color:var(--muted); font-size:13px; }
       .proof div+div { border-left:1px solid var(--line); }
@@ -134,8 +137,11 @@
         </div>
 
         <figure class="app-preview">
-          <img src="app-screenshot.svg" alt="API Client Reborn running on the desktop, with a request collection, REST request editor, and response pane." />
-          <figcaption>A simplified preview of the desktop app’s request workspace.</figcaption>
+          <div class="preview-stack" role="group" aria-label="API Client Reborn shown in light and dark themes">
+            <img class="preview-window light" src="app-screenshot.svg" alt="Light theme: API Client Reborn with a request collection, REST request editor, and response pane." />
+            <img class="preview-window dark" src="app-screenshot-dark.svg" alt="Dark theme: the same request workspace, layered in front and slightly lower." />
+          </div>
+          <figcaption>One workspace, in light and dark. Choose the look that fits.</figcaption>
         </figure>
       </section>
 
