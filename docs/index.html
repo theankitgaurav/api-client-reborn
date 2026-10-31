@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101512" />
+    <meta name="description" content="A lightweight, local-first HTTP and gRPC API client. Keep requests as readable files, version them with Git, and inspect streamed responses without loading them all into memory." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="API Client Reborn — APIs, on your terms" />
+    <meta property="og:description" content="A lightweight, local-first HTTP and gRPC API client with Git-friendly requests and disk-spooled streaming responses." />
+    <meta property="og:url" content="https://theankitgaurav.github.io/api-client-reborn/" />
+    <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-icon.svg" />
+    <meta name="twitter:card" content="summary" />
+    <title>API Client Reborn — APIs, on your terms</title>
+    <link rel="icon" href="../app-icon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101512;
+        --panel: #171e19;
+        --panel-2: #1d2620;
+        --line: rgba(230, 246, 233, .12);
+        --text: #f1f6f1;
+        --muted: #aab7ab;
+        --lime: #c5f36b;
+        --green: #3ce0a1;
+        --blue: #74a9ff;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      a { color: inherit; text-decoration: none; }
+      .shell { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+      .nav { display:flex; align-items:center; justify-content:space-between; height:78px; border-bottom:1px solid var(--line); }
+      .brand { display:flex; align-items:center; gap:12px; font-weight:700; letter-spacing:-.02em; }
+      .brand img { width:32px; height:32px; }
+      .nav-links { display:flex; gap:28px; align-items:center; color:var(--muted); font-size:14px; }
+      .nav-links a:hover { color:var(--text); }
+      .nav-links .nav-cta { color:var(--bg); background:var(--lime); padding:10px 15px; border-radius:999px; font-weight:700; }
+      .hero { display:grid; grid-template-columns: .92fr 1.08fr; align-items:center; gap:54px; padding:82px 0 96px; }
+      .eyebrow { display:inline-flex; gap:8px; align-items:center; border:1px solid rgba(197,243,107,.3); background:rgba(197,243,107,.08); border-radius:999px; color:var(--lime); padding:6px 11px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+      .eyebrow i { width:7px; height:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 14px var(--lime); }
+      h1 { max-width:620px; margin:20px 0 18px; font-size:clamp(44px, 6vw, 72px); line-height:.99; letter-spacing:-.065em; }
+      h1 span { color:var(--lime); }
+      .hero-copy { max-width:500px; color:var(--muted); font-size:18px; }
+      .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; }
+      .button { display:inline-flex; align-items:center; gap:9px; padding:13px 18px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-weight:700; transition:transform .18s, border-color .18s, background .18s; }
+      .button:hover { transform:translateY(-2px); border-color:rgba(197,243,107,.55); }
+      .button.primary { background:var(--lime); border-color:var(--lime); color:#131a0d; }
+      .button.secondary { background:rgba(255,255,255,.035); }
+      .button svg { width:17px; height:17px; }
+      .microcopy { margin-top:16px; color:#839087; font-size:12px; }
+      .mock-wrap { position:relative; }
+      .glow { position:absolute; inset:8% -8% -12% 8%; z-index:-1; background:radial-gradient(ellipse, rgba(95,214,148,.19), transparent 68%); filter:blur(22px); }
+      .app-window { overflow:hidden; border:1px solid rgba(230,246,233,.2); border-radius:14px; background:#111713; box-shadow:0 28px 100px rgba(0,0,0,.48), 0 0 0 7px rgba(255,255,255,.025); transform:perspective(1400px) rotateY(-5deg) rotateX(2deg); }
+      .window-top { height:39px; display:flex; align-items:center; gap:6px; padding:0 13px; background:#1c231e; border-bottom:1px solid var(--line); }
+      .dot { width:8px; height:8px; border-radius:50%; background:#66736a; }.dot:first-child{background:#f1786c}.dot:nth-child(2){background:#edc46d}.dot:nth-child(3){background:#75d88a}
+      .window-title { margin:auto; padding-right:29px; color:#aab7ab; font-size:10px; }
+      .mock-main { display:grid; grid-template-columns:150px 1fr; min-height:316px; }
+      .mock-sidebar { padding:13px 9px; border-right:1px solid var(--line); color:#96a398; font-size:9px; }
+      .mock-side-title { display:flex; align-items:center; justify-content:space-between; margin:0 4px 12px; color:#d8e3d9; font-size:10px; font-weight:700; }
+      .mock-pill { background:rgba(197,243,107,.15); color:var(--lime); border-radius:5px; padding:3px 6px; font-size:8px; }
+      .tree-label { margin:12px 4px 6px; color:#647168; font-size:8px; text-transform:uppercase; letter-spacing:.1em; }
+      .tree-item { padding:7px 6px; border-radius:5px; margin:2px 0; }.tree-item.active { background:#253128; color:#f1f6f1; }.tree-item span { color:var(--green); font-size:8px; margin-right:5px; }
+      .mock-editor { min-width:0; }
+      .mock-tabs { height:36px; display:flex; align-items:center; gap:15px; padding:0 13px; color:#86938a; border-bottom:1px solid var(--line); font-size:9px; }
+      .mock-tabs b { color:var(--text); font-weight:600; }
+      .request-head { padding:16px 14px 13px; border-bottom:1px solid var(--line); }
+      .request-title { margin-bottom:12px; font-size:11px; font-weight:700; }
+      .request-row { display:flex; gap:6px; }
+      .method { color:#76b3ff; background:rgba(116,169,255,.12); padding:8px 9px; border:1px solid rgba(116,169,255,.22); border-radius:5px; font:700 9px ui-monospace,monospace; }
+      .url { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:8px 9px; border:1px solid var(--line); border-radius:5px; color:#c7d2c8; font:9px ui-monospace,monospace; }
+      .send { padding:8px 10px; color:#142017; background:var(--lime); border-radius:5px; font-size:9px; font-weight:800; }
+      .editor-tabs { display:flex; gap:20px; padding:12px 15px 9px; color:#88968c; font-size:9px; border-bottom:1px solid var(--line); }
+      .editor-tabs b { color:var(--lime); border-bottom:2px solid var(--lime); padding-bottom:10px; margin-bottom:-10px; font-weight:600; }
+      .editor-body { padding:14px 15px; }
+      .editor-label { margin-bottom:9px; color:#829086; font-size:8px; font-weight:700; letter-spacing:.1em; }
+      pre { margin:0; color:#c8d4ca; font:9px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .code-key { color:#a9d47a; }.code-str { color:#e3b976; }
+      .mock-response { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:15px; padding:8px 10px; border:1px solid var(--line); border-radius:5px; color:#9ba89d; font-size:8px; }
+      .mock-response strong { color:var(--green); }
+      .mock-response em { color:#b8c7ba; font-style:normal; }
+      .proof { display:flex; flex-wrap:wrap; justify-content:center; gap:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+      .proof div { flex:1; min-width:170px; padding:23px 18px; text-align:center; color:var(--muted); font-size:13px; }
+      .proof div+div { border-left:1px solid var(--line); }
+      .proof strong { display:block; color:var(--text); font-size:15px; }
+      section.content { padding:96px 0; }
+      .section-heading { max-width:660px; margin:0 auto 44px; text-align:center; }
+      .section-heading h2 { margin:0 0 12px; font-size:clamp(30px,4vw,46px); line-height:1.06; letter-spacing:-.05em; }
+      .section-heading p { margin:0; color:var(--muted); }
+      .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+      .card { min-height:205px; padding:23px; border:1px solid var(--line); border-radius:12px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); }
+      .card-icon { display:grid; place-items:center; width:36px; height:36px; margin-bottom:22px; border:1px solid rgba(197,243,107,.2); border-radius:9px; background:rgba(197,243,107,.08); color:var(--lime); }
+      .card-icon svg { width:18px; height:18px; }
+      .card h3 { margin:0 0 8px; font-size:16px; letter-spacing:-.02em; }
+      .card p { margin:0; color:var(--muted); font-size:13px; }
+      .workflow { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; padding:28px; border:1px solid var(--line); border-radius:15px; background:var(--panel); }
+      .workflow h2 { margin:8px 0 12px; font-size:34px; line-height:1.07; letter-spacing:-.05em; }
+      .workflow p { color:var(--muted); font-size:14px; }
+      .file-tree { padding:20px; border:1px solid var(--line); border-radius:10px; background:#101512; color:#c5d0c7; font:12px/2 ui-monospace,monospace; }
+      .file-tree .dim { color:#6e7e72; }.file-tree .accent { color:var(--lime); }.file-tree .file { color:#87c9ff; }
+      .stream-box { position:relative; overflow:hidden; padding:23px; border:1px solid rgba(60,224,161,.2); border-radius:12px; background:linear-gradient(145deg,rgba(60,224,161,.08),rgba(23,30,25,.5)); }
+      .stream-top { display:flex; justify-content:space-between; margin-bottom:19px; font-size:12px; }
+      .live { color:var(--green); font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
+      .stream-row { display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--line); color:#b6c4b8; font:10px ui-monospace,monospace; }
+      .stream-row i { width:6px; height:6px; border-radius:50%; background:var(--green); }
+      .spool-note { display:flex; align-items:center; gap:8px; margin-top:15px; padding:10px; border-radius:6px; background:rgba(0,0,0,.18); color:#9caaa0; font-size:10px; }
+      .spool-note strong { color:var(--lime); }
+      .download { padding:72px 28px; border:1px solid rgba(197,243,107,.22); border-radius:16px; background:radial-gradient(ellipse at 50% 120%,rgba(197,243,107,.13),transparent 60%),var(--panel); text-align:center; }
+      .download h2 { margin:0 0 12px; font-size:clamp(30px,4vw,44px); line-height:1; letter-spacing:-.05em; }
+      .download p { margin:0 auto 24px; color:var(--muted); }
+      .download .actions { justify-content:center; margin-top:0; }
+      .footer { display:flex; justify-content:space-between; gap:18px; padding:25px 0 34px; border-top:1px solid var(--line); color:#849187; font-size:12px; }
+      .footer-links { display:flex; gap:18px; }.footer a:hover{color:var(--text)}
+      @media (max-width: 900px) {
+        .hero { grid-template-columns:1fr; gap:52px; padding:64px 0 72px; }
+        .hero-copy { max-width:650px; }.mock-wrap { width:min(680px,100%); margin:0 auto; }
+        .cards { grid-template-columns:repeat(2,1fr); }
+      }
+      @media (max-width: 600px) {
+        .shell { width:min(100% - 32px, 1160px); }
+        .nav { height:65px; }.brand { font-size:14px; }.brand img { width:28px;height:28px; }
+        .nav-links { gap:12px; }.nav-links a:not(.nav-cta) { display:none; }.nav-links .nav-cta { padding:9px 12px; font-size:12px; }
+        .hero { padding:52px 0 60px; gap:42px; }.hero-copy { font-size:16px; }
+        .app-window { transform:none; }.mock-main { grid-template-columns:112px 1fr; min-height:300px; }
+        .mock-sidebar { padding:10px 6px; }.mock-tabs { gap:8px; padding:0 8px; font-size:8px; }
+        .request-head { padding:12px 9px 10px; }.editor-tabs,.editor-body { padding-left:9px;padding-right:9px; }
+        .mock-response { flex-wrap:wrap; }.proof div { min-width:45%; padding:17px 8px; }.proof div+div { border-left:0; }.proof div:nth-child(even) { border-left:1px solid var(--line); }
+        section.content { padding:70px 0; }.cards { grid-template-columns:1fr; }.card { min-height:0; }
+        .workflow { grid-template-columns:1fr; gap:20px; padding:18px; }.workflow h2 { font-size:29px; }
+        .file-tree { padding:14px; font-size:10px; }.download { padding:52px 18px; }
+        .footer { flex-direction:column; }.footer-links { flex-wrap:wrap; }
+      }
+      @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+    </style>
+  </head>
+  <body>
+    <header class="shell nav">
+      <a class="brand" href="#top" aria-label="API Client Reborn home"><img src="../app-icon.svg" alt="" />API Client Reborn</a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#local-first">Local-first</a>
+        <a class="nav-cta" href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Get the app <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="shell hero" aria-labelledby="hero-title">
+        <div>
+          <div class="eyebrow"><i></i> Open-source desktop API client</div>
+          <h1 id="hero-title">Your APIs.<br /><span>Your files.</span><br />Your workflow.</h1>
+          <p class="hero-copy">A lightweight, local-first client for HTTP and gRPC. Keep requests readable, version them with Git, and inspect streams without holding the whole response in memory.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Download the app <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn">Explore the source <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="microcopy">Free and open source · macOS, Windows, and Linux · No account required</p>
+        </div>
+
+        <div class="mock-wrap" aria-label="Illustration of the API Client Reborn request editor">
+          <div class="glow"></div>
+          <div class="app-window">
+            <div class="window-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="window-title">API Client Reborn</span></div>
+            <div class="mock-main">
+              <aside class="mock-sidebar">
+                <div class="mock-side-title">Requests <span class="mock-pill">4</span></div>
+                <div class="tree-label">Collection</div>
+                <div class="tree-item active"><span>GET</span> List users</div>
+                <div class="tree-item"><span>POST</span> Create user</div>
+                <div class="tree-label">Streaming</div>
+                <div class="tree-item"><span>GET</span> Live events</div>
+                <div class="tree-item"><span>gRPC</span> Server stream</div>
+                <div class="tree-label">History</div>
+                <div class="tree-item">↳ Recent requests</div>
+              </aside>
+              <div class="mock-editor">
+                <div class="mock-tabs"><b>GET List users</b><span>POST Create user</span><span>＋</span></div>
+                <div class="request-head">
+                  <div class="request-title">List users</div>
+                  <div class="request-row"><span class="method">GET</span><span class="url">https://api.example.com/users</span><span class="send">Send →</span></div>
+                </div>
+                <div class="editor-tabs"><b>Params</b><span>Headers</span><span>Body</span><span>Auth</span><span>Scripts</span></div>
+                <div class="editor-body">
+                  <div class="editor-label">QUERY PARAMETERS</div>
+                  <pre><span class="code-key">page</span>   1
+<span class="code-key">limit</span>  20</pre>
+                  <div class="mock-response"><span><strong>200 OK</strong> &nbsp; 84 ms</span><em>Response ready</em></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell proof" aria-label="Project principles">
+        <div><strong>Local-first</strong>Your workspace stays on your machine</div>
+        <div><strong>Git-friendly</strong>Readable request files, easy diffs</div>
+        <div><strong>HTTP + gRPC</strong>One focused desktop client</div>
+        <div><strong>Open source</strong>MIT licensed and community-visible</div>
+      </div>
+
+      <section class="shell content" id="features" aria-labelledby="feature-title">
+        <div class="section-heading">
+          <div class="eyebrow"><i></i> Built for the everyday API loop</div>
+          <h2 id="feature-title">Powerful where it counts.<br />Out of your way everywhere else.</h2>
+          <p>Send requests, inspect responses, and keep your work in the same project workflow as your code.</p>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h10M4 19h16"/><circle cx="18" cy="12" r="2"/></svg></div>
+            <h3>HTTP and gRPC, side by side</h3>
+            <p>Build REST requests or call unary and streaming gRPC methods using reflection or local proto files.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6H4v14h14v-4M10 4h10v10M20 4l-9 11"/></svg></div>
+            <h3>Requests that belong to your repo</h3>
+            <p>Store collections as plain files, review changes in Git, and share them through the same workflow as your code.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+            <h3>Streams without the memory pileup</h3>
+            <p>Inspect live events and streaming responses while response data is spooled to disk.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+            <h3>Environments and secrets</h3>
+            <p>Switch environments, use variables in requests, and keep local secrets outside version control.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 8 4 12l4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></div>
+            <h3>CLI when you need it</h3>
+            <p>Copy requests as cURL or grpcurl, and export collections as portable shell scripts.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></div>
+            <h3>Fits your desktop</h3>
+            <p>Use a native desktop app with a theme that follows your system or switches to light or dark.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="shell content" id="local-first" aria-labelledby="local-title">
+        <div class="workflow">
+          <div>
+            <div class="eyebrow"><i></i> Local by design</div>
+            <h2 id="local-title">Your API workspace is a folder.</h2>
+            <p>Requests, environments, and collections live as files you can inspect, back up, and version. No proprietary workspace database or mandatory cloud account sits between you and your work.</p>
+            <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn#architecture--file-formats">See the file formats <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="file-tree" aria-label="Example local workspace folder structure">
+            <span class="dim">my-api-project/</span><br />
+            ├── <span class="accent">environments/</span><br />
+            │&nbsp;&nbsp; ├── development.env.json<br />
+            │&nbsp;&nbsp; └── production.env.json<br />
+            ├── <span class="accent">collections/</span><br />
+            │&nbsp;&nbsp; ├── users/list_users.curl<br />
+            │&nbsp;&nbsp; └── grpc/watch_events.grpc<br />
+            └── <span class="file">history.json</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell content" aria-labelledby="stream-title">
+        <div class="workflow">
+          <div>
+            <div class="eyebrow"><i></i> Streaming support</div>
+            <h2 id="stream-title">Follow the stream.<br />Keep the app responsive.</h2>
+            <p>Server-sent events, chunked HTTP, and gRPC server streams arrive incrementally. Full response data is spooled to disk while the interface keeps a bounded preview available.</p>
+          </div>
+          <div class="stream-box" aria-label="Illustration of streamed response events and disk spooling">
+            <div class="stream-top"><strong>Response stream</strong><span class="live">● receiving</span></div>
+            <div class="stream-row"><i></i><span>event: update · data: {"count": 1}</span></div>
+            <div class="stream-row"><i></i><span>event: update · data: {"count": 2}</span></div>
+            <div class="stream-row"><i></i><span>event: update · data: {"count": 3}</span></div>
+            <div class="spool-note"><strong>●</strong><span>Response is being written to disk · preview stays bounded</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell content" id="download" aria-labelledby="download-title">
+        <div class="download">
+          <div class="eyebrow"><i></i> Open source · MIT</div>
+          <h2 id="download-title">Bring your requests back to your workflow.</h2>
+          <p>Download the latest release or browse the source, report an issue, and help shape what comes next.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Get API Client Reborn <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn">View on GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell footer">
+      <span>© 2026 Ankit Gaurav · Built with ❤️ for developers who love speed, simplicity, and open protocols.</span>
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="https://github.com/theankitgaurav/api-client-reborn">GitHub</a>
+        <a href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Releases</a>
+        <a href="https://github.com/theankitgaurav/api-client-reborn/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </footer>
+  </body>
+</html>
