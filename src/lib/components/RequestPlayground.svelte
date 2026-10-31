@@ -18,14 +18,19 @@
     Play,
     Square,
     Save,
+    Copy,
+    Check,
     Plus,
     Trash2,
   } from '$lib/components/icons';
+  import { getResolvedCommand } from '$lib/utils/curl-generator';
 
   let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'raw'>('params');
   let scriptSubTab = $state<'pre' | 'post'>('pre');
   let preRequestScript = $state('');
   let postResponseScript = $state('');
+  let copiedCurl = $state(false);
+  let copyResetTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
   let rawEditMode = $state(false);
@@ -70,6 +75,15 @@
     tab.sidecar.post_response_script = postResponseScript;
     tab.isDirty = true;
     tab.isPinned = true;
+  }
+
+  async function copyCurl() {
+    const rawContent = workspaceState.activeTab?.rawContent || serializePlaygroundToCurl(model);
+    const command = getResolvedCommand(rawContent, envState.mergedVariables);
+    await navigator.clipboard.writeText(command);
+    copiedCurl = true;
+    if (copyResetTimeout) clearTimeout(copyResetTimeout);
+    copyResetTimeout = setTimeout(() => (copiedCurl = false), 1500);
   }
 
   function insertSnippet(code: string) {
@@ -284,6 +298,13 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <button
+        onclick={copyCurl}
+        title="Copy as cURL"
+        class="flex items-center gap-1 px-2 py-1 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030]"
+      >
+        {#if copiedCurl}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>cURL</span>{/if}
+      </button>
       {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
         <button
           onclick={() => workspaceState.saveActiveFile()}
