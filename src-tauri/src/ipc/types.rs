@@ -52,6 +52,8 @@ pub struct EnvironmentItem {
     pub name: String,
     pub file_path: String,
     pub variables: Vec<(String, String)>,
+    #[serde(default)]
+    pub secret_variables: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

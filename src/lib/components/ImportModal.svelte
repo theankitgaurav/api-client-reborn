@@ -2,7 +2,12 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { importCollectionBundle } from '$lib/ipc';
-  import { parsePostmanCollection, type PostmanImportResult } from '$lib/utils/postman-importer';
+import {
+  parsePostmanCollection,
+  parsePostmanEnvironment,
+  type PostmanEnvironmentImport,
+  type PostmanImportResult,
+} from '$lib/utils/postman-importer';
   import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
   import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
 
@@ -10,6 +15,7 @@
   let fileName = $state('');
   let importType = $state<'file' | 'text'>('file');
   let parseResult = $state<PostmanImportResult | null>(null);
+  let environmentImport = $state<PostmanEnvironmentImport | null>(null);
   let parseError = $state<string | null>(null);
   let isImporting = $state(false);
   let importSuccess = $state(false);
@@ -18,6 +24,7 @@
     rawInput = '';
     fileName = '';
     parseResult = null;
+    environmentImport = null;
     parseError = null;
     isImporting = false;
     importSuccess = false;
@@ -56,11 +63,21 @@
   function processInput(content: string) {
     parseError = null;
     parseResult = null;
+    environmentImport = null;
     if (!content.trim()) return;
 
     try {
       if (content.trim().startsWith('{')) {
-        // Try Postman collection JSON
+        const parsedJson = JSON.parse(content);
+        if (Array.isArray(parsedJson.values) && !Array.isArray(parsedJson.item)) {
+          const result = parsePostmanEnvironment(content);
+          if (result.variables.length === 0 && result.secretVariables.length === 0) {
+            parseError = 'This Postman environment has no enabled variables.';
+            return;
+          }
+          environmentImport = result;
+          return;
+        }
         const result = parsePostmanCollection(content);
         if (result.items.length === 0) {
           parseError = 'No valid requests found in this collection JSON.';
@@ -119,6 +136,27 @@
   }
 
   async function executeImport() {
+    if (environmentImport) {
+      isImporting = true;
+      parseError = null;
+      try {
+        await envState.importEnvironment(
+          environmentImport.name,
+          environmentImport.variables,
+          environmentImport.secretVariables
+        );
+        importSuccess = true;
+        setTimeout(() => {
+          workspaceState.isImportModalOpen = false;
+          resetState();
+        }, 1000);
+      } catch (error) {
+        parseError = `Environment import failed: ${error instanceof Error ? error.message : String(error)}`;
+      } finally {
+        isImporting = false;
+      }
+      return;
+    }
     if (!parseResult || parseResult.items.length === 0) return;
     isImporting = true;
     parseError = null;
@@ -133,7 +171,8 @@
       await importCollectionBundle(
         parseResult.collectionName,
         filesPayload,
-        parseResult.variables.length > 0 ? parseResult.variables : undefined
+        parseResult.variables.length > 0 ? parseResult.variables : undefined,
+        parseResult.secretVariables?.length ? parseResult.secretVariables : undefined
       );
 
       importSuccess = true;
@@ -178,7 +217,7 @@
         <div class="flex items-center gap-2">
           <Upload size={16} class="text-blue-500" />
           <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">
-            Import Collection or Requests
+            Import Collection, Environment or Requests
           </h2>
         </div>
         <button
@@ -226,7 +265,7 @@
               {fileName ? fileName : 'Choose a file or drag & drop it here'}
             </span>
             <span class="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              Supports Postman Collection v2.0 / v2.1 (.json) or .curl files
+              Supports Postman Collections, Postman environments, cURL and grpcurl files
             </span>
             <input
               type="file"
@@ -239,14 +278,14 @@
           <!-- Text Input -->
           <div>
             <label for="raw-import-text" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1.5">
-              Paste Postman Collection JSON, cURL command, or grpcurl command:
+              Paste Postman Collection or Environment JSON, cURL command, or grpcurl command:
             </label>
             <textarea
               id="raw-import-text"
               rows={6}
               bind:value={rawInput}
               oninput={(e) => processInput((e.target as HTMLTextAreaElement).value)}
-              placeholder="Paste JSON, cURL, or grpcurl command here..."
+              placeholder="Paste Postman collection/environment JSON, cURL, or grpcurl command here..."
               class="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded p-2.5 font-mono text-[11px] text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
             ></textarea>
           </div>
@@ -261,7 +300,22 @@
         {/if}
 
         <!-- Import Summary Preview -->
-        {#if parseResult}
+        {#if environmentImport}
+          <div class="border border-neutral-200 dark:border-[#333] rounded-md overflow-hidden bg-neutral-50/50 dark:bg-[#181818]">
+            <div class="px-3 py-2 bg-neutral-100 dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
+              <div class="font-medium text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
+                <Folder size={13} class="text-blue-500" />
+                <span>{environmentImport.name}</span>
+              </div>
+              <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
+                {environmentImport.variables.length + environmentImport.secretVariables.length} variables
+              </span>
+            </div>
+            <div class="px-3 py-2 text-[11px] text-neutral-600 dark:text-neutral-400">
+              This environment will be saved locally and selected for requests. Secret typed values are stored in the ignored local secrets folder.
+            </div>
+          </div>
+        {:else if parseResult}
           <div class="border border-neutral-200 dark:border-[#333] rounded-md overflow-hidden bg-neutral-50/50 dark:bg-[#181818]">
             <div class="px-3 py-2 bg-neutral-100 dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
               <div class="font-medium text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
@@ -273,8 +327,8 @@
                   {parseResult.totalRequests} {parseResult.totalRequests === 1 ? 'request' : 'requests'}
                 </span>
                 {#if parseResult.variables.length > 0}
-                  <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-mono" title="Saved to environments/{parseResult.collectionName}.env.json">
-                    {parseResult.variables.length} vars
+                  <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-mono" title="Collection variables override selected environment and workspace secrets">
+                    {parseResult.variables.length + (parseResult.secretVariables?.length || 0)} vars
                   </span>
                 {/if}
               </div>
@@ -312,7 +366,7 @@
         {#if importSuccess}
           <div class="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded text-emerald-700 dark:text-emerald-400 text-xs font-medium">
             <Check size={16} />
-            <span>Collection successfully imported into workspace!</span>
+            <span>{environmentImport ? 'Environment successfully imported and selected!' : 'Collection successfully imported into workspace!'}</span>
           </div>
         {/if}
       </div>
@@ -329,7 +383,7 @@
           Cancel
         </button>
         <button
-          disabled={!parseResult || isImporting || importSuccess}
+          disabled={(!parseResult && !environmentImport) || isImporting || importSuccess}
           onclick={executeImport}
           class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded font-medium transition-colors shadow-sm active:scale-95"
         >

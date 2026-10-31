@@ -56,6 +56,7 @@ export interface VariableItem {
   key: string;
   value: string;
   isSecret: boolean;
+  scope?: 'environment' | 'workspace';
 }
 
 export interface FileDetails {
@@ -107,6 +108,7 @@ export interface EnvironmentItem {
   name: string;
   file_path: string;
   variables: [string, string][];
+  secret_variables?: [string, string][];
 }
 
 export interface RequestHistoryEntry {

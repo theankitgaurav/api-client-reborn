@@ -1,4 +1,5 @@
 use crate::error::{AppError, Result};
+use crate::env::secret_file::ensure_gitignore_has_secrets;
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
 use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree};
 use crate::ipc::types::WorkspaceFileItem;
@@ -459,9 +460,17 @@ pub fn import_collection_bundle(
     collection_name: String,
     files: Vec<ImportedFileItem>,
     env_vars: Option<Vec<(String, String)>>,
+    secret_vars: Option<Vec<(String, String)>>,
 ) -> Result<ImportSummary> {
     let root = resolve_workspace_root(".");
     let mut count = 0;
+    let collection_root = files.first().and_then(|item| {
+        PathBuf::from(item.relative_path.trim_start_matches('/'))
+            .components()
+            .next()
+            .and_then(|component| component.as_os_str().to_str())
+            .map(str::to_string)
+    }).or_else(|| Some(slugify(&collection_name)));
 
     for item in files {
         let rel_path = PathBuf::from(item.relative_path.trim_start_matches('/'));
@@ -485,37 +494,78 @@ pub fn import_collection_bundle(
     }
 
     let mut env_file_name = None;
-    if let Some(vars) = env_vars {
-        if !vars.is_empty() {
-            let env_dir = root.join("environments");
-            if !env_dir.exists() {
-                fs::create_dir_all(&env_dir)
-                    .map_err(|e| AppError::FsError(format!("Failed to create environments folder: {}", e)))?;
+    let vars = env_vars.unwrap_or_default();
+    let secret_vars = secret_vars.unwrap_or_default();
+    let legacy_collection_env = root
+        .join("environments")
+        .join(format!("{}.env.json", slugify(&collection_name)));
+    if legacy_collection_env.exists() {
+        fs::remove_file(legacy_collection_env)
+            .map_err(|e| AppError::FsError(format!("Failed to remove legacy collection variables file: {e}")))?;
+    }
+    if let Some(collection_root) = collection_root {
+            let metadata_dir = root.join(collection_root).join(".apiclient");
+            fs::create_dir_all(&metadata_dir)
+                .map_err(|e| AppError::FsError(format!("Failed to create collection metadata folder: {e}")))?;
+
+            let var_map: HashMap<String, String> = vars.into_iter().collect();
+            let variables_path = metadata_dir.join("collection_variables.json");
+            if var_map.is_empty() && secret_vars.is_empty() {
+                if variables_path.exists() { fs::remove_file(&variables_path)
+                    .map_err(|e| AppError::FsError(format!("Failed to clear collection variables: {e}")))?; }
+            } else {
+                let json = serde_json::to_string_pretty(&var_map)
+                    .map_err(|e| AppError::FsError(format!("Serialization error for collection vars: {e}")))?;
+                fs::write(&variables_path, json)
+                    .map_err(|e| AppError::FsError(format!("Failed to write collection variables: {e}")))?;
             }
 
-            let slug = slugify(&collection_name);
-            let filename = format!("{}.env.json", slug);
-            let target_env = env_dir.join(&filename);
-
-            let mut var_map: HashMap<String, String> = HashMap::new();
-            for (k, v) in vars {
-                var_map.insert(k, v);
+            let secrets_path = metadata_dir.join("collection.secrets.json");
+            if !secret_vars.is_empty() {
+                let secrets: HashMap<String, String> = secret_vars.into_iter().collect();
+                let json = serde_json::to_string_pretty(&secrets)
+                    .map_err(|e| AppError::FsError(format!("Serialization error for collection secrets: {e}")))?;
+                fs::write(&secrets_path, json)
+                    .map_err(|e| AppError::FsError(format!("Failed to write collection secrets: {e}")))?;
+                ensure_gitignore_has_secrets(&root)?;
+            } else if secrets_path.exists() {
+                fs::remove_file(&secrets_path)
+                    .map_err(|e| AppError::FsError(format!("Failed to clear collection secrets: {e}")))?;
             }
-
-            let json = serde_json::to_string_pretty(&var_map)
-                .map_err(|e| AppError::FsError(format!("Serialization error for env vars: {}", e)))?;
-
-            fs::write(&target_env, json)
-                .map_err(|e| AppError::FsError(format!("Failed to write env file: {}", e)))?;
-
-            env_file_name = Some(filename);
-        }
+            if !var_map.is_empty() || secrets_path.exists() {
+                env_file_name = Some(".apiclient/collection_variables.json".to_string());
+            }
     }
 
     Ok(ImportSummary {
         imported_requests: count,
         env_file: env_file_name,
     })
+}
+
+#[tauri::command]
+pub fn get_collection_variables(request_file_path: String) -> Result<HashMap<String, String>> {
+    let request_path = PathBuf::from(request_file_path);
+    let mut directory = request_path.parent();
+    while let Some(path) = directory {
+        let metadata_dir = path.join(".apiclient");
+        let variables_path = metadata_dir.join("collection_variables.json");
+        if variables_path.is_file() {
+            let mut variables = fs::read_to_string(&variables_path)
+                .ok()
+                .and_then(|raw| serde_json::from_str::<HashMap<String, String>>(&raw).ok())
+                .unwrap_or_default();
+            let secrets_path = metadata_dir.join("collection.secrets.json");
+            if let Ok(raw) = fs::read_to_string(secrets_path) {
+                if let Ok(secrets) = serde_json::from_str::<HashMap<String, String>>(&raw) {
+                    variables.extend(secrets);
+                }
+            }
+            return Ok(variables);
+        }
+        directory = path.parent();
+    }
+    Ok(HashMap::new())
 }
 
 #[cfg(test)]

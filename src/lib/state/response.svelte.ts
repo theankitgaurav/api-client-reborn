@@ -43,6 +43,7 @@ export class ResponseState {
   private currentExecutingTabId: string | null = null;
   private currentHistoryEntry: RequestHistoryEntry | null = null;
   private historyRecordedForRequest = false;
+  private currentRequestVariables: Record<string, string> = {};
 
   // Sync state whenever the active tab in workspace changes
   loadTab(tabId: string | null) {
@@ -158,11 +159,14 @@ export class ResponseState {
     // switches to Cancel (color change) before any synchronous work.
     await tick();
 
+    let requestVariables = await envState.variablesForRequest(tab.filePath);
+    this.currentRequestVariables = requestVariables;
+
     // 1. Run Pre-request script if present
     let rawContent = tab.rawContent;
     if (tab.sidecar?.pre_request_script?.trim()) {
       const scriptResult = runScript(tab.sidecar.pre_request_script, {
-        environment: envState.mergedVariables,
+        environment: requestVariables,
         request: {
           url: tab.filePath || '',
           method: tab.method,
@@ -180,16 +184,18 @@ export class ResponseState {
 
       // Sync modified environment variables
       for (const [k, v] of Object.entries(scriptResult.updatedEnvironment)) {
-        if (envState.mergedVariables[k] !== v) {
-          envState.setVariable(k, v);
+        if (requestVariables[k] !== v) {
+          await envState.setVariable(k, v);
         }
       }
+      requestVariables = await envState.variablesForRequest(tab.filePath);
+      this.currentRequestVariables = requestVariables;
     }
 
     const requestId = crypto.randomUUID();
     this.activeRequestId = requestId;
     if (tab.requestType === 'grpc') {
-      const grpcConfig = resolveGrpcVariables(parseGrpcRequest(rawContent), envState.mergedVariables);
+      const grpcConfig = resolveGrpcVariables(parseGrpcRequest(rawContent), requestVariables);
       this.currentHistoryEntry = {
         id: requestId,
         timestamp: new Date().toISOString(),
@@ -248,7 +254,7 @@ export class ResponseState {
       await executeRequest(
         requestId,
         rawContent,
-        envState.mergedVariables,
+        requestVariables,
         (chunk: ResponseChunk) => {
           this.handleChunk(chunk);
         }
@@ -360,7 +366,7 @@ export class ResponseState {
     if (!tab || !tab.sidecar?.post_response_script?.trim()) return;
 
     const scriptResult = runScript(tab.sidecar.post_response_script, {
-      environment: envState.mergedVariables,
+      environment: this.currentRequestVariables,
       request: {
         url: tab.filePath || '',
         method: tab.method,
@@ -385,7 +391,8 @@ export class ResponseState {
 
     // Sync modified variables
     for (const [k, v] of Object.entries(scriptResult.updatedEnvironment)) {
-      if (envState.mergedVariables[k] !== v) {
+      if (this.currentRequestVariables[k] !== v) {
+        this.currentRequestVariables[k] = v;
         envState.setVariable(k, v);
       }
     }

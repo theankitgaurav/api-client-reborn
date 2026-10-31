@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720" viewBox="0 0 1440 720" role="img" aria-labelledby="title description">
+  <title id="title">API Client Reborn desktop app</title>
+  <desc id="description">A light theme view of API Client Reborn with a request collection in the sidebar, a REST request editor in the center, and a response pane on the right.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="5" stdDeviation="10" flood-color="#0b1220" flood-opacity=".16"/></filter>
+  </defs>
+  <rect width="1440" height="720" rx="16" fill="#fff"/>
+  <rect width="1440" height="48" rx="16" fill="#f0f0f2"/>
+  <path d="M0 48h1440" stroke="#d8d8dc"/>
+  <g fill="#555" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <path d="M34 18l12-7 12 7v14l-12 7-12-7V18Zm4 2v10l8 5 8-5V20l-8-5-8 5Z" fill="#3478ff"/>
+    <text x="70" y="31" font-size="18" font-weight="650" fill="#333">API Client Reborn</text>
+    <text x="1212" y="29" font-size="12" fill="#555">⌘</text>
+    <circle cx="1262" cy="24" r="9" fill="none" stroke="#555" stroke-width="2"/>
+    <path d="M1262 18v6l4 3" fill="none" stroke="#555" stroke-width="1.5"/>
+  </g>
+  <rect x="1290" y="7" width="130" height="34" rx="9" fill="#fff" stroke="#d4d4d8"/>
+  <text x="1303" y="29" fill="#2463eb" font-family="monospace" font-size="14" font-weight="700">{x}</text>
+  <text x="1331" y="29" fill="#444" font-family="Inter, sans-serif" font-size="13">Vars · default</text>
+  <text x="1403" y="29" fill="#777" font-family="Inter, sans-serif" font-size="13">3</text>
+
+  <rect y="48" width="255" height="672" fill="#fafafd"/>
+  <path d="M255 48v672M0 124h255M0 165h255" stroke="#dedee2"/>
+  <rect x="0" y="48" width="127" height="76" fill="#f8faff"/>
+  <path d="M0 122h127" stroke="#3478ff" stroke-width="3"/>
+  <text x="30" y="91" font-family="Inter, sans-serif" font-size="15" fill="#2262ee">Requests</text>
+  <text x="103" y="91" font-family="Inter, sans-serif" font-size="12" fill="#777">5</text>
+  <text x="157" y="91" font-family="Inter, sans-serif" font-size="14" fill="#777">◷ History</text>
+  <rect x="12" y="132" width="70" height="27" rx="6" fill="#2865ed"/>
+  <text x="23" y="150" font-family="Inter, sans-serif" font-size="13" fill="#fff">＋ New</text>
+  <g fill="none" stroke="#777" stroke-width="1.8">
+    <path d="M190 141h15v14h-15zM194 137h8"/><path d="M215 154v-16m-5 5 5-5 5 5m15 1a9 9 0 1 0 2-6m-3-2v7h7"/>
+  </g>
+  <rect x="12" y="174" width="231" height="34" rx="6" fill="#fff" stroke="#d5d5da"/>
+  <circle cx="27" cy="191" r="6" fill="none" stroke="#999" stroke-width="1.5"/>
+  <path d="m31 195 5 5" stroke="#999" stroke-width="1.5"/>
+  <text x="44" y="196" font-family="Inter, sans-serif" font-size="13" fill="#999">Filter requests... (⌘F)</text>
+  <g font-family="Inter, sans-serif" font-size="13">
+    <text x="16" y="236" fill="#777">▱</text><text x="34" y="236" fill="#555" font-weight="600">examples</text>
+    <rect x="14" y="247" width="228" height="31" rx="5" fill="#fff" stroke="#dedee2"/>
+    <rect x="22" y="256" width="33" height="15" rx="4" fill="#e8f0ff" stroke="#99bbff"/>
+    <text x="27" y="267" fill="#2865ed" font-size="10" font-weight="700">GET</text><text x="64" y="268" fill="#215ee7">Get All Users</text>
+    <rect x="22" y="289" width="41" height="15" rx="4" fill="#e7f8f0" stroke="#8ed6b7"/>
+    <text x="26" y="300" fill="#159466" font-size="10" font-weight="700">POST</text><text x="72" y="301" fill="#444">Create User Profile</text>
+    <rect x="22" y="322" width="33" height="15" rx="4" fill="#e8f0ff" stroke="#99bbff"/>
+    <text x="27" y="333" fill="#2865ed" font-size="10" font-weight="700">GET</text><text x="64" y="334" fill="#444">Stream Live SSE Events</text>
+    <text x="16" y="377" fill="#888">▱</text><text x="34" y="377" fill="#666" font-size="12">methods</text>
+    <text x="16" y="413" fill="#888">▱</text><text x="34" y="413" fill="#666" font-size="12">responses</text>
+  </g>
+
+  <rect x="255" y="48" width="1185" height="42" fill="#f1f1f4"/>
+  <path d="M255 90h1185" stroke="#d7d7db"/>
+  <rect x="255" y="48" width="242" height="42" fill="#fff" stroke="#d6d6da"/>
+  <path d="M255 49h242" stroke="#3976ff" stroke-width="2"/>
+  <rect x="269" y="62" width="28" height="16" rx="4" fill="#e7efff"/>
+  <text x="274" y="74" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#2463eb">GET</text>
+  <text x="307" y="76" font-family="Inter, sans-serif" font-size="13" font-style="italic" fill="#333">Get All Users</text>
+  <text x="475" y="76" font-family="Inter, sans-serif" font-size="14" fill="#999">×</text>
+  <text x="514" y="76" font-family="Inter, sans-serif" font-size="20" fill="#777">＋</text>
+
+  <rect x="255" y="90" width="590" height="630" fill="#fff"/>
+  <path d="M845 90v630" stroke="#d9d9dd"/>
+  <rect x="255" y="90" width="590" height="46" fill="#fafafd"/>
+  <path d="M255 136h590" stroke="#dedee2"/>
+  <text x="276" y="119" font-family="Inter, sans-serif" font-size="15" font-weight="600" fill="#333">Get All Users</text>
+  <rect x="758" y="98" width="71" height="30" rx="6" fill="#fff" stroke="#d5d5da"/>
+  <text x="768" y="118" font-family="Inter, sans-serif" font-size="12" fill="#555">▢ cURL</text>
+  <rect x="270" y="150" width="74" height="37" rx="6" fill="#f6f6f8" stroke="#d5d5da"/>
+  <text x="288" y="174" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#2872ff">GET</text>
+  <text x="330" y="174" font-family="Inter, sans-serif" font-size="14" fill="#2872ff">⌄</text>
+  <rect x="353" y="150" width="289" height="37" rx="6" fill="#fff" stroke="#d5d5da"/>
+  <text x="367" y="174" font-family="Menlo, monospace" font-size="13" fill="#333">https://httpbin.org/get</text>
+  <rect x="650" y="150" width="101" height="37" rx="6" fill="#2865ed"/>
+  <text x="666" y="174" font-family="Inter, sans-serif" font-size="14" fill="#fff">▶ Send</text>
+  <rect x="759" y="150" width="70" height="37" rx="6" fill="#fff" stroke="#d5d5da"/>
+  <text x="770" y="174" font-family="Inter, sans-serif" font-size="12" fill="#555">Import</text>
+  <path d="M255 198h590" stroke="#dedee2"/>
+  <g font-family="Inter, sans-serif" font-size="13">
+    <text x="295" y="220" fill="#2463eb">Params</text><text x="365" y="220" fill="#999">2</text>
+    <text x="394" y="220" fill="#666">Headers</text><text x="457" y="220" fill="#999">2</text>
+    <text x="493" y="220" fill="#666">Body</text><text x="543" y="220" fill="#666">Auth</text><text x="600" y="220" fill="#666">Scripts</text>
+  </g>
+  <path d="M270 231h98" stroke="#3976ff" stroke-width="2"/>
+  <path d="M255 232h590" stroke="#dedee2"/>
+  <text x="270" y="258" font-family="Inter, sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="#777">QUERY PARAMETERS</text>
+  <text x="310" y="285" font-family="Inter, sans-serif" font-size="12" fill="#999">Key</text>
+  <text x="455" y="285" font-family="Inter, sans-serif" font-size="12" fill="#999">Value</text>
+  <path d="M270 296h558M270 330h558M270 364h558" stroke="#e1e1e5"/>
+  <g font-family="Menlo, monospace" font-size="13" fill="#333">
+    <rect x="284" y="306" width="13" height="13" rx="2" fill="#2865ed"/><path d="m287 312 3 3 5-6" fill="none" stroke="#fff" stroke-width="1.5"/>
+    <text x="310" y="319">page</text><text x="455" y="319">1</text>
+    <rect x="284" y="340" width="13" height="13" rx="2" fill="#2865ed"/><path d="m287 346 3 3 5-6" fill="none" stroke="#fff" stroke-width="1.5"/>
+    <text x="310" y="353">limit</text><text x="455" y="353">20</text>
+  </g>
+  <text x="270" y="393" font-family="Inter, sans-serif" font-size="13" fill="#2865ed">＋ Add Parameter</text>
+
+  <rect x="846" y="90" width="594" height="46" fill="#fafafd"/>
+  <path d="M846 136h594" stroke="#dedee2"/>
+  <text x="870" y="119" font-family="Inter, sans-serif" font-size="14" fill="#777">No response yet</text>
+  <rect x="1148" y="99" width="273" height="29" rx="6" fill="#f1f1f4" stroke="#d2d2d7"/>
+  <rect x="1152" y="102" width="65" height="23" rx="5" fill="#fff"/>
+  <text x="1168" y="118" font-family="Inter, sans-serif" font-size="12" fill="#333">Body</text>
+  <text x="1232" y="118" font-family="Inter, sans-serif" font-size="12" fill="#555">Headers (0)</text>
+  <text x="1340" y="118" font-family="Inter, sans-serif" font-size="12" fill="#555">Tests</text>
+  <path d="M846 170h594" stroke="#e0e0e4"/>
+  <text x="870" y="195" font-family="Menlo, monospace" font-size="13" fill="#333">// No response body</text>
+
+  <rect x="0.5" y="0.5" width="1439" height="719" rx="15.5" fill="none" stroke="#d8d8dd" filter="url(#shadow)"/>
+</svg>

@@ -199,6 +199,18 @@ export function getVariableInfo(
   }
 
   const found = variables.find((v) => v.key.trim() === key);
+  if (mergedVariables && key in mergedVariables) {
+    const effectiveValue = mergedVariables[key];
+    const isCollectionOverride = !found || found.value !== effectiveValue;
+    return {
+      variableName: key,
+      variableValue: effectiveValue,
+      isDefined: true,
+      isSecret: !isCollectionOverride && !!found?.isSecret,
+      isDynamic: false,
+      source: isCollectionOverride ? 'Collection Variable' : found?.scope === 'environment' ? 'Selected Environment' : found?.isSecret ? 'Secret Variable' : 'Workspace Variable',
+    };
+  }
   if (found) {
     return {
       variableName: key,
@@ -207,17 +219,6 @@ export function getVariableInfo(
       isSecret: !!found.isSecret,
       isDynamic: false,
       source: found.isSecret ? 'Secret Variable' : 'Workspace Variable',
-    };
-  }
-
-  if (mergedVariables && key in mergedVariables) {
-    return {
-      variableName: key,
-      variableValue: mergedVariables[key],
-      isDefined: true,
-      isSecret: false,
-      isDynamic: false,
-      source: 'Workspace Variable',
     };
   }
 

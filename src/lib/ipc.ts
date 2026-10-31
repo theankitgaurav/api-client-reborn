@@ -452,24 +452,49 @@ export async function getWorkspaceEnvironments(
     return invoke('get_workspace_environments', { workspacePath });
   }
 
-  return [
-    {
-      name: 'development',
-      file_path: '/environments/development.env.json',
-      variables: [
-        ['api_host', 'httpbin.org'],
-        ['port', '443'],
-      ],
-    },
-    {
-      name: 'production',
-      file_path: '/environments/production.env.json',
-      variables: [
-        ['api_host', 'api.production.com'],
-        ['port', '443'],
-      ],
-    },
-  ];
+  return JSON.parse(JSON.stringify(mockEnvironments));
+}
+
+export async function saveWorkspaceEnvironment(
+  workspacePath: string,
+  environmentName: string,
+  publicVars: Record<string, string>,
+  secretVars: Record<string, string>
+): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('save_workspace_environment', {
+      workspacePath,
+      environmentName,
+      publicVars,
+      secretVars,
+    });
+  }
+  mockEnvironments = mockEnvironments.filter((environment) => environment.name !== environmentName);
+  mockEnvironments.push({
+    name: environmentName,
+    file_path: `/environments/${environmentName}.env.json`,
+    variables: Object.entries(publicVars),
+    secret_variables: Object.entries(secretVars),
+  });
+}
+
+let mockEnvironments: EnvironmentItem[] = [
+  { name: 'default', file_path: '/environments/default.env.json', variables: [['base_url', 'https://httpbin.org']] },
+  { name: 'development', file_path: '/environments/development.env.json', variables: [['api_host', 'httpbin.org'], ['port', '443']] },
+  { name: 'production', file_path: '/environments/production.env.json', variables: [['api_host', 'api.production.com'], ['port', '443']] },
+];
+let mockWorkspaceSecrets: Record<string, string> = {
+  auth_token: 'secret_dev_token_88419',
+  api_key: 'prod_master_key_99312',
+};
+
+export async function getCollectionVariables(requestFilePath: string): Promise<Record<string, string>> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_collection_variables', { requestFilePath });
+  }
+  return {};
 }
 
 export async function getWorkspaceSecrets(
@@ -480,10 +505,7 @@ export async function getWorkspaceSecrets(
     return invoke('get_workspace_secrets', { workspacePath });
   }
 
-  return {
-    auth_token: 'secret_dev_token_88419',
-    api_key: 'prod_master_key_99312',
-  };
+  return { ...mockWorkspaceSecrets };
 }
 
 export async function saveWorkspaceSecrets(
@@ -494,7 +516,7 @@ export async function saveWorkspaceSecrets(
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('save_workspace_secrets', { workspacePath, secrets });
   }
-  console.log('[Dev Mock] Saved secrets', secrets);
+  mockWorkspaceSecrets = { ...secrets };
 }
 
 export async function getWorkspaceVariables(
@@ -809,7 +831,8 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
 export async function importCollectionBundle(
   collectionName: string,
   files: { relative_path: string; content: string; sidecar?: any }[],
-  envVars?: [string, string][]
+  envVars?: [string, string][],
+  secretVars?: [string, string][]
 ): Promise<{ imported_requests: number; env_file?: string }> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -817,9 +840,10 @@ export async function importCollectionBundle(
       collectionName,
       files,
       envVars,
+      secretVars,
     });
   }
-  return { imported_requests: files.length, env_file: `${collectionName}.env.json` };
+  return { imported_requests: files.length, env_file: `.apiclient/collection_variables.json` };
 }
 
 export async function exportSpooledStream(

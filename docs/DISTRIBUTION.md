@@ -82,13 +82,13 @@ To create and publish a new release:
    * `src-tauri/Cargo.toml`
 2. Commit and push the changes:
    ```bash
-   git commit -am "chore: bump version to 0.1.0"
+   git commit -am "chore: bump version to 0.5.0"
    git push origin main
    ```
 3. Tag the commit and push the tag:
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 4. GitHub Actions will automatically:
    * Build **Universal macOS** `.dmg` and `.app.tar.gz` (Apple Silicon + Intel).
@@ -128,7 +128,7 @@ Once direct releases are published, the app can be submitted to community packag
   Create a formula pointing to the GitHub Release `.dmg` with the SHA-256 checksum:
   ```ruby
   cask "api-client-reborn" do
-    version "0.1.0"
+    version "0.5.0"
     sha256 "<SHA256_OF_DMG>"
     url "https://github.com/theankitgaurav/api-client-reborn/releases/download/v#{version}/api-client-reborn_#{version}_universal.dmg"
     name "API Client Reborn"

@@ -33,6 +33,7 @@
   let copyResetTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
+  let tooltipVariables = $state<Record<string, string>>({});
 
   let isMac = $derived(shortcutsState.isMac);
 
@@ -43,6 +44,13 @@
       }
     });
     return () => registerBeautifyHandler(null);
+  });
+
+  $effect(() => {
+    const filePath = workspaceState.activeTab?.filePath;
+    void envState.variablesForRequest(filePath).then((variables) => {
+      tooltipVariables = variables;
+    });
   });
 
   // Whenever the active tab changes from workspace, load into model & scripts
@@ -76,8 +84,10 @@
   }
 
   async function copyCurl() {
-    const rawContent = workspaceState.activeTab?.rawContent || serializePlaygroundToCurl(model);
-    const command = getResolvedCommand(rawContent, envState.mergedVariables);
+    const activeTab = workspaceState.activeTab;
+    const rawContent = activeTab?.rawContent || serializePlaygroundToCurl(model);
+    const variables = await envState.variablesForRequest(activeTab?.filePath);
+    const command = getResolvedCommand(rawContent, variables);
     await navigator.clipboard.writeText(command);
     copiedCurl = true;
     if (copyResetTimeout) clearTimeout(copyResetTimeout);
@@ -269,7 +279,7 @@
     if (activeHoverToken === match.name && activeHoverInfo) {
       info = activeHoverInfo;
     } else {
-      info = getVariableInfo(match.name, envState.variables, envState.mergedVariables);
+      info = getVariableInfo(match.name, envState.variables, tooltipVariables);
       activeHoverToken = match.name;
       activeHoverInfo = info;
     }

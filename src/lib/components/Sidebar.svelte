@@ -155,9 +155,10 @@
       }
 
       const isGrpc = item.kind === 'grpc' || item.name.toLowerCase().endsWith('.grpc');
+      const variables = await envState.variablesForRequest(openTab?.filePath || item.path);
       const resolved = isGrpc
-        ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(rawContent), envState.mergedVariables))
-        : getResolvedCommand(rawContent, envState.mergedVariables);
+        ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(rawContent), variables))
+        : getResolvedCommand(rawContent, variables);
       await copyToClipboardWithFallback(resolved);
 
       if (copyTimeout) clearTimeout(copyTimeout);

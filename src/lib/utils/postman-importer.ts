@@ -11,8 +11,35 @@ export interface PostmanImportResult {
   collectionName: string;
   items: PostmanImportItem[];
   variables: [string, string][];
+  secretVariables?: [string, string][];
   totalRequests: number;
   totalFolders: number;
+}
+
+export interface PostmanEnvironmentImport {
+  name: string;
+  variables: [string, string][];
+  secretVariables: [string, string][];
+}
+
+export function parsePostmanEnvironment(jsonString: string): PostmanEnvironmentImport {
+  const parsed = JSON.parse(jsonString);
+  if (!Array.isArray(parsed.values)) {
+    throw new Error('This JSON is not a Postman environment export.');
+  }
+
+  const result: PostmanEnvironmentImport = {
+    name: parsed.name || 'Imported Environment',
+    variables: [],
+    secretVariables: [],
+  };
+  for (const variable of parsed.values) {
+    if (!variable?.key || variable.enabled === false) continue;
+    const entry: [string, string] = [String(variable.key), String(variable.value ?? variable.initialValue ?? '')];
+    if (variable.type === 'secret') result.secretVariables.push(entry);
+    else result.variables.push(entry);
+  }
+  return result;
 }
 
 function sanitizeSlug(input: string): string {
@@ -252,10 +279,13 @@ export function parsePostmanCollection(jsonString: string): PostmanImportResult 
   const rootSlug = sanitizeSlug(collectionName);
 
   const variables: [string, string][] = [];
+  const secretVariables: [string, string][] = [];
   if (Array.isArray(parsed.variable)) {
     for (const v of parsed.variable) {
       if (v && v.key && !v.disabled) {
-        variables.push([String(v.key), String(v.value ?? '')]);
+        const entry: [string, string] = [String(v.key), String(v.value ?? '')];
+        if (v.type === 'secret') secretVariables.push(entry);
+        else variables.push(entry);
       }
     }
   }
@@ -271,6 +301,7 @@ export function parsePostmanCollection(jsonString: string): PostmanImportResult 
     collectionName,
     items,
     variables,
+    secretVariables,
     totalRequests: items.length,
     totalFolders: folderCount.count,
   };

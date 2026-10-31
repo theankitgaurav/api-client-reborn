@@ -1,5 +1,6 @@
 <script lang="ts">
   import { envState } from '$lib/state/env.svelte';
+  import { workspaceState } from '$lib/state/workspace.svelte';
   import type { VariableItem } from '$lib/types';
   import {
     X,
@@ -17,6 +18,7 @@
   let newKey = $state('');
   let newValue = $state('');
   let newIsSecret = $state(false);
+  let newScope = $state<'environment' | 'workspace'>('environment');
 
   // Sync state whenever modal opens
   $effect(() => {
@@ -26,6 +28,7 @@
       newKey = '';
       newValue = '';
       newIsSecret = false;
+      newScope = 'environment';
     }
   });
 
@@ -41,6 +44,7 @@
         key: k,
         value: newValue,
         isSecret: newIsSecret,
+        scope: newScope,
       });
       newKey = '';
       newValue = '';
@@ -65,8 +69,23 @@
       <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-xs">&#123;x&#125;</span>
-          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Workspace Variables</h2>
-          <span class="text-[11px] text-neutral-500 bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded">Single Environment</span>
+          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Variables &amp; Secrets</h2>
+          <select
+            aria-label="Active environment"
+            value={envState.activeEnvName}
+            onchange={(event) => envState.selectEnvironment(event.currentTarget.value)}
+            class="max-w-40 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#383838] rounded px-2 py-1 text-[11px] text-neutral-700 dark:text-neutral-200"
+          >
+            {#each envState.environments as environment}
+              <option value={environment.name}>{environment.name}</option>
+            {/each}
+          </select>
+          <button
+            onclick={() => { envState.isVariablesModalOpen = false; workspaceState.isImportModalOpen = true; }}
+            class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Import
+          </button>
         </div>
         <button
           onclick={() => (envState.isVariablesModalOpen = false)}
@@ -80,7 +99,7 @@
       <div class="px-4 py-2 bg-neutral-50 dark:bg-[#1a1a1a] border-b border-neutral-200 dark:border-[#333] text-neutral-600 dark:text-neutral-400 flex items-center justify-between text-[11px]">
         <div class="flex items-center gap-1.5">
           <ShieldCheck size={14} class="text-amber-500 shrink-0" />
-          <span>Toggle <strong>Secret</strong> to isolate passwords/keys into git-ignored <code class="font-mono bg-neutral-200 dark:bg-black/40 px-1 rounded">.apiclient/.secrets.env</code></span>
+          <span>Selected environment overrides workspace secrets. Collection variables override both. Workspace secrets are local-only.</span>
         </div>
         <span class="text-neutral-400 font-mono text-[10px]">Use via &#123;&#123;variable&#125;&#125;</span>
       </div>
@@ -93,8 +112,9 @@
           </div>
         {:else}
           <div class="grid grid-cols-12 gap-2 pb-1.5 text-[11px] font-semibold text-neutral-500 border-b border-neutral-200 dark:border-[#303030]">
-            <span class="col-span-4">Variable Name</span>
-            <span class="col-span-5">Value</span>
+            <span class="col-span-3">Variable Name</span>
+            <span class="col-span-4">Value</span>
+            <span class="col-span-2">Scope</span>
             <span class="col-span-2 text-center">Secret?</span>
             <span class="col-span-1 text-center"></span>
           </div>
@@ -106,11 +126,11 @@
                 type="text"
                 bind:value={item.key}
                 placeholder="VARIABLE_NAME"
-                class="col-span-4 bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 font-mono text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500"
+                class="col-span-3 bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 font-mono text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500"
               />
 
               <!-- Value with Reveal Icon for Secrets -->
-              <div class="col-span-5 relative">
+              <div class="col-span-4 relative">
                 <input
                   type={item.isSecret && !revealed[item.id] ? 'password' : 'text'}
                   bind:value={item.value}
@@ -132,6 +152,10 @@
                   </button>
                 {/if}
               </div>
+
+              <span class="col-span-2 text-center text-[10px] text-neutral-500">
+                {item.scope === 'workspace' ? 'Workspace' : envState.activeEnvName}
+              </span>
 
               <!-- Secret Toggle -->
               <div class="col-span-2 flex items-center justify-center">
@@ -169,9 +193,9 @@
             placeholder="New key name"
             bind:value={newKey}
             onkeydown={(e) => e.key === 'Enter' && addVariable()}
-            class="col-span-4 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 font-mono text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+            class="col-span-3 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 font-mono text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500"
           />
-          <div class="col-span-5 relative">
+          <div class="col-span-4 relative">
             <input
               type={newIsSecret ? 'password' : 'text'}
               placeholder="Variable value"
@@ -180,11 +204,20 @@
               class="w-full bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 font-mono text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500"
             />
           </div>
+          <select
+            bind:value={newScope}
+            onchange={() => { if (newScope === 'workspace') newIsSecret = true; }}
+            class="col-span-2 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 text-neutral-800 dark:text-neutral-200"
+          >
+            <option value="environment">Selected environment</option>
+            <option value="workspace">Workspace secret</option>
+          </select>
           <div class="col-span-2 flex items-center justify-center">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input
                 type="checkbox"
                 bind:checked={newIsSecret}
+                disabled={newScope === 'workspace'}
                 class="rounded accent-amber-500 cursor-pointer"
               />
               <span class="text-[11px] {newIsSecret ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-neutral-500'}">

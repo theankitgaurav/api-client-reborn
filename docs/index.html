@@ -4,15 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101512" />
-    <meta name="description" content="A lightweight, local-first HTTP and gRPC API client. Keep requests as readable files, version them with Git, and inspect streamed responses without loading them all into memory." />
+    <meta name="description" content="A lightweight, local-first HTTP and gRPC API client. Keep requests as readable files, switch environments, upload and download files, and inspect streamed responses without loading them all into memory." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="API Client Reborn — APIs, on your terms" />
-    <meta property="og:description" content="A lightweight, local-first HTTP and gRPC API client with Git-friendly requests and disk-spooled streaming responses." />
+    <meta property="og:description" content="A lightweight, local-first HTTP and gRPC API client with Git-friendly requests, environment support, file transfers, and disk-spooled streaming responses." />
     <meta property="og:url" content="https://theankitgaurav.github.io/api-client-reborn/" />
-    <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-icon.svg" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-screenshot.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>API Client Reborn — APIs, on your terms</title>
-    <link rel="icon" href="../app-icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="app-icon.svg" type="image/svg+xml" />
     <style>
       :root {
         color-scheme: dark;
@@ -55,36 +55,10 @@
       .button.secondary { background:rgba(255,255,255,.035); }
       .button svg { width:17px; height:17px; }
       .microcopy { margin-top:16px; color:#839087; font-size:12px; }
-      .mock-wrap { position:relative; }
-      .glow { position:absolute; inset:8% -8% -12% 8%; z-index:-1; background:radial-gradient(ellipse, rgba(95,214,148,.19), transparent 68%); filter:blur(22px); }
-      .app-window { overflow:hidden; border:1px solid rgba(230,246,233,.2); border-radius:14px; background:#111713; box-shadow:0 28px 100px rgba(0,0,0,.48), 0 0 0 7px rgba(255,255,255,.025); transform:perspective(1400px) rotateY(-5deg) rotateX(2deg); }
-      .window-top { height:39px; display:flex; align-items:center; gap:6px; padding:0 13px; background:#1c231e; border-bottom:1px solid var(--line); }
-      .dot { width:8px; height:8px; border-radius:50%; background:#66736a; }.dot:first-child{background:#f1786c}.dot:nth-child(2){background:#edc46d}.dot:nth-child(3){background:#75d88a}
-      .window-title { margin:auto; padding-right:29px; color:#aab7ab; font-size:10px; }
-      .mock-main { display:grid; grid-template-columns:150px 1fr; min-height:316px; }
-      .mock-sidebar { padding:13px 9px; border-right:1px solid var(--line); color:#96a398; font-size:9px; }
-      .mock-side-title { display:flex; align-items:center; justify-content:space-between; margin:0 4px 12px; color:#d8e3d9; font-size:10px; font-weight:700; }
-      .mock-pill { background:rgba(197,243,107,.15); color:var(--lime); border-radius:5px; padding:3px 6px; font-size:8px; }
-      .tree-label { margin:12px 4px 6px; color:#647168; font-size:8px; text-transform:uppercase; letter-spacing:.1em; }
-      .tree-item { padding:7px 6px; border-radius:5px; margin:2px 0; }.tree-item.active { background:#253128; color:#f1f6f1; }.tree-item span { color:var(--green); font-size:8px; margin-right:5px; }
-      .mock-editor { min-width:0; }
-      .mock-tabs { height:36px; display:flex; align-items:center; gap:15px; padding:0 13px; color:#86938a; border-bottom:1px solid var(--line); font-size:9px; }
-      .mock-tabs b { color:var(--text); font-weight:600; }
-      .request-head { padding:16px 14px 13px; border-bottom:1px solid var(--line); }
-      .request-title { margin-bottom:12px; font-size:11px; font-weight:700; }
-      .request-row { display:flex; gap:6px; }
-      .method { color:#76b3ff; background:rgba(116,169,255,.12); padding:8px 9px; border:1px solid rgba(116,169,255,.22); border-radius:5px; font:700 9px ui-monospace,monospace; }
-      .url { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:8px 9px; border:1px solid var(--line); border-radius:5px; color:#c7d2c8; font:9px ui-monospace,monospace; }
-      .send { padding:8px 10px; color:#142017; background:var(--lime); border-radius:5px; font-size:9px; font-weight:800; }
-      .editor-tabs { display:flex; gap:20px; padding:12px 15px 9px; color:#88968c; font-size:9px; border-bottom:1px solid var(--line); }
-      .editor-tabs b { color:var(--lime); border-bottom:2px solid var(--lime); padding-bottom:10px; margin-bottom:-10px; font-weight:600; }
-      .editor-body { padding:14px 15px; }
-      .editor-label { margin-bottom:9px; color:#829086; font-size:8px; font-weight:700; letter-spacing:.1em; }
-      pre { margin:0; color:#c8d4ca; font:9px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
-      .code-key { color:#a9d47a; }.code-str { color:#e3b976; }
-      .mock-response { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:15px; padding:8px 10px; border:1px solid var(--line); border-radius:5px; color:#9ba89d; font-size:8px; }
-      .mock-response strong { color:var(--green); }
-      .mock-response em { color:#b8c7ba; font-style:normal; }
+      .app-preview { position:relative; margin:0; }
+      .app-preview::before { content:""; position:absolute; inset:10% -6% -10% 8%; z-index:-1; background:radial-gradient(ellipse, rgba(95,214,148,.18), transparent 68%); filter:blur(24px); }
+      .app-preview img { display:block; width:100%; height:auto; border:1px solid rgba(230,246,233,.22); border-radius:12px; background:#fff; box-shadow:0 28px 90px rgba(0,0,0,.38); }
+      .app-preview figcaption { margin-top:12px; color:#849187; font-size:12px; text-align:center; }
       .proof { display:flex; flex-wrap:wrap; justify-content:center; gap:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
       .proof div { flex:1; min-width:170px; padding:23px 18px; text-align:center; color:var(--muted); font-size:13px; }
       .proof div+div { border-left:1px solid var(--line); }
@@ -119,7 +93,7 @@
       .footer-links { display:flex; gap:18px; }.footer a:hover{color:var(--text)}
       @media (max-width: 900px) {
         .hero { grid-template-columns:1fr; gap:52px; padding:64px 0 72px; }
-        .hero-copy { max-width:650px; }.mock-wrap { width:min(680px,100%); margin:0 auto; }
+        .hero-copy { max-width:650px; }.app-preview { width:min(760px,100%); margin:0 auto; }
         .cards { grid-template-columns:repeat(2,1fr); }
       }
       @media (max-width: 600px) {
@@ -127,10 +101,7 @@
         .nav { height:65px; }.brand { font-size:14px; }.brand img { width:28px;height:28px; }
         .nav-links { gap:12px; }.nav-links a:not(.nav-cta) { display:none; }.nav-links .nav-cta { padding:9px 12px; font-size:12px; }
         .hero { padding:52px 0 60px; gap:42px; }.hero-copy { font-size:16px; }
-        .app-window { transform:none; }.mock-main { grid-template-columns:112px 1fr; min-height:300px; }
-        .mock-sidebar { padding:10px 6px; }.mock-tabs { gap:8px; padding:0 8px; font-size:8px; }
-        .request-head { padding:12px 9px 10px; }.editor-tabs,.editor-body { padding-left:9px;padding-right:9px; }
-        .mock-response { flex-wrap:wrap; }.proof div { min-width:45%; padding:17px 8px; }.proof div+div { border-left:0; }.proof div:nth-child(even) { border-left:1px solid var(--line); }
+        .proof div { min-width:45%; padding:17px 8px; }.proof div+div { border-left:0; }.proof div:nth-child(even) { border-left:1px solid var(--line); }
         section.content { padding:70px 0; }.cards { grid-template-columns:1fr; }.card { min-height:0; }
         .workflow { grid-template-columns:1fr; gap:20px; padding:18px; }.workflow h2 { font-size:29px; }
         .file-tree { padding:14px; font-size:10px; }.download { padding:52px 18px; }
@@ -141,7 +112,7 @@
   </head>
   <body>
     <header class="shell nav">
-      <a class="brand" href="#top" aria-label="API Client Reborn home"><img src="../app-icon.svg" alt="" />API Client Reborn</a>
+      <a class="brand" href="#top" aria-label="API Client Reborn home"><img src="app-icon.svg" alt="" />API Client Reborn</a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#features">Features</a>
         <a href="#local-first">Local-first</a>
@@ -162,39 +133,10 @@
           <p class="microcopy">Free and open source · macOS, Windows, and Linux · No account required</p>
         </div>
 
-        <div class="mock-wrap" aria-label="Illustration of the API Client Reborn request editor">
-          <div class="glow"></div>
-          <div class="app-window">
-            <div class="window-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="window-title">API Client Reborn</span></div>
-            <div class="mock-main">
-              <aside class="mock-sidebar">
-                <div class="mock-side-title">Requests <span class="mock-pill">4</span></div>
-                <div class="tree-label">Collection</div>
-                <div class="tree-item active"><span>GET</span> List users</div>
-                <div class="tree-item"><span>POST</span> Create user</div>
-                <div class="tree-label">Streaming</div>
-                <div class="tree-item"><span>GET</span> Live events</div>
-                <div class="tree-item"><span>gRPC</span> Server stream</div>
-                <div class="tree-label">History</div>
-                <div class="tree-item">↳ Recent requests</div>
-              </aside>
-              <div class="mock-editor">
-                <div class="mock-tabs"><b>GET List users</b><span>POST Create user</span><span>＋</span></div>
-                <div class="request-head">
-                  <div class="request-title">List users</div>
-                  <div class="request-row"><span class="method">GET</span><span class="url">https://api.example.com/users</span><span class="send">Send →</span></div>
-                </div>
-                <div class="editor-tabs"><b>Params</b><span>Headers</span><span>Body</span><span>Auth</span><span>Scripts</span></div>
-                <div class="editor-body">
-                  <div class="editor-label">QUERY PARAMETERS</div>
-                  <pre><span class="code-key">page</span>   1
-<span class="code-key">limit</span>  20</pre>
-                  <div class="mock-response"><span><strong>200 OK</strong> &nbsp; 84 ms</span><em>Response ready</em></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <figure class="app-preview">
+          <img src="app-screenshot.svg" alt="API Client Reborn running on the desktop, with a request collection, REST request editor, and response pane." />
+          <figcaption>A simplified preview of the desktop app’s request workspace.</figcaption>
+        </figure>
       </section>
 
       <div class="shell proof" aria-label="Project principles">
@@ -229,7 +171,12 @@
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
             <h3>Environments and secrets</h3>
-            <p>Switch environments, use variables in requests, and keep local secrets outside version control.</p>
+            <p>Import Postman environments, switch context as you work, and keep local secrets outside version control.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 13v6h14v-6"/><path d="M12 9v12m0 0 4-4m-4 4-4-4"/></svg></div>
+            <h3>Move files with your requests</h3>
+            <p>Attach files to multipart form uploads and download file responses directly to your computer.</p>
           </article>
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 8 4 12l4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></div>
@@ -249,7 +196,7 @@
           <div>
             <div class="eyebrow"><i></i> Local by design</div>
             <h2 id="local-title">Your API workspace is a folder.</h2>
-            <p>Requests, environments, and collections live as files you can inspect, back up, and version. No proprietary workspace database or mandatory cloud account sits between you and your work.</p>
+            <p>Requests, environments, and collections live as files you can inspect, back up, and version. Imported collection variables take priority over your selected environment and workspace values.</p>
             <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn#architecture--file-formats">See the file formats <span aria-hidden="true">↗</span></a>
           </div>
           <div class="file-tree" aria-label="Example local workspace folder structure">

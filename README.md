@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.4.3-blue?style=flat-square" alt="Release v0.4.3" /></a>
+  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.5.0-blue?style=flat-square" alt="Release v0.5.0" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24C8D8?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" /></a>
   <a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust 2021" /></a>
@@ -69,6 +69,8 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ### 🔌 HTTP Request Engine
 - **Full HTTP/REST Support**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS`.
+- **Multipart File Uploads**: Attach files to form-data requests and send them with other multipart fields.
+- **Response File Downloads**: Save file responses directly to disk from the response panel.
 
 ### 🔌 gRPC Request Engine
 - **Unary and Streaming RPCs**: Send unary, client-streaming, server-streaming, and bidirectional calls with JSON messages and request metadata.
@@ -88,6 +90,8 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ### 🔐 Multi-Environment & Safe Secret Management
 - **Environment Switcher**: Organize variables into JSON environments (`development.env.json`, `production.env.json`).
+- **Environment Import**: Import Postman environment exports and switch the active environment from the Variables menu.
+- **Clear Variable Priority**: Collection variables override the selected environment, which overrides workspace variables and secrets.
 - **Secret Isolation**: Mark sensitive credentials (tokens, private keys) as secrets to automatically store them in `.secrets.json`, guaranteed to stay excluded from Git version control.
 
 ### 🧪 Postman Scripting & Chai Assertions
@@ -95,7 +99,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 - **Chai-style Assertions**: Validate responses with `pm.test()`, `pm.expect(res.code).to.equal(200)`, latency thresholds, and header checks. Visual status badges display passed and failed tests instantly.
 
 ### 📦 Postman Collection v2.1 Importer
-- Import your existing Postman collections (v2.1 JSON) in one click. Automatically extracts folder hierarchies, headers, auth configurations, request bodies, and pre/post scripts into clean `.curl` and `.sidecar.json` files.
+- Import your existing Postman collections (v2.1 JSON) in one click. Automatically extracts folder hierarchies, headers, auth configurations, request bodies, collection variables, and pre/post scripts into clean `.curl` and `.sidecar.json` files. Import Postman environment exports separately and select them in the app.
 
 ### 🚀 Collection CLI Exporter (`.sh`)
 - Export collections or folders into a standalone, portable POSIX bash script.
@@ -187,6 +191,8 @@ Optional sidecar file stored in `.apiclient/` containing test assertions and aut
 
 ### 4. `history.json` Request History
 The app stores a local JSON history in the workspace directory. Each entry includes the request name, method, URL, timestamp, response status, duration, headers, a bounded response preview, and a spool-file path for full streaming responses. Request commands retain their variable placeholders instead of storing resolved environment secrets.
+
+Environment files are workspace-local JSON files in the `environments/` folder. Imported collection variables are saved with their collection and take precedence over the selected environment and workspace values. Imported environments can be switched from the Variables menu; workspace secrets remain stored separately in `.apiclient/.secrets.json`.
 
 ---
 
@@ -339,8 +345,8 @@ A GitHub Actions automated release pipeline is configured in [`.github/workflows
 1. Update version numbers in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
 2. Commit and tag the release:
    ```bash
-   git commit -am "chore: release v0.1.0"
-   git tag v0.1.0
+   git commit -am "chore: release v0.5.0"
+   git tag v0.5.0
    git push origin main --tags
    ```
 3. GitHub Actions will automatically:
