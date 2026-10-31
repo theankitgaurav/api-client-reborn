@@ -4,6 +4,7 @@ export interface KeyValueParam {
   value: string;
   enabled: boolean;
   description?: string;
+  isFile?: boolean;
 }
 
 export interface PlaygroundModel {
@@ -18,7 +19,7 @@ export interface PlaygroundModel {
   bearerToken: string;
   basicUser: string;
   basicPass: string;
-  bodyType: 'none' | 'json' | 'text' | 'urlencoded';
+  bodyType: 'none' | 'json' | 'text' | 'urlencoded' | 'multipart';
   bodyRaw: string;
   bodyUrlencoded: KeyValueParam[];
 }
@@ -40,6 +41,22 @@ export function createDefaultPlayground(): PlaygroundModel {
     bodyRaw: '',
     bodyUrlencoded: [{ id: '1', key: '', value: '', enabled: true }],
   };
+}
+
+function addMultipartField(model: PlaygroundModel, field: string) {
+  const equals = field.indexOf('=');
+  if (equals < 0) return;
+  const rawValue = field.substring(equals + 1);
+  if (model.bodyType !== 'multipart') model.bodyUrlencoded = [];
+  model.bodyType = 'multipart';
+  const isFile = rawValue.startsWith('@') && !rawValue.startsWith('@@');
+  model.bodyUrlencoded.push({
+    id: String(Date.now() + Math.random()),
+    key: field.substring(0, equals),
+    value: isFile ? rawValue.substring(1) : rawValue.startsWith('@@') ? rawValue.substring(1) : rawValue,
+    isFile,
+    enabled: true,
+  });
 }
 
 /**
@@ -165,6 +182,14 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
         model.basicUser = u || '';
         model.basicPass = p || '';
       }
+    } else if (token === '-F' || token === '--form') {
+      if (i + 1 < tokens.length) {
+        addMultipartField(model, tokens[++i]);
+      }
+    } else if (token.startsWith('--form=')) {
+      addMultipartField(model, token.substring('--form='.length));
+    } else if (token.startsWith('-F') && token.length > 2) {
+      addMultipartField(model, token.substring(2));
     } else if (
       token === '-d' ||
       token === '--data' ||
@@ -252,7 +277,7 @@ export function parseCurlToPlayground(rawContent: string): PlaygroundModel {
       }
     }
   } else {
-    model.bodyType = 'none';
+    if (model.bodyType !== 'multipart') model.bodyType = 'none';
   }
 
   // Infer method
@@ -328,6 +353,16 @@ export function serializePlaygroundToCurl(model: PlaygroundModel): string {
         .map((p) => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
         .join('&');
       curlCmdParts.push(`  -d '${dataStr}'`);
+    }
+  } else if (model.bodyType === 'multipart') {
+    const activeParts = model.bodyUrlencoded.filter(
+      (p) => p.enabled && p.key.trim() && (!p.isFile || p.value.trim())
+    );
+    for (const part of activeParts) {
+      const formValue = part.isFile ? `@${part.value}` : part.value.startsWith('@') ? `@${part.value}` : part.value;
+      const escaped = formValue.replace(/'/g, "'\\''");
+      const escapedKey = part.key.replace(/'/g, "'\\''");
+      curlCmdParts.push(`  -F '${escapedKey}=${escaped}'`);
     }
   } else if (model.bodyType === 'text' && model.bodyRaw.trim()) {
     const escaped = model.bodyRaw.replace(/'/g, "'\\''");

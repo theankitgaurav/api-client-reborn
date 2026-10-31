@@ -8,9 +8,50 @@
     Clock,
     HardDrive,
     AlertTriangle,
+    Download,
   } from '$lib/components/icons';
 
   let copied = $state(false);
+
+  function downloadFilename() {
+    const disposition = responseState.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    if (encodedName) {
+      try {
+        return safeFilename(decodeURIComponent(encodedName.trim().replace(/^"|"$/g, '')));
+      } catch { /* use plain filename */ }
+    }
+    const plainName = disposition.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
+    return safeFilename(plainName?.[1] || plainName?.[2] || 'download');
+  }
+
+  function safeFilename(value: string) {
+    const basename = value.trim().split(/[\\/]/).pop()?.replace(/[\u0000-\u001f]/g, '');
+    return basename || 'download';
+  }
+
+  function responseIsFile() {
+    const disposition = responseState.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
+    if (/attachment/i.test(disposition) || /filename\s*\*?=/i.test(disposition)) return true;
+    const contentType = responseState.headers.find((header) => header.key.toLowerCase() === 'content-type')?.value.toLowerCase() || '';
+    if (!contentType) return false;
+    return !(/^(text\/|application\/(json|[^;]*xml|javascript|x-www-form-urlencoded)|image\/svg\+xml)/i.test(contentType));
+  }
+
+  async function saveResponseFile() {
+    const filename = downloadFilename();
+    try {
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const path = await save({ defaultPath: filename });
+        if (path) await responseState.exportStream(path);
+      } else {
+        await responseState.exportStream(filename);
+      }
+    } catch (error) {
+      alert(`Could not save response file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   // Sync response when switching tabs
   $effect(() => {
@@ -164,7 +205,17 @@
             </span>
           </div>
         {/if}
-        <div class="px-3 py-1 bg-[#f9f9fb] dark:bg-[#181818] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex justify-end">
+        <div class="px-3 py-1 bg-[#f9f9fb] dark:bg-[#181818] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex justify-end gap-3">
+          {#if responseIsFile() && responseState.status && !responseState.isExecuting && responseState.spoolFilePath}
+            <button
+              onclick={saveResponseFile}
+              title="Save response as file"
+              class="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
+            >
+              <Download size={12} />
+              <span>Save {downloadFilename()}</span>
+            </button>
+          {/if}
           <button
             onclick={copyBody}
             title="Copy Response Body"

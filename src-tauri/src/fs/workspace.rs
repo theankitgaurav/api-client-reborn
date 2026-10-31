@@ -57,6 +57,7 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
     ("create_user.curl", include_str!("../../../examples/create_user.curl")),
     ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
     ("methods/put_user.curl", include_str!("../../../examples/methods/put_user.curl")),
+    ("methods/file_upload.curl", include_str!("../../../examples/methods/file_upload.curl")),
     ("methods/patch_user.curl", include_str!("../../../examples/methods/patch_user.curl")),
     ("methods/delete_user.curl", include_str!("../../../examples/methods/delete_user.curl")),
     ("methods/head_request.curl", include_str!("../../../examples/methods/head_request.curl")),
@@ -66,6 +67,7 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
     ("responses/status_404.curl", include_str!("../../../examples/responses/status_404.curl")),
     ("responses/inspect_redirect.curl", include_str!("../../../examples/responses/inspect_redirect.curl")),
     ("responses/follow_redirect.curl", include_str!("../../../examples/responses/follow_redirect.curl")),
+    ("responses/download_file.curl", include_str!("../../../examples/responses/download_file.curl")),
     ("responses/timeout_test.curl", include_str!("../../../examples/responses/timeout_test.curl")),
     (
         "scripting/pre_post_scripts.curl",
@@ -333,7 +335,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(count_requests(children), 19, "Expected all manual test requests in examples folder");
+        assert_eq!(count_requests(children), 21, "Expected all manual test requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));

@@ -79,6 +79,34 @@ let mockWorkspaceTree: WorkspaceFileItem[] = [
         display_name: 'Stream Live SSE Events',
         method: 'GET',
       },
+      {
+        name: 'methods',
+        path: '/examples/methods',
+        is_dir: true,
+        children: [
+          {
+            name: 'file_upload.curl',
+            path: '/examples/methods/file_upload.curl',
+            is_dir: false,
+            display_name: 'Multipart File Upload',
+            method: 'POST',
+          },
+        ],
+      },
+      {
+        name: 'responses',
+        path: '/examples/responses',
+        is_dir: true,
+        children: [
+          {
+            name: 'download_file.curl',
+            path: '/examples/responses/download_file.curl',
+            is_dir: false,
+            display_name: 'Download File Response',
+            method: 'GET',
+          },
+        ],
+      },
     ],
   },
 ];
@@ -186,6 +214,24 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
       metadata: {
         name: 'Create User Profile',
         timeout_ms: 15000,
+      },
+    };
+  } else if (path.includes('download_file')) {
+    return {
+      path,
+      raw_content: `# @name Download File Response\n# @description Requests an attachment response from httpbin. After sending, use Save in the response Body panel to download the response as httpbin-download.json.\n# @timeout 30000\n\ncurl -X GET "https://httpbin.org/response-headers?Content-Disposition=attachment%3B%20filename%3Dhttpbin-download.json" \\\n  -H "Accept: application/json"`,
+      metadata: {
+        name: 'Download File Response',
+        timeout_ms: 30000,
+      },
+    };
+  } else if (path.includes('file_upload')) {
+    return {
+      path,
+      raw_content: `# @name Multipart File Upload\n# @description Uploads a selected local file and a text field to httpbin. In Body, click Choose file for the attachment field, select a file, then send. The response echoes the uploaded file details.\n# @timeout 30000\n\ncurl -X POST "https://httpbin.org/post" \\\n  -F 'note=Uploaded from API Client Reborn' \\\n  -F 'attachment=@'`,
+      metadata: {
+        name: 'Multipart File Upload',
+        timeout_ms: 30000,
       },
     };
   } else if (path.includes('stream_events')) {

@@ -1,0 +1,7 @@
+# @name Multipart File Upload
+# @description Uploads a selected local file and a text field to httpbin. In Body, click Choose file for the attachment field, select a file, then send. The response echoes the uploaded file details.
+# @timeout 30000
+
+curl -X POST "https://httpbin.org/post" \
+  -F 'note=Uploaded from API Client Reborn' \
+  -F 'attachment=@'

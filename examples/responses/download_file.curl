@@ -1,0 +1,6 @@
+# @name Download File Response
+# @description Requests an attachment response from httpbin. After sending, use Save in the response Body panel to download the response as httpbin-download.json.
+# @timeout 30000
+
+curl -X GET "https://httpbin.org/response-headers?Content-Disposition=attachment%3B%20filename%3Dhttpbin-download.json" \
+  -H "Accept: application/json"

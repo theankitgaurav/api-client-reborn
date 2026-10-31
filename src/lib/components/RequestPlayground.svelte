@@ -165,6 +165,27 @@
     syncToWorkspace();
   }
 
+  async function chooseFormFile(id: string) {
+    try {
+      let selected: string | null = null;
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const result = await open({ multiple: false });
+        selected = typeof result === 'string' ? result : null;
+      } else {
+        selected = window.prompt('Enter the path to the file to upload:');
+      }
+      if (!selected) return;
+      const field = model.bodyUrlencoded.find((item) => item.id === id);
+      if (!field) return;
+      field.value = selected;
+      field.isFile = true;
+      syncToWorkspace();
+    } catch (error) {
+      alert(`Could not select upload file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   function deleteFormParam(id: string) {
     model.bodyUrlencoded = model.bodyUrlencoded.filter((p) => p.id !== id);
     if (model.bodyUrlencoded.length === 0) addFormParam();
@@ -580,7 +601,7 @@
     {:else if activeTab === 'body'}
       <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <!-- Body Type Radios -->
-        <div class="flex items-center gap-4 mb-2.5 text-xs text-neutral-700 dark:text-neutral-300 select-none">
+        <div class="flex flex-wrap items-center gap-3 mb-2.5 text-xs text-neutral-700 dark:text-neutral-300 select-none">
           <label class="flex items-center gap-1.5 cursor-pointer">
             <input
               type="radio"
@@ -621,6 +642,16 @@
             />
             <span>x-www-form-urlencoded</span>
           </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="radio"
+              value="multipart"
+              bind:group={model.bodyType}
+              onchange={syncToWorkspace}
+              class="accent-blue-600"
+            />
+            <span>form-data / multipart</span>
+          </label>
 
           {#if model.bodyType === 'json'}
             <button
@@ -644,14 +675,14 @@
             spellcheck="false"
             class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
           ></textarea>
-        {:else if model.bodyType === 'urlencoded'}
+        {:else if model.bodyType === 'urlencoded' || model.bodyType === 'multipart'}
           <div class="flex-1 overflow-y-auto">
             <table class="w-full text-left font-mono text-xs">
               <thead>
                 <tr class="text-neutral-400 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
                   <th class="w-8 pb-1.5"></th>
                   <th class="pb-1.5 font-medium">Field</th>
-                  <th class="pb-1.5 font-medium">Value</th>
+                  <th class="pb-1.5 font-medium">{model.bodyType === 'multipart' ? 'Value / File' : 'Value'}</th>
                   <th class="w-8 pb-1.5"></th>
                 </tr>
               </thead>
@@ -677,18 +708,43 @@
                         onblur={handleVarLeave}
                         class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
                       />
+                      {#if model.bodyType === 'multipart'}
+                        <label class="mt-1 inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
+                          <input
+                            type="checkbox"
+                            bind:checked={item.isFile}
+                            onchange={() => { if (item.isFile) void chooseFormFile(item.id); else { item.value = ''; syncToWorkspace(); } }}
+                            class="rounded accent-blue-600"
+                          />
+                          File upload
+                        </label>
+                      {/if}
                     </td>
                     <td class="py-1 pr-2">
-                      <input
-                        type="text"
-                        placeholder="value"
-                        bind:value={item.value}
-                        oninput={syncToWorkspace}
-                        onmousemove={(e) => handleVarHover(e, item.value)}
-                        onmouseleave={handleVarLeave}
-                        onblur={handleVarLeave}
-                        class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
-                      />
+                      {#if model.bodyType === 'multipart' && item.isFile}
+                        <div class="flex items-center gap-2">
+                          <button
+                            onclick={() => chooseFormFile(item.id)}
+                            class="shrink-0 rounded border border-neutral-300 dark:border-neutral-700 px-2 py-1 text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                          >
+                            {item.value ? 'Choose another file' : 'Choose file…'}
+                          </button>
+                          <span class="truncate text-[11px] text-neutral-500" title={item.value}>
+                            {item.value || 'No file selected'}
+                          </span>
+                        </div>
+                      {:else}
+                        <input
+                          type="text"
+                          placeholder="value"
+                          bind:value={item.value}
+                          oninput={syncToWorkspace}
+                          onmousemove={(e) => handleVarHover(e, item.value)}
+                          onmouseleave={handleVarLeave}
+                          onblur={handleVarLeave}
+                          class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                        />
+                      {/if}
                     </td>
                     <td class="py-1 text-center">
                       <button

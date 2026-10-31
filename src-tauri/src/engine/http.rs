@@ -6,6 +6,7 @@ use crate::parser::curl::{BasicAuth, HeaderPair, HttpMethod, ParsedCurlRequest};
 use futures_util::StreamExt;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::redirect::Policy;
+use std::path::Path;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
@@ -71,6 +72,10 @@ pub async fn execute_http_request(
             headers.insert(h_name, h_val);
         }
     }
+    if !parsed.form_fields.is_empty() {
+        // reqwest must add the multipart boundary to Content-Type itself.
+        headers.remove(reqwest::header::CONTENT_TYPE);
+    }
     request_builder = request_builder.headers(headers);
 
     // Basic Auth
@@ -79,7 +84,64 @@ pub async fn execute_http_request(
     }
 
     // Body
-    if let Some(body_text) = parsed.body {
+    if !parsed.form_fields.is_empty() {
+        let mut form = reqwest::multipart::Form::new();
+        for field in parsed.form_fields {
+            if let Some(file_path) = field.file_path {
+                let metadata = match tokio::fs::metadata(&file_path).await {
+                    Ok(metadata) => metadata,
+                    Err(error) => {
+                        let message = format!(
+                            "Could not access upload file '{}': {}",
+                            file_path, error
+                        );
+                        let _ = channel.send(ResponseChunk::Failed {
+                            error: message.clone(),
+                        });
+                        return Err(AppError::FsError(message));
+                    }
+                };
+                if !metadata.is_file() {
+                    let message = format!("Upload path is not a file: '{}'.", file_path);
+                    let _ = channel.send(ResponseChunk::Failed {
+                        error: message.clone(),
+                    });
+                    return Err(AppError::FsError(message));
+                }
+                let file = match tokio::fs::File::open(&file_path).await {
+                    Ok(file) => file,
+                    Err(error) => {
+                        let message = format!(
+                            "Could not open upload file '{}': {}",
+                            file_path, error
+                        );
+                        let _ = channel.send(ResponseChunk::Failed {
+                            error: message.clone(),
+                        });
+                        return Err(AppError::FsError(message));
+                    }
+                };
+                let file_name = Path::new(&file_path)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("upload.bin")
+                    .to_string();
+                form = form.part(
+                    field.name,
+                    reqwest::multipart::Part::stream_with_length(
+                        reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)),
+                        metadata.len(),
+                    )
+                    .file_name(file_name)
+                    .mime_str("application/octet-stream")
+                    .expect("static MIME type is valid"),
+                );
+            } else {
+                form = form.text(field.name, field.value);
+            }
+        }
+        request_builder = request_builder.multipart(form);
+    } else if let Some(body_text) = parsed.body {
         request_builder = request_builder.body(body_text);
     }
 
@@ -94,7 +156,16 @@ pub async fn execute_http_request(
             return Err(AppError::Cancelled);
         }
         res = send_future => {
-            res.map_err(|e| AppError::NetworkError(e.to_string()))?
+            match res {
+                Ok(response) => response,
+                Err(error) => {
+                    let message = error.to_string();
+                    let _ = channel.send(ResponseChunk::Failed {
+                        error: message.clone(),
+                    });
+                    return Err(AppError::NetworkError(message));
+                }
+            }
         }
     };
 

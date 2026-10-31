@@ -62,12 +62,21 @@ pub struct BasicAuth {
     pub password: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FormField {
+    pub name: String,
+    pub value: String,
+    pub file_path: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ParsedCurlRequest {
     pub method: HttpMethod,
     pub url: String,
     pub headers: Vec<HeaderPair>,
     pub body: Option<String>,
+    #[serde(default)]
+    pub form_fields: Vec<FormField>,
     pub basic_auth: Option<BasicAuth>,
     pub timeout_ms: Option<u64>,
     pub follow_redirects: bool,
@@ -83,6 +92,7 @@ impl Default for ParsedCurlRequest {
             url: String::new(),
             headers: Vec::new(),
             body: None,
+            form_fields: Vec::new(),
             basic_auth: None,
             timeout_ms: Some(30000), // 30s default
             follow_redirects: true,
@@ -112,6 +122,7 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
     let mut url: Option<String> = None;
     let mut headers = Vec::new();
     let mut body_parts = Vec::new();
+    let mut form_fields = Vec::new();
     let mut basic_auth = None;
     let mut timeout_ms = None;
     let mut follow_redirects = false;
@@ -145,6 +156,20 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
                 if let Some(data) = iter.next() {
                     body_parts.push(data);
                 }
+            }
+
+            "-F" | "--form" => {
+                if let Some(field) = iter.next() {
+                    push_form_field(&mut form_fields, &field);
+                }
+            }
+
+            token if token.starts_with("--form=") => {
+                push_form_field(&mut form_fields, &token[7..]);
+            }
+
+            token if token.starts_with("-F") && token.len() > 2 => {
+                push_form_field(&mut form_fields, &token[2..]);
             }
 
             // User / Basic Auth
@@ -247,7 +272,7 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
     let method = match explicit_method {
         Some(m) => m,
         None => {
-            if body.is_some() {
+            if body.is_some() || !form_fields.is_empty() {
                 HttpMethod::POST
             } else {
                 HttpMethod::GET
@@ -260,6 +285,7 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
         url,
         headers,
         body,
+        form_fields,
         basic_auth,
         timeout_ms: timeout_ms.or(Some(30000)),
         follow_redirects,
@@ -267,6 +293,23 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
         proxy,
         unsupported_flags,
     })
+}
+
+fn push_form_field(form_fields: &mut Vec<FormField>, field: &str) {
+    if let Some((name, value)) = field.split_once('=') {
+        let (value, file_path) = if let Some(text) = value.strip_prefix("@@") {
+            (format!("@{}", text), None)
+        } else if let Some(path) = value.strip_prefix('@') {
+            (String::new(), Some(path.to_string()))
+        } else {
+            (value.to_string(), None)
+        };
+        form_fields.push(FormField {
+            name: name.to_string(),
+            value,
+            file_path,
+        });
+    }
 }
 
 #[cfg(test)]
