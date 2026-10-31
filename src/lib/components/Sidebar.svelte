@@ -28,6 +28,7 @@
   let activeSidebarTab = $state<'requests' | 'history'>('requests');
   let showNewRequestMenu = $state(false);
   let collapsedFolderPaths = $state<string[]>([]);
+  let hasInitializedFolderDefaults = false;
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
   let isDeletingItem = $state(false);
 
@@ -83,6 +84,14 @@
 
   $effect(() => {
     void historyState.load(workspaceState.workspacePath);
+  });
+
+  $effect(() => {
+    const tree = workspaceState.tree;
+    if (hasInitializedFolderDefaults || tree.length === 0) return;
+    const examplesFolder = tree.find((item) => item.is_dir && item.name.toLowerCase() === 'examples');
+    if (examplesFolder) collapsedFolderPaths = [examplesFolder.path];
+    hasInitializedFolderDefaults = true;
   });
 
   function getBadgeClass(method?: string, kind?: string) {
@@ -301,7 +310,7 @@
           ▾
         </button>
         {#if showNewRequestMenu}
-          <div role="menu" class="absolute right-0 top-full z-30 mt-1 min-w-40 rounded border border-neutral-200 dark:border-[#3a3a3a] bg-white dark:bg-[#252526] p-1 shadow-lg">
+          <div role="menu" class="absolute left-0 top-full z-30 mt-1 min-w-40 rounded border border-neutral-200 dark:border-[#3a3a3a] bg-white dark:bg-[#252526] p-1 shadow-lg">
             <button
               type="button"
               role="menuitem"
