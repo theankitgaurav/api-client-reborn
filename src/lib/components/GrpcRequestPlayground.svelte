@@ -37,7 +37,7 @@
     isDiscovering = true;
     discoverError = '';
     try {
-      services = await discoverGrpcServices(config);
+      services = await discoverGrpcServices(config, workspaceState.workspacePath);
       if (!services.some((service) => service.name === config.service)) {
         config.service = '';
         config.method = '';

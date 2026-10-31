@@ -223,12 +223,21 @@ async fn reflect_request(channel: GrpcChannel, request: tonic_reflection::pb::v1
         .ok_or_else(|| AppError::NetworkError("gRPC reflection returned no response".into()))
 }
 
-async fn descriptor_pool_from_proto(proto_file: &str) -> Result<DescriptorPool> {
-    let proto_file = proto_file.to_string();
+async fn descriptor_pool_from_proto(proto_file: &str, workspace_root: Option<&Path>) -> Result<DescriptorPool> {
+    let requested_file = PathBuf::from(proto_file.trim());
+    let proto_file = if requested_file.is_absolute() {
+        requested_file
+    } else if let Some(root) = workspace_root {
+        let workspace_file = root.join(&requested_file);
+        if workspace_file.is_file() { workspace_file } else { requested_file }
+    } else {
+        requested_file
+    };
     tokio::task::spawn_blocking(move || {
-        let file = PathBuf::from(&proto_file);
+        let file = proto_file;
+        let display_path = file.to_string_lossy().to_string();
         if !file.is_file() {
-            return Err(AppError::FsError(format!("Proto file not found: {proto_file}")));
+            return Err(AppError::FsError(format!("Proto file not found: {display_path}")));
         }
         let include = file.parent().unwrap_or(Path::new("."));
         let fds = protox::compile([file.as_path()], [include])
@@ -261,9 +270,9 @@ async fn reflection_pool(channel: GrpcChannel, symbol: &str) -> Result<Descripto
         .map_err(|e| AppError::InternalError(format!("Invalid reflected descriptors: {e}")))
 }
 
-async fn load_pool(config: &GrpcRequestConfig, channel: GrpcChannel) -> Result<DescriptorPool> {
+async fn load_pool(config: &GrpcRequestConfig, channel: GrpcChannel, workspace_root: Option<&Path>) -> Result<DescriptorPool> {
     if let Some(proto) = config.proto_file.as_deref().filter(|p| !p.trim().is_empty()) {
-        return descriptor_pool_from_proto(proto).await;
+        return descriptor_pool_from_proto(proto, workspace_root).await;
     }
     if !config.use_reflection {
         return Err(AppError::InternalError("Select a .proto file or enable server reflection".into()));
@@ -352,7 +361,7 @@ async fn run_call(
     };
     let pool = tokio::select! {
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
-        result = load_pool(&config, conn.clone()) => result?,
+        result = load_pool(&config, conn.clone(), workspace_root) => result?,
     };
     let method = find_method(&pool, &config.service, &config.method)?;
     let raw_json = std::mem::take(&mut config.request_json);
@@ -496,9 +505,9 @@ pub async fn execute_grpc_request(
     }
 }
 
-pub async fn discover_grpc_services(config: GrpcRequestConfig) -> Result<Vec<GrpcServiceInfo>> {
+pub async fn discover_grpc_services(config: GrpcRequestConfig, workspace_root: Option<&Path>) -> Result<Vec<GrpcServiceInfo>> {
     let pool = if let Some(proto) = config.proto_file.as_deref().filter(|p| !p.trim().is_empty()) {
-        descriptor_pool_from_proto(proto).await?
+        descriptor_pool_from_proto(proto, workspace_root).await?
     } else {
         let channel = connect(&config).await?;
         use tonic_reflection::pb::v1::server_reflection_request::MessageRequest;

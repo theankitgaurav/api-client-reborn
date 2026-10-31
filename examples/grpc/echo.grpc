@@ -1,0 +1,14 @@
+{
+  "name": "gRPC Echo (Local Demo)",
+  "endpoint": "http://127.0.0.1:50051",
+  "service": "demo.DemoService",
+  "method": "Echo",
+  "request_json": "{\n  \"message\": \"hello from API Client Reborn\",\n  \"count\": 1\n}",
+  "metadata": [],
+  "proto_file": null,
+  "use_reflection": true,
+  "tls_enabled": false,
+  "tls_insecure": false,
+  "tls_ca_file": null,
+  "timeout_ms": 30000
+}

@@ -47,6 +47,10 @@ const DEFAULT_PROD_ENV: &str = r#"{
 const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description Connects to a public SSE demo. Let a few events arrive, then press Cancel to close the live stream.\n# @timeout 60000\n\ncurl -N \"https://sse.dev/test\" \\\n  -H \"Accept: text/event-stream\"\n";
 
 const STARTER_EXAMPLES: &[(&str, &str)] = &[
+    ("grpc/demo.proto", include_str!("../../../examples/grpc/demo.proto")),
+    ("grpc/echo.grpc", include_str!("../../../examples/grpc/echo.grpc")),
+    ("grpc/watch_stream.grpc", include_str!("../../../examples/grpc/watch_stream.grpc")),
+    ("grpc/echo_local_proto.grpc", include_str!("../../../examples/grpc/echo_local_proto.grpc")),
     ("get_users.curl", include_str!("../../../examples/get_users.curl")),
     ("create_user.curl", include_str!("../../../examples/create_user.curl")),
     ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
@@ -288,7 +292,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(count_requests(children), 16, "Expected all manual test requests in examples folder");
+        assert_eq!(count_requests(children), 19, "Expected all manual test requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));

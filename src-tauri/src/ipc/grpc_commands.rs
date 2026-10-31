@@ -7,8 +7,9 @@ use tauri::ipc::Channel;
 use tauri::State;
 
 #[tauri::command]
-pub async fn discover_grpc_services(config: GrpcRequestConfig) -> Result<Vec<GrpcServiceInfo>> {
-    discover(config).await
+pub async fn discover_grpc_services(config: GrpcRequestConfig, workspace_path: Option<String>) -> Result<Vec<GrpcServiceInfo>> {
+    let root = workspace_path.map(PathBuf::from);
+    discover(config, root.as_deref()).await
 }
 
 #[tauri::command]

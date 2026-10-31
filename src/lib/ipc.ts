@@ -353,10 +353,10 @@ export async function executeRequest(
   }, 120);
 }
 
-export async function discoverGrpcServices(config: GrpcRequestConfig): Promise<GrpcServiceInfo[]> {
+export async function discoverGrpcServices(config: GrpcRequestConfig, workspacePath: string): Promise<GrpcServiceInfo[]> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
-    return invoke('discover_grpc_services', { config });
+    return invoke('discover_grpc_services', { config, workspacePath });
   }
   return [];
 }

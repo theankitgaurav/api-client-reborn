@@ -1,0 +1,19 @@
+syntax = "proto3";
+package demo;
+
+service DemoService {
+  rpc Echo (EchoRequest) returns (EchoResponse);
+  rpc Watch (EchoRequest) returns (stream EchoResponse);
+  rpc Collect (stream EchoRequest) returns (EchoResponse);
+  rpc Chat (stream EchoRequest) returns (stream EchoResponse);
+}
+
+message EchoRequest {
+  string message = 1;
+  int32 count = 2;
+}
+
+message EchoResponse {
+  string message = 1;
+  int32 sequence = 2;
+}

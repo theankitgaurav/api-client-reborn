@@ -1,0 +1,14 @@
+{
+  "name": "gRPC Watch (Server Streaming)",
+  "endpoint": "http://127.0.0.1:50051",
+  "service": "demo.DemoService",
+  "method": "Watch",
+  "request_json": "{\n  \"message\": \"update\",\n  \"count\": 5\n}",
+  "metadata": [],
+  "proto_file": null,
+  "use_reflection": true,
+  "tls_enabled": false,
+  "tls_insecure": false,
+  "tls_ca_file": null,
+  "timeout_ms": 30000
+}
