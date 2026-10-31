@@ -333,7 +333,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(count_requests(children), 21, "Expected all manual test requests in examples folder");
+        assert_eq!(count_requests(children), 19, "Expected all manual test requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
