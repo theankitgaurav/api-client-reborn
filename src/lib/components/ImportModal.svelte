@@ -3,6 +3,7 @@
   import { envState } from '$lib/state/env.svelte';
   import { importCollectionBundle } from '$lib/ipc';
   import { parsePostmanCollection, type PostmanImportResult } from '$lib/utils/postman-importer';
+  import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
   import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
 
   let rawInput = $state('');
@@ -93,8 +94,24 @@
           totalRequests: 1,
           totalFolders: 1,
         };
+      } else if (/\bgrpcurl(?:\.exe)?\b/i.test(content)) {
+        const imported = parseGrpcurlCommand(content);
+        const slug = imported.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'grpc_request';
+        parseResult = {
+          collectionName: 'Imported Requests',
+          items: [
+            {
+              relativePath: `imported/${slug}.grpc`,
+              content: `${JSON.stringify(imported.config, null, 2)}\n`,
+              name: imported.name,
+            },
+          ],
+          variables: [],
+          totalRequests: 1,
+          totalFolders: 1,
+        };
       } else {
-        parseError = 'Unrecognized format. Please provide a Postman Collection JSON or cURL command.';
+        parseError = 'Unrecognized format. Please provide a Postman Collection JSON, cURL command, or grpcurl command.';
       }
     } catch (e) {
       parseError = `Failed to parse import content: ${e instanceof Error ? e.message : String(e)}`;
@@ -222,14 +239,14 @@
           <!-- Text Input -->
           <div>
             <label for="raw-import-text" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1.5">
-              Paste Postman Collection JSON or cURL command:
+              Paste Postman Collection JSON, cURL command, or grpcurl command:
             </label>
             <textarea
               id="raw-import-text"
               rows={6}
               bind:value={rawInput}
               oninput={(e) => processInput((e.target as HTMLTextAreaElement).value)}
-              placeholder="Paste JSON or cURL string here..."
+              placeholder="Paste JSON, cURL, or grpcurl command here..."
               class="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded p-2.5 font-mono text-[11px] text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
             ></textarea>
           </div>
