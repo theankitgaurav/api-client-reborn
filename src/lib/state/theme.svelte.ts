@@ -1,7 +1,7 @@
 export type ThemeMode = 'dark' | 'light' | 'system';
 
 export class ThemeState {
-  mode = $state<ThemeMode>('dark');
+  mode = $state<ThemeMode>('system');
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -29,13 +29,11 @@ export class ThemeState {
   }
 
   toggle() {
-    if (this.mode === 'dark') {
-      this.setMode('light');
-    } else if (this.mode === 'light') {
-      this.setMode('dark');
-    } else {
-      this.setMode('dark');
+    if (this.mode === 'system') {
+      this.setMode(this.isDark() ? 'light' : 'dark');
+      return;
     }
+    this.setMode(this.mode === 'dark' ? 'light' : 'dark');
   }
 
   isDark(): boolean {
