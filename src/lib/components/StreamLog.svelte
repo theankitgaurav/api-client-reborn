@@ -1,11 +1,10 @@
 <script lang="ts">
   import { responseState } from '$lib/state/response.svelte';
-  import { Radio, Copy, Check, Trash2, Download } from '$lib/components/icons';
+  import { Radio, Copy, Check, Trash2 } from '$lib/components/icons';
 
   let copiedIndex = $state<number | null>(null);
   let autoScroll = $state(true);
   let scrollContainer: HTMLDivElement | null = $state(null);
-  let isExporting = $state(false);
 
   function copyData(data: string, index: number) {
     navigator.clipboard.writeText(data);
@@ -17,18 +16,6 @@
 
   function clearStream() {
     responseState.streamMessages = [];
-  }
-
-  async function handleExportStream() {
-    const defaultName = 'stream_export.bin';
-    const destination = prompt('Enter export destination path (or filename):', defaultName);
-    if (!destination) return;
-    isExporting = true;
-    try {
-      await responseState.exportStream(destination);
-    } finally {
-      isExporting = false;
-    }
   }
 
   // Auto-scroll to bottom on new messages if autoScroll is enabled
@@ -57,18 +44,6 @@
     </div>
 
     <div class="flex items-center gap-2">
-      {#if responseState.totalBytes > 0}
-        <button
-          onclick={handleExportStream}
-          disabled={isExporting}
-          title="Export full streamed data to disk"
-          class="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-white dark:bg-[#2a2a2a] border border-[#d2d2d7] dark:border-[#404040] hover:bg-neutral-100 dark:hover:bg-[#333] text-neutral-700 dark:text-neutral-200 transition-colors shadow-sm"
-        >
-          <Download size={11} class="text-blue-500" />
-          <span>{isExporting ? 'Exporting...' : 'Export'}</span>
-        </button>
-      {/if}
-
       <label class="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400 cursor-pointer select-none">
         <input type="checkbox" bind:checked={autoScroll} class="rounded bg-white dark:bg-[#2a2a2a] border-neutral-300 dark:border-[#444] text-blue-600" />
         <span>Auto-scroll</span>
@@ -90,12 +65,6 @@
       <span>
         ⚡ High-volume stream: displaying latest <strong>{responseState.streamMessages.length}</strong> of <strong>{responseState.totalEventsCount.toLocaleString()}</strong> events (memory defense active).
       </span>
-      <button
-        onclick={handleExportStream}
-        class="font-semibold underline hover:text-blue-900 dark:hover:text-white"
-      >
-        Export Full Stream
-      </button>
     </div>
   {/if}
 

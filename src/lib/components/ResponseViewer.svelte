@@ -8,23 +8,9 @@
     Clock,
     HardDrive,
     AlertTriangle,
-    Download,
   } from '$lib/components/icons';
 
   let copied = $state(false);
-  let isExporting = $state(false);
-
-  async function handleExportStream() {
-    const defaultName = 'stream_export.bin';
-    const destination = prompt('Enter export destination path (or filename):', defaultName);
-    if (!destination) return;
-    isExporting = true;
-    try {
-      await responseState.exportStream(destination);
-    } finally {
-      isExporting = false;
-    }
-  }
 
   // Sync response when switching tabs
   $effect(() => {
@@ -168,7 +154,7 @@
     {#if responseState.activeTab === 'body'}
       <div class="h-full flex flex-col">
         {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}
-          <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-center justify-between">
+          <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-200">
             <span>
               {#if responseState.isBodyTruncated}
                 ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
@@ -176,14 +162,6 @@
                 Full streaming response is saved to disk ({formatBytes(responseState.totalBytes)}).
               {/if}
             </span>
-            <button
-              onclick={handleExportStream}
-              disabled={isExporting || responseState.isExecuting || !responseState.spoolFilePath}
-              class="font-semibold underline hover:text-amber-950 dark:hover:text-white flex items-center gap-1"
-            >
-              <Download size={11} />
-              <span>{isExporting ? 'Exporting...' : 'Export Full Response'}</span>
-            </button>
           </div>
         {/if}
         <div class="px-3 py-1 bg-[#f9f9fb] dark:bg-[#181818] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex justify-end">
