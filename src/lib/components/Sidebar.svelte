@@ -248,14 +248,14 @@
 <svelte:window onclick={handleWindowClick} />
 
 <aside class="w-64 bg-[#fbfbfd] dark:bg-[#181818] border-r border-[#d8d8dc] dark:border-[#2d2d2d] flex flex-col h-full select-none text-xs transition-colors">
-  <div class="px-2 pt-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
-    <div class="flex divide-x divide-neutral-200 dark:divide-[#303030] overflow-hidden rounded-md border border-neutral-200 dark:border-[#303030] bg-neutral-100 dark:bg-[#202020]">
+  <div class="pt-2">
+    <div class="flex w-full">
       <button
         type="button"
         onclick={() => (activeSidebarTab = 'requests')}
-        class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium transition-colors {activeSidebarTab === 'requests'
-          ? 'bg-white dark:bg-[#303030] text-neutral-900 dark:text-white'
-          : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200/70 dark:hover:bg-[#282828] hover:text-neutral-800 dark:hover:text-neutral-200'}"
+        class="flex-1 flex items-center justify-center gap-1 px-2 py-2 border-b-2 text-[11px] font-medium transition-colors {activeSidebarTab === 'requests'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         <span>Requests</span>
         <span class="text-[9px] font-mono">{countRequests(workspaceState.tree)}</span>
@@ -263,9 +263,9 @@
       <button
         type="button"
         onclick={() => (activeSidebarTab = 'history')}
-        class="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium transition-colors {activeSidebarTab === 'history'
-          ? 'bg-white dark:bg-[#303030] text-neutral-900 dark:text-white'
-          : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200/70 dark:hover:bg-[#282828] hover:text-neutral-800 dark:hover:text-neutral-200'}"
+        class="flex-1 flex items-center justify-center gap-1 px-2 py-2 border-b-2 text-[11px] font-medium transition-colors {activeSidebarTab === 'history'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         <Clock size={11} />
         <span>History</span>
