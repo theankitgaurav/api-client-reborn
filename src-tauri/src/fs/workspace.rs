@@ -51,6 +51,7 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
     ("grpc/echo.grpc", include_str!("../../../examples/grpc/echo.grpc")),
     ("grpc/watch_stream.grpc", include_str!("../../../examples/grpc/watch_stream.grpc")),
     ("grpc/echo_local_proto.grpc", include_str!("../../../examples/grpc/echo_local_proto.grpc")),
+    ("grpc/collect_100k_client_stream.grpc", include_str!("../../../examples/grpc/collect_100k_client_stream.grpc")),
     ("get_users.curl", include_str!("../../../examples/get_users.curl")),
     ("create_user.curl", include_str!("../../../examples/create_user.curl")),
     ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
@@ -292,7 +293,7 @@ mod tests {
         assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(count_requests(children), 19, "Expected all manual test requests in examples folder");
+        assert_eq!(count_requests(children), 20, "Expected all manual test requests in examples folder");
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
