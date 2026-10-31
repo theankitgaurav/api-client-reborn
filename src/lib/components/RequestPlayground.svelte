@@ -25,7 +25,7 @@
   } from '$lib/components/icons';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
 
-  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'raw'>('params');
+  let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts'>('params');
   let scriptSubTab = $state<'pre' | 'post'>('pre');
   let preRequestScript = $state('');
   let postResponseScript = $state('');
@@ -33,7 +33,6 @@
   let copyResetTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
-  let rawEditMode = $state(false);
 
   let isMac = $derived(shortcutsState.isMac);
 
@@ -53,13 +52,12 @@
       model = parseCurlToPlayground(tab.rawContent);
       preRequestScript = tab.sidecar?.pre_request_script || '';
       postResponseScript = tab.sidecar?.post_response_script || '';
-      rawEditMode = false;
     }
   });
 
-  // Re-serialize back to workspace raw_content whenever model changes in playground mode
+  // Re-serialize back to workspace raw_content whenever the request model changes
   function syncToWorkspace() {
-    if (!rawEditMode && workspaceState.activeTab) {
+    if (workspaceState.activeTab) {
       const serialized = serializePlaygroundToCurl(model);
       workspaceState.updateContent(serialized, model.method, model.name);
     }
@@ -432,14 +430,6 @@
       {/if}
     </button>
 
-    <button
-      onclick={() => (activeTab = 'raw')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'raw'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
-    >
-      Raw cURL
-    </button>
   </div>
 
   <!-- Tab Content Body -->
@@ -939,23 +929,6 @@
         </div>
       </div>
 
-    <!-- 6. RAW cURL TAB -->
-    {:else if activeTab === 'raw'}
-      <div class="flex-1 flex flex-col p-3 overflow-hidden">
-        <textarea
-          value={workspaceState.activeFile?.raw_content || ''}
-          oninput={(e) => {
-            rawEditMode = true;
-            workspaceState.updateContent((e.target as HTMLTextAreaElement).value);
-          }}
-          onmousemove={(e) => handleVarHover(e, workspaceState.activeFile?.raw_content || '')}
-          onmouseleave={handleVarLeave}
-          onscroll={handleVarLeave}
-          onblur={handleVarLeave}
-          spellcheck="false"
-          class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
-        ></textarea>
-      </div>
     {/if}
   </div>
 
