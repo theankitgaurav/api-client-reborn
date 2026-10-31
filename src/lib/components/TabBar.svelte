@@ -85,7 +85,7 @@
             workspaceState.closeTab(tab.id);
           }}
           title="Close Tab ({isMac ? '⌘W' : 'Ctrl+W'})"
-          class="p-0.5 rounded text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''}"
+          class="p-0.5 rounded text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors opacity-0 group-hover:opacity-100 {isActive ? 'opacity-100' : ''} {isMac ? 'order-first' : 'order-last'}"
         >
           <X size={11} />
         </button>

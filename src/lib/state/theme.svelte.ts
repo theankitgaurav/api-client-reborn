@@ -2,6 +2,8 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 
 export class ThemeState {
   mode = $state<ThemeMode>('system');
+  systemIsDark = $state(false);
+  private mediaQuery: MediaQueryList | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -9,16 +11,19 @@ export class ThemeState {
       if (saved && (saved === 'dark' || saved === 'light' || saved === 'system')) {
         this.mode = saved;
       }
-      this.applyTheme();
+      this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      this.systemIsDark = this.mediaQuery.matches;
+      this.mediaQuery.addEventListener('change', (event) => {
+        this.systemIsDark = event.matches;
+        if (this.mode === 'system') this.applyTheme();
+      });
 
-      // Listen to OS scheme changes
-      window
-        .matchMedia('(prefers-color-scheme: dark)')
-        .addEventListener('change', () => {
-          if (this.mode === 'system') {
-            this.applyTheme();
-          }
-        });
+      // WebViews may miss an appearance event while suspended; resync on return.
+      window.addEventListener('focus', () => this.syncSystemTheme());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this.syncSystemTheme();
+      });
+      this.applyTheme();
     }
   }
 
@@ -36,13 +41,26 @@ export class ThemeState {
     this.setMode(this.mode === 'dark' ? 'light' : 'dark');
   }
 
+  cycleMode() {
+    const nextMode: Record<ThemeMode, ThemeMode> = {
+      system: 'light',
+      light: 'dark',
+      dark: 'system',
+    };
+    this.setMode(nextMode[this.mode]);
+  }
+
+  private syncSystemTheme() {
+    if (!this.mediaQuery) return;
+    const isDark = this.mediaQuery.matches;
+    if (isDark !== this.systemIsDark) this.systemIsDark = isDark;
+    if (this.mode === 'system') this.applyTheme();
+  }
+
   isDark(): boolean {
     if (this.mode === 'dark') return true;
     if (this.mode === 'light') return false;
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return true;
+    return this.systemIsDark;
   }
 
   applyTheme() {
@@ -53,6 +71,7 @@ export class ThemeState {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   }
 }
 
