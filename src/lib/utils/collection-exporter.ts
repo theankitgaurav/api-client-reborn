@@ -1,6 +1,6 @@
 import type { WorkspaceFileItem } from '../types';
 import { getResolvedCommand } from './curl-generator.ts';
-import { parseGrpcRequest, resolveGrpcVariables, toGrpcurl } from './grpc';
+import { parseGrpcRequest, resolveGrpcVariables, toGrpcurl } from './grpc.ts';
 
 export interface FlattenedRequest {
   path: string;
