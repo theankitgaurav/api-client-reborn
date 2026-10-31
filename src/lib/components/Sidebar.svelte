@@ -276,7 +276,7 @@
 
   {#if activeSidebarTab === 'requests'}
   <!-- Request actions -->
-  <div class="px-2 py-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-start">
+  <div class="px-2 py-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
     <div class="flex items-center gap-1">
       <div class="relative flex" data-new-request-menu>
         <button
@@ -316,7 +316,9 @@
           </div>
         {/if}
       </div>
+    </div>
 
+    <div class="flex items-center gap-1">
       <button
         onclick={handleCreateFolder}
         title="New Folder / Collection"
