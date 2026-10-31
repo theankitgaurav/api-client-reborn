@@ -5,11 +5,11 @@
 <h1 align="center">API Client Reborn</h1>
 
 <p align="center">
-  <strong>The lightweight, native, Git-friendly API client &amp; cURL playground.</strong>
+  <strong>The lightweight, native, Git-friendly HTTP &amp; gRPC API client.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.3.0-blue?style=flat-square" alt="Release v0.3.0" /></a>
+  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.4.1-blue?style=flat-square" alt="Release v0.4.1" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24C8D8?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" /></a>
   <a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust 2021" /></a>
@@ -40,9 +40,9 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 **API Client Reborn** is built on a clean, modern philosophy:
 
 - 🚀 **Blazing Native Performance**: Powered by **Tauri v2** and **Rust** with native OS webviews. Cold startup is virtually instantaneous (<150 ms) and idle memory footprint is just **~35 MB** (instead of 500+ MB on Electron).
-- 💾 **100% Local & Git-Native**: Your API requests are saved as plain, human-readable `.curl` files directly on your filesystem. Version-control requests alongside your code with standard `git commit`, `git diff`, and pull requests.
+- 💾 **100% Local & Git-Native**: HTTP requests use plain `.curl` files and gRPC requests use readable `.grpc` JSON files. Version-control collections alongside your code with standard `git commit`, `git diff`, and pull requests.
 - 🕘 **Persistent Request History**: Every sent request and its response are recorded in `history.json` under the workspace directory (by default `~/.api-client-reborn`) and can be searched in the sidebar.
-- 🐚 **True CLI & cURL Interoperability**: Every request is a 100% valid, runnable command. Copy as cURL, run directly in your terminal, or export complete collections to zero-dependency standalone POSIX shell scripts (`.sh`).
+- 🐚 **True CLI Interoperability**: Copy HTTP requests as cURL and gRPC requests as `grpcurl`. Export collections to POSIX shell scripts; exported gRPC requests require `grpcurl` installed.
 - 🛡️ **Zero Cloud Lock-In & Zero Telemetry**: No mandatory accounts, no cloud sync, no tracking, and no paywalls. Everything executes on your own machine.
 - 🌊 **Streaming & SSE Ready**: First-class support for chunked responses and Server-Sent Events with intelligent sliding-window memory defense and disk spooling for massive payloads.
 
@@ -70,6 +70,13 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 ### 🔌 HTTP Request Engine
 - **Full HTTP/REST Support**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS`.
 
+### 🔌 gRPC Request Engine
+- **Unary and Streaming RPCs**: Send unary, client-streaming, server-streaming, and bidirectional calls with JSON messages and request metadata.
+- **Proto Discovery**: Load services and methods from server reflection or a local `.proto` file. Local proto discovery works without connecting to the server.
+- **TLS Controls**: Use system trust roots or a custom CA, with an explicit option to bypass server certificate validation.
+- **Saved Requests and CLI Copy**: Save requests as `.grpc` files in collection folders and copy them as `grpcurl` commands.
+- **Disk-Spooled Responses**: Streaming response bodies are written to disk, with a bounded response preview in the UI and history and an option to export the full stream.
+
 ### 🌊 Real-Time Streaming & Server-Sent Events (SSE)
 - **Live Event Streamer**: Inspect chunked HTTP streaming endpoints and Server-Sent Events with structured event IDs, types, and payloads.
 - **Sliding Window Memory Defense**: High-frequency streaming endpoints are capped in memory to keep the interface silky smooth.
@@ -90,9 +97,9 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 ### 📦 Postman Collection v2.1 Importer
 - Import your existing Postman collections (v2.1 JSON) in one click. Automatically extracts folder hierarchies, headers, auth configurations, request bodies, and pre/post scripts into clean `.curl` and `.sidecar.json` files.
 
-### 🚀 Zero-Dependency CLI Exporter (`.sh`)
+### 🚀 Collection CLI Exporter (`.sh`)
 - Export collections or folders into a standalone, portable POSIX bash script.
-- Execute your test suite in continuous integration (CI) or remote servers without installing Node.js, Python, or proprietary CLI runners.
+- HTTP requests use cURL; collections with gRPC requests also require `grpcurl`. No Node.js, Python, or proprietary CLI runner is needed.
 
 ### ⌨️ Browser & Vim-Class Keyboard Shortcuts
 - Full keyboard control: create requests (`Cmd+N`), switch tabs (`Cmd+1..9`, `Ctrl+Tab`), send/cancel (`Cmd+Enter`), focus URL bar (`Cmd+L`), search requests (`Cmd+F`), beautify JSON (`Cmd+Opt+B`), and open the shortcut cheat sheet (`?` or `Cmd+/`).
@@ -119,7 +126,9 @@ graph TD
     D --> D2["auth/.apiclient/login.sidecar.json"]
     D --> D3["users/create_user.curl"]
     D --> D4["users/stream_events.curl"]
+    D --> D5["users/ListUsers.grpc"]
     A --> E["history.json"]
+    A --> F[".apiclient/cache/stream_*.bin"]
   end
 ```
 
@@ -142,7 +151,29 @@ curl -X POST "{{base_url}}/users" \
   }'
 ```
 
-### 2. `.sidecar.json` Metadata & Test File
+### 2. `.grpc` Request File
+gRPC requests are stored as JSON files and support reflection or local proto descriptors, metadata, TLS settings, and JSON request messages:
+
+```json
+{
+  "name": "List Users",
+  "endpoint": "https://localhost:50051",
+  "service": "users.v1.UserService",
+  "method": "ListUsers",
+  "request_json": "{\n  \"page_size\": 20\n}",
+  "metadata": [],
+  "proto_file": null,
+  "use_reflection": true,
+  "tls_enabled": true,
+  "tls_insecure": false,
+  "tls_ca_file": null,
+  "timeout_ms": 30000
+}
+```
+
+For client-streaming methods, `request_json` is a JSON array of request messages. Server-streaming responses are spooled under `.apiclient/cache/`; their history entries retain a bounded preview and the full response file path.
+
+### 3. `.sidecar.json` Metadata & Test File
 Optional sidecar file stored in `.apiclient/` containing test assertions and automation scripts:
 
 ```json
@@ -154,8 +185,8 @@ Optional sidecar file stored in `.apiclient/` containing test assertions and aut
 }
 ```
 
-### 3. `history.json` Request History
-The app stores a local JSON history in the workspace directory. Each entry includes the request name, method, URL, timestamp, response status, duration, headers, and the captured response body. Request commands retain their variable placeholders instead of storing resolved environment secrets.
+### 4. `history.json` Request History
+The app stores a local JSON history in the workspace directory. Each entry includes the request name, method, URL, timestamp, response status, duration, headers, a bounded response preview, and a spool-file path for full streaming responses. Request commands retain their variable placeholders instead of storing resolved environment secrets.
 
 ---
 

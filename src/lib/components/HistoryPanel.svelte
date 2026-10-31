@@ -134,6 +134,9 @@
             </details>
             <details>
               <summary class="cursor-pointer hover:text-neutral-900 dark:hover:text-neutral-200">Response</summary>
+              {#if entry.response_file_path}
+                <p class="mt-1 text-[10px] text-neutral-500">Full response is stored on disk. Select this history item to open it and export the saved stream.</p>
+              {/if}
               <pre class="mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-100 dark:bg-[#181818] p-1.5 font-mono">{entry.response_body || '// No response body'}</pre>
             </details>
           </div>

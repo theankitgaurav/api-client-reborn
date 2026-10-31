@@ -116,6 +116,9 @@ export class ResponseState {
       duration_ms: this.durationMs,
       total_bytes: this.totalBytes,
       is_streaming: this.isStreaming,
+      response_file_path: this.isStreaming || this.isBodyTruncated ? this.spoolFilePath : null,
+      is_body_truncated: this.isBodyTruncated,
+      total_events_count: this.totalEventsCount,
       error: errorOverride ?? this.error,
     };
 

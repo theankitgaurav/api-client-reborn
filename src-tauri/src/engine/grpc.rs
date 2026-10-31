@@ -290,6 +290,13 @@ fn message_to_json(descriptor: prost_reflect::MessageDescriptor, bytes: &[u8]) -
         .map_err(|e| AppError::InternalError(format!("Could not format gRPC response: {e}")))
 }
 
+fn message_to_compact_json(descriptor: prost_reflect::MessageDescriptor, bytes: &[u8]) -> Result<String> {
+    let message = DynamicMessage::decode(descriptor, bytes)
+        .map_err(|e| AppError::InternalError(format!("Could not decode gRPC response: {e}")))?;
+    serde_json::to_string(&message)
+        .map_err(|e| AppError::InternalError(format!("Could not format gRPC response: {e}")))
+}
+
 fn find_method(pool: &DescriptorPool, service: &str, method: &str) -> Result<MethodDescriptor> {
     let service = pool.get_service_by_name(service)
         .ok_or_else(|| AppError::InternalError(format!("Service '{service}' was not found in the proto descriptors")))?;
@@ -332,7 +339,7 @@ fn response_header(channel: &Channel<ResponseChunk>, streaming: bool, metadata: 
 
 async fn run_call(
     request_id: String,
-    config: GrpcRequestConfig,
+    mut config: GrpcRequestConfig,
     cancel: CancellationToken,
     channel: Channel<ResponseChunk>,
     workspace_root: Option<&Path>,
@@ -343,39 +350,66 @@ async fn run_call(
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
         result = connect(&config) => result?,
     };
-    let pool = load_pool(&config, conn.clone()).await?;
+    let pool = tokio::select! {
+        _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        result = load_pool(&config, conn.clone()) => result?,
+    };
     let method = find_method(&pool, &config.service, &config.method)?;
-    let json: Value = serde_json::from_str(&config.request_json)
+    let raw_json = std::mem::take(&mut config.request_json);
+    let json: Value = serde_json::from_str(&raw_json)
         .map_err(|e| AppError::InternalError(format!("Request body must be valid JSON: {e}")))?;
+    drop(raw_json);
     let request_values = if method.is_client_streaming() {
-        json.as_array().cloned().ok_or_else(|| AppError::InternalError("Client-streaming RPCs require a JSON array of request messages".into()))?
+        match json {
+            Value::Array(values) => values,
+            _ => return Err(AppError::InternalError("Client-streaming RPCs require a JSON array of request messages".into())),
+        }
     } else {
+        if json.is_array() {
+            return Err(AppError::InternalError("Unary and server-streaming RPCs require one JSON object".into()));
+        }
         vec![json]
     };
-    if !method.is_client_streaming() && request_values.len() != 1 {
-        return Err(AppError::InternalError("Unary and server-streaming RPCs require one JSON object".into()));
-    }
-    let mut request_bytes = Vec::with_capacity(request_values.len());
-    for value in request_values {
-        let message = json_to_message(method.input(), &value)?;
+    let mut unary_request_bytes = None;
+    let mut client_request_stream = None;
+    if method.is_client_streaming() {
+        // Validate each message before starting the RPC, then encode lazily through a
+        // bounded channel instead of retaining a second full copy of the whole stream.
+        for value in &request_values {
+            let _ = json_to_message(method.input(), value)?;
+        }
+        let input = method.input();
+        let (tx, rx) = mpsc::channel(8);
+        tokio::spawn(async move {
+            for value in request_values {
+                let message = json_to_message(input.clone(), &value)
+                    .expect("client-stream messages were validated before starting the RPC");
+                let mut bytes = Vec::with_capacity(message.encoded_len());
+                message.encode(&mut bytes)
+                    .expect("validated protobuf messages should encode successfully");
+                if tx.send(Bytes::from(bytes)).await.is_err() {
+                    break;
+                }
+            }
+        });
+        client_request_stream = Some(ReceiverStream::new(rx));
+    } else {
+        let message = json_to_message(method.input(), &request_values[0])?;
         let mut bytes = Vec::with_capacity(message.encoded_len());
         message.encode(&mut bytes).map_err(|e| AppError::InternalError(e.to_string()))?;
-        request_bytes.push(Bytes::from(bytes));
+        unary_request_bytes = Some(Bytes::from(bytes));
     }
     let path: tonic::codegen::http::uri::PathAndQuery = format!("/{}/{}", config.service, config.method)
         .parse().map_err(|e| AppError::InternalError(format!("Invalid RPC method path: {e}")))?;
     let mut client = tonic::client::Grpc::new(conn);
-    client.ready().await.map_err(|e| AppError::NetworkError(format!("gRPC channel is not ready: {e}")))?;
+    tokio::select! {
+        _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        result = client.ready() => result.map_err(|e| AppError::NetworkError(format!("gRPC channel is not ready: {e}")))?,
+    }
 
     if !method.is_server_streaming() {
         let response = if method.is_client_streaming() {
-            let (tx, rx) = mpsc::channel(8);
-            tokio::spawn(async move {
-                for bytes in request_bytes {
-                    if tx.send(bytes).await.is_err() { break; }
-                }
-            });
-            let mut request = Request::new(ReceiverStream::new(rx));
+            let mut request = Request::new(client_request_stream.take().expect("client stream prepared"));
             apply_metadata(&mut request, &config.metadata)?;
             tokio::select! {
                 _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -383,7 +417,7 @@ async fn run_call(
             }
                 .map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?
         } else {
-            let mut request = Request::new(request_bytes.remove(0));
+            let mut request = Request::new(unary_request_bytes.take().expect("unary request prepared"));
             apply_metadata(&mut request, &config.metadata)?;
             tokio::select! {
                 _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -399,32 +433,42 @@ async fn run_call(
         let _ = channel.send(ResponseChunk::Finished { total_duration_ms: start.elapsed().as_millis() as u64, total_bytes: body.len(), spool_file_path: None });
     } else {
         let stream = if method.is_client_streaming() {
-            let (tx, rx) = mpsc::channel(8);
-            tokio::spawn(async move {
-                for bytes in request_bytes {
-                    if tx.send(bytes).await.is_err() { break; }
-                }
-            });
-            let mut request = Request::new(ReceiverStream::new(rx));
+            let mut request = Request::new(client_request_stream.take().expect("client stream prepared"));
             apply_metadata(&mut request, &config.metadata)?;
             client.streaming(request, path, RawProtoCodec).await
         } else {
-            let mut req = Request::new(request_bytes.remove(0));
+            let mut req = Request::new(unary_request_bytes.take().expect("unary request prepared"));
             apply_metadata(&mut req, &config.metadata)?;
             client.server_streaming(req, path, RawProtoCodec).await
         }.map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?;
         response_header(&channel, true, metadata_to_headers(stream.metadata()), start.elapsed().as_millis() as u64);
         let mut stream = stream.into_inner();
         let mut spool = StreamSpooler::new(workspace_root).await?;
+        let mut pending_preview = String::new();
+        let mut last_ipc_emit = Instant::now();
         loop {
             let item = tokio::select! {
                 _ = cancel.cancelled() => return Err(AppError::Cancelled),
                 result = stream.message() => result.map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?,
             };
             let Some(bytes) = item else { break };
-            let body = message_to_json(method.output(), &bytes)?;
-            spool.write(format!("{body}\n").as_bytes()).await?;
-            let _ = channel.send(ResponseChunk::SseChunk { id: None, event: Some("message".into()), data: body });
+            let body = message_to_compact_json(method.output(), &bytes)?;
+            let line = format!("{body}\n");
+            spool.write(line.as_bytes()).await?;
+            pending_preview.push_str(&line);
+            if pending_preview.len() >= 64 * 1024 || last_ipc_emit.elapsed().as_millis() >= 40 {
+                let _ = channel.send(ResponseChunk::BodyChunk {
+                    text: std::mem::take(&mut pending_preview),
+                    bytes_received: spool.total_bytes(),
+                });
+                last_ipc_emit = Instant::now();
+            }
+        }
+        if !pending_preview.is_empty() {
+            let _ = channel.send(ResponseChunk::BodyChunk {
+                text: pending_preview,
+                bytes_received: spool.total_bytes(),
+            });
         }
         let (path, total) = spool.finish().await?;
         let _ = channel.send(ResponseChunk::Finished { total_duration_ms: start.elapsed().as_millis() as u64, total_bytes: total, spool_file_path: Some(path.to_string_lossy().to_string()) });
@@ -453,10 +497,10 @@ pub async fn execute_grpc_request(
 }
 
 pub async fn discover_grpc_services(config: GrpcRequestConfig) -> Result<Vec<GrpcServiceInfo>> {
-    let channel = connect(&config).await?;
     let pool = if let Some(proto) = config.proto_file.as_deref().filter(|p| !p.trim().is_empty()) {
         descriptor_pool_from_proto(proto).await?
     } else {
+        let channel = connect(&config).await?;
         use tonic_reflection::pb::v1::server_reflection_request::MessageRequest;
         use tonic_reflection::pb::v1::server_reflection_response::MessageResponse;
         use tonic_reflection::pb::v1::ServerReflectionRequest;

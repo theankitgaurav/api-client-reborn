@@ -1,4 +1,5 @@
 import type { RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
+import type { StreamItem } from './stream-buffer';
 
 export interface TabResponseData {
   status: number | null;
@@ -31,6 +32,30 @@ export interface TabItem {
   isPinned: boolean;       // false = preview tab; true = pinned tab
   sidecar?: SidecarMetadata;
   response?: TabResponseData;
+}
+
+function restoreHistoryStreamMessages(entry: RequestHistoryEntry): StreamItem[] {
+  if (!entry.is_streaming || !entry.response_body) return [];
+
+  try {
+    const saved = JSON.parse(entry.response_body);
+    if (Array.isArray(saved)) {
+      return saved.map((item) => ({
+        id: typeof item.id === 'string' ? item.id : undefined,
+        event: typeof item.event === 'string' ? item.event : 'message',
+        data: typeof item.data === 'string' ? item.data : JSON.stringify(item),
+        timestamp: typeof item.timestamp === 'string' ? item.timestamp : entry.timestamp,
+        bytes: typeof item.bytes === 'number' ? item.bytes : undefined,
+      }));
+    }
+  } catch {
+    // Current gRPC streams use newline-delimited JSON; older snapshots may be plain text.
+  }
+
+  return entry.response_body
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((data) => ({ event: 'message', data, timestamp: entry.timestamp, bytes: data.length }));
 }
 
 /**
@@ -166,6 +191,7 @@ export function openHistoryEntryInTabs(
   id: string
 ): { tabs: TabItem[]; activeTabId: string; openedTab: TabItem } {
   const { tabToReplace } = resolveTargetTabForOpenCurrent(tabs, activeTabId);
+  const streamMessages = restoreHistoryStreamMessages(entry);
   const openedTab: TabItem = {
     id,
     filePath: null,
@@ -187,15 +213,15 @@ export function openHistoryEntryInTabs(
       totalBytes: entry.total_bytes,
       headers: entry.headers,
       bodyText: entry.response_body,
-      streamMessages: [],
+      streamMessages,
       isStreaming: entry.is_streaming,
       error: entry.error,
       activeTab: 'body',
       testResults: [],
       scriptLogs: [],
-      isBodyTruncated: false,
-      totalEventsCount: 0,
-      spoolFilePath: null,
+      isBodyTruncated: entry.is_body_truncated ?? false,
+      totalEventsCount: entry.total_events_count ?? streamMessages.length,
+      spoolFilePath: entry.response_file_path ?? null,
     },
   };
 

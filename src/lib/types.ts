@@ -124,6 +124,9 @@ export interface RequestHistoryEntry {
   duration_ms: number | null;
   total_bytes: number;
   is_streaming: boolean;
+  response_file_path?: string | null;
+  is_body_truncated?: boolean;
+  total_events_count?: number;
   error: string | null;
 }
 

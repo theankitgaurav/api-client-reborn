@@ -1,11 +1,13 @@
 import type { WorkspaceFileItem } from '../types';
 import { getResolvedCommand } from './curl-generator.ts';
+import { parseGrpcRequest, resolveGrpcVariables, toGrpcurl } from './grpc';
 
 export interface FlattenedRequest {
   path: string;
   name: string;
   method: string;
   command: string;
+  kind?: 'http' | 'grpc';
 }
 
 /**
@@ -27,6 +29,7 @@ export function flattenWorkspaceRequests(
         name: item.display_name || item.name,
         method: item.method || 'GET',
         command: rawContent,
+        ...(item.kind === 'grpc' || item.path.toLowerCase().endsWith('.grpc') ? { kind: 'grpc' as const } : {}),
       });
     }
   }
@@ -35,7 +38,7 @@ export function flattenWorkspaceRequests(
 }
 
 /**
- * Generates a zero-dependency standalone POSIX shell script runner (`.sh`)
+ * Generates a standalone POSIX shell script runner (`.sh`)
  * that sequentially executes requests, times their latency, prints colored
  * status badges, and aggregates test results in any terminal.
  */
@@ -89,7 +92,10 @@ export function generateCollectionShellScript(
   // Iterate over each request
   requests.forEach((req, idx) => {
     const reqNum = idx + 1;
-    const resolvedCmd = getResolvedCommand(req.command, envVars);
+    const isGrpc = req.kind === 'grpc' || req.path.toLowerCase().endsWith('.grpc');
+    const resolvedCmd = isGrpc
+      ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(req.command), envVars))
+      : getResolvedCommand(req.command, envVars);
 
     lines.push(`# ------------------------------------------------------------------------------`);
     lines.push(`# Request #${reqNum}: ${req.name}`);
@@ -97,20 +103,30 @@ export function generateCollectionShellScript(
     lines.push('TOTAL_REQUESTS=$((TOTAL_REQUESTS + 1))');
     lines.push(`echo -e "\\n\${BOLD}[${reqNum}/${requests.length}] ${req.method} \${NC}${req.name}"`);
 
-    // cURL execution with status code and TTFB formatting
+    // HTTP requests report an HTTP status; grpcurl reports success through its exit code.
     lines.push('RESPONSE_FILE=$(mktemp 2>/dev/null || mktemp -t api_client)');
     lines.push('');
-    // Wrap curl to write output and get HTTP status code
-    lines.push(
-      `HTTP_CODE=$(${resolvedCmd} -s -o "$RESPONSE_FILE" -w "%{http_code}" 2>/dev/null || echo "000")`
-    );
-    lines.push('if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then');
-    lines.push('  echo -e "  Status: ${GREEN}[HTTP $HTTP_CODE OK]${NC}"');
-    lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
-    lines.push('else');
-    lines.push('  echo -e "  Status: ${RED}[HTTP $HTTP_CODE FAILED]${NC}"');
-    lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
-    lines.push('fi');
+    if (isGrpc) {
+      lines.push(`if ${resolvedCmd} > "$RESPONSE_FILE" 2>&1; then`);
+      lines.push('  echo -e "  Status: ${GREEN}[gRPC OK]${NC}"');
+      lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
+      lines.push('else');
+      lines.push('  echo -e "  Status: ${RED}[gRPC FAILED]${NC}"');
+      lines.push('  cat "$RESPONSE_FILE"');
+      lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
+      lines.push('fi');
+    } else {
+      lines.push(
+        `HTTP_CODE=$(${resolvedCmd} -s -o "$RESPONSE_FILE" -w "%{http_code}" 2>/dev/null || echo "000")`
+      );
+      lines.push('if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then');
+      lines.push('  echo -e "  Status: ${GREEN}[HTTP $HTTP_CODE OK]${NC}"');
+      lines.push('  PASSED_REQUESTS=$((PASSED_REQUESTS + 1))');
+      lines.push('else');
+      lines.push('  echo -e "  Status: ${RED}[HTTP $HTTP_CODE FAILED]${NC}"');
+      lines.push('  FAILED_REQUESTS=$((FAILED_REQUESTS + 1))');
+      lines.push('fi');
+    }
     lines.push('rm -f "$RESPONSE_FILE"');
     lines.push('');
   });

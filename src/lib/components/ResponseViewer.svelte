@@ -167,18 +167,22 @@
   <div class="flex-1 relative overflow-hidden bg-white dark:bg-[#181818]">
     {#if responseState.activeTab === 'body'}
       <div class="h-full flex flex-col">
-        {#if responseState.isBodyTruncated}
+        {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}
           <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-200 flex items-center justify-between">
             <span>
-              ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
+              {#if responseState.isBodyTruncated}
+                ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
+              {:else}
+                Full streaming response is saved to disk ({formatBytes(responseState.totalBytes)}).
+              {/if}
             </span>
             <button
               onclick={handleExportStream}
-              disabled={isExporting}
+              disabled={isExporting || responseState.isExecuting || !responseState.spoolFilePath}
               class="font-semibold underline hover:text-amber-950 dark:hover:text-white flex items-center gap-1"
             >
               <Download size={11} />
-              <span>{isExporting ? 'Exporting...' : 'Export Full Stream'}</span>
+              <span>{isExporting ? 'Exporting...' : 'Export Full Response'}</span>
             </button>
           </div>
         {/if}

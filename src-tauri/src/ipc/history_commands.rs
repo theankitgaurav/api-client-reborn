@@ -74,6 +74,9 @@ mod tests {
             duration_ms: Some(10),
             total_bytes: 2,
             is_streaming: false,
+            response_file_path: None,
+            is_body_truncated: false,
+            total_events_count: 0,
             error: None,
         }
     }

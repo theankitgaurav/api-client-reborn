@@ -13,6 +13,16 @@ pub struct StreamSpooler {
     start_time: Instant,
 }
 
+impl Drop for StreamSpooler {
+    fn drop(&mut self) {
+        // Keep completed spool files for history/export, but remove partial files
+        // left behind when a request is cancelled or fails before `finish`.
+        if self.file.take().is_some() {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
 impl StreamSpooler {
     pub async fn new(workspace_root: Option<&Path>) -> Result<Self> {
         let dir = if let Some(root) = workspace_root {

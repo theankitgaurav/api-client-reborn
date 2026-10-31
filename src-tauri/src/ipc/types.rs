@@ -70,5 +70,11 @@ pub struct RequestHistoryEntry {
     pub duration_ms: Option<u64>,
     pub total_bytes: usize,
     pub is_streaming: bool,
+    #[serde(default)]
+    pub response_file_path: Option<String>,
+    #[serde(default)]
+    pub is_body_truncated: bool,
+    #[serde(default)]
+    pub total_events_count: usize,
     pub error: Option<String>,
 }

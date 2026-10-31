@@ -51,6 +51,7 @@
         name: openTab?.name || item.display_name || item.name,
         method: openTab?.method || item.method || 'GET',
         command: content,
+        ...(item.kind === 'grpc' || item.path.toLowerCase().endsWith('.grpc') ? { kind: 'grpc' as const } : {}),
       });
     }
 
@@ -151,7 +152,7 @@
       <!-- Code Preview Area -->
       <div class="p-4 flex-1 overflow-hidden flex flex-col bg-white dark:bg-[#202020]">
         <div class="mb-2 text-[11px] text-neutral-500 dark:text-neutral-400 flex items-center justify-between">
-          <span>Zero-dependency executable bash script. Runs natively on macOS, Linux, or WSL without Node/Newman:</span>
+          <span>Executable bash script for macOS, Linux, or WSL. gRPC requests require grpcurl:</span>
         </div>
         <div class="relative flex-1 rounded border border-neutral-300 dark:border-[#333] bg-neutral-900 overflow-hidden flex flex-col font-mono text-[11px] min-h-[260px]">
           {#if isGenerating}
