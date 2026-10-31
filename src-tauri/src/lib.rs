@@ -6,6 +6,10 @@ pub mod ipc;
 pub mod parser;
 
 use engine::cancel::CancellationManager;
+use tauri::menu::Menu;
+#[cfg(target_os = "macos")]
+use tauri::menu::{AboutMetadata, PredefinedMenuItem, Submenu};
+use tauri::{AppHandle, Runtime};
 use ipc::{
     append_request_history, cancel_request, clear_request_history, create_collection_folder,
     create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
@@ -15,9 +19,90 @@ use ipc::{
     save_workspace_variables, scan_workspace,
 };
 
+fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+    #[cfg(target_os = "macos")]
+    {
+        let package = app.package_info();
+        let about_metadata = AboutMetadata {
+            name: Some(package.name.clone()),
+            version: Some(package.version.to_string()),
+            copyright: Some("Copyright © 2026 Ankit Gaurav".into()),
+            credits: Some("Built with ❤️ for developers who love speed, simplicity, and open protocols.".into()),
+            ..Default::default()
+        };
+        let window_menu = Submenu::with_items(
+            app,
+            "Window",
+            true,
+            &[
+                &PredefinedMenuItem::minimize(app, None)?,
+                &PredefinedMenuItem::maximize(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::close_window(app, None)?,
+            ],
+        )?;
+        let help_menu = Submenu::with_items(app, "Help", true, &[])?;
+
+        Menu::with_items(
+            app,
+            &[
+                &Submenu::with_items(
+                    app,
+                    package.name.clone(),
+                    true,
+                    &[
+                        &PredefinedMenuItem::about(app, None, Some(about_metadata))?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::services(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::hide(app, None)?,
+                        &PredefinedMenuItem::hide_others(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::quit(app, None)?,
+                    ],
+                )?,
+                &Submenu::with_items(
+                    app,
+                    "File",
+                    true,
+                    &[&PredefinedMenuItem::close_window(app, None)?],
+                )?,
+                &Submenu::with_items(
+                    app,
+                    "Edit",
+                    true,
+                    &[
+                        &PredefinedMenuItem::undo(app, None)?,
+                        &PredefinedMenuItem::redo(app, None)?,
+                        &PredefinedMenuItem::separator(app)?,
+                        &PredefinedMenuItem::cut(app, None)?,
+                        &PredefinedMenuItem::copy(app, None)?,
+                        &PredefinedMenuItem::paste(app, None)?,
+                        &PredefinedMenuItem::select_all(app, None)?,
+                    ],
+                )?,
+                &Submenu::with_items(
+                    app,
+                    "View",
+                    true,
+                    &[&PredefinedMenuItem::fullscreen(app, None)?],
+                )?,
+                &window_menu,
+                &help_menu,
+            ],
+        )
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Menu::default(app)
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .menu(|app| build_app_menu(app))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())

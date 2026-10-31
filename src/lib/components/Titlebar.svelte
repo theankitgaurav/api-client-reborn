@@ -3,7 +3,6 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { themeState } from '$lib/state/theme.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
-  import { getVersion } from '@tauri-apps/api/app';
   import {
     Layers,
     Sun,
@@ -14,26 +13,7 @@
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
-  let isAboutOpen = $state(false);
-  let appVersion = $state('');
   let isThemeMenuOpen = $state(false);
-
-  async function openAbout() {
-    isAboutOpen = true;
-    try {
-      appVersion = await getVersion();
-    } catch {
-      appVersion = 'Development';
-    }
-  }
-
-  function closeAbout() {
-    isAboutOpen = false;
-  }
-
-  function handleAboutKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') closeAbout();
-  }
 
   function closeThemeMenuOutside(event: MouseEvent) {
     const target = event.target;
@@ -48,7 +28,7 @@
   }
 </script>
 
-<svelte:window onkeydown={handleAboutKeydown} onclick={closeThemeMenuOutside} />
+<svelte:window onclick={closeThemeMenuOutside} />
 
 <header
   data-tauri-drag-region
@@ -56,15 +36,10 @@
 >
   <!-- App name at the extreme left, offset past macOS traffic lights -->
   <div class="flex items-center space-x-2 pl-[76px]">
-    <button
-      type="button"
-      onclick={openAbout}
-      title="About API Client Reborn"
-      class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5 hover:text-neutral-950 dark:hover:text-white transition-colors"
-    >
+    <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5">
       <Layers size={14} class="text-blue-500" />
       API Client Reborn
-    </button>
+    </span>
     {#if workspaceState.isDirty}
       <span class="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-medium">
         Unsaved
@@ -162,36 +137,3 @@
     </button>
   </div>
 </header>
-
-{#if isAboutOpen}
-  <div
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
-    role="presentation"
-    onclick={(event) => event.target === event.currentTarget && closeAbout()}
-  >
-    <dialog
-      open
-      aria-modal="true"
-      aria-labelledby="about-title"
-      class="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-6 text-neutral-800 shadow-2xl dark:border-[#383838] dark:bg-[#252526] dark:text-neutral-100"
-    >
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 id="about-title" class="text-base font-semibold">API Client Reborn</h2>
-          <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Version {appVersion || '…'}</p>
-        </div>
-        <button
-          type="button"
-          onclick={closeAbout}
-          aria-label="Close About dialog"
-          class="rounded p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-700 dark:hover:text-white"
-        >
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
-      <p class="mt-5 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-        Built with ❤️ by Ankit Gaurav for developers who love speed, simplicity, and open protocols.
-      </p>
-    </dialog>
-  </div>
-{/if}

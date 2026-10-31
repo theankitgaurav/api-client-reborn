@@ -33,7 +33,7 @@
     "category": "DeveloperTool",
     "shortDescription": "A lightweight native API client for macOS, Windows, and Linux",
     "longDescription": "A lightweight, high-performance native API testing client and cURL playground built with Tauri and Svelte.",
-    "copyright": "Copyright © 2026",
+    "copyright": "Copyright © 2026 Ankit Gaurav",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
