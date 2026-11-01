@@ -6,6 +6,7 @@ import {
   readRequestFile,
   renameWorkspaceItem,
   saveRequestFile,
+  setWorkspacePath,
   scanWorkspace,
 } from '../ipc';
 import type { FileDetails, RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
@@ -30,6 +31,7 @@ export class WorkspaceState {
   tabs = $state<TabItem[]>([]);
   activeTabId = $state<string | null>(null);
   isLoading = $state(false);
+  workspaceError = $state<string | null>(null);
   isSaveModalOpen = $state(false);
   isImportModalOpen = $state(false);
   isExportModalOpen = $state(false);
@@ -71,7 +73,9 @@ export class WorkspaceState {
       if (this.workspacePath === '.' || !this.workspacePath) {
         try {
           this.workspacePath = await getWorkspacePath();
-        } catch {
+          this.workspaceError = null;
+        } catch (error) {
+          this.workspaceError = error instanceof Error ? error.message : String(error);
           // fallback to '.' if IPC fails
         }
       }
@@ -88,12 +92,36 @@ export class WorkspaceState {
         }
       }
     } catch (e) {
+      this.workspaceError = e instanceof Error ? e.message : String(e);
       console.error('Failed to load workspace:', e);
     } finally {
       if (refreshRequestId === this.refreshRequestId) {
         this.isLoading = false;
       }
     }
+  }
+
+  async switchWorkspace(path: string, dirtyHandled = false) {
+    const scannedTree = await scanWorkspace(path);
+    if (!dirtyHandled && this.isDirty) {
+      const choice = prompt('Unsaved request: type “save”, “discard”, or “cancel”.', 'cancel')?.trim().toLowerCase();
+      if (choice === 'cancel' || !choice) return false;
+      if (choice === 'save') {
+        await this.saveActiveFile();
+        if (this.isDirty || this.isSaveModalOpen) return false;
+      } else if (choice !== 'discard') return false;
+    }
+    this.workspacePath = await setWorkspacePath(path);
+    this.tree = scannedTree;
+    this.tabs = [];
+    this.activeTabId = null;
+    this.targetNewRequestFolder = path;
+    if (this.tree.length > 0) {
+      const first = this.findFirstRequest(this.tree);
+      if (first) await this.openRequest(first.path, false);
+    }
+    if (this.tabs.length === 0) this.createNewRequest();
+    return true;
   }
 
   findFirstRequest(items: WorkspaceFileItem[]): WorkspaceFileItem | null {

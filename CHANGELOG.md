@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0] — 2026-11-01
+
+### Added
+
+- Choose and switch the active workspace from the app title bar.
+- Store app settings separately from workspace collections, environments, secrets, and request history.
+- Migrate existing workspace data into the default workspace folder while preserving conflicting files.
+
+### Changed
+
+- Keep each workspace folder self-contained and open selected folders without adding starter content.
+
 ## [0.5.0] — 2026-11-01
 
 ### Added

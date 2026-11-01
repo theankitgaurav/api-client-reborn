@@ -1,5 +1,5 @@
-use crate::error::{AppError, Result};
 use crate::engine::grpc::GrpcRequestConfig;
+use crate::error::{AppError, Result};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::parse_curl_command;
@@ -49,26 +49,86 @@ const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description
 const LEGACY_GRPC_DEMO_PROTO: &str = "syntax = \"proto3\";\npackage demo;\n\nservice DemoService {\n  rpc Echo (EchoRequest) returns (EchoResponse);\n  rpc Watch (EchoRequest) returns (stream EchoResponse);\n  rpc Collect (stream EchoRequest) returns (EchoResponse);\n  rpc Chat (stream EchoRequest) returns (stream EchoResponse);\n}\n\nmessage EchoRequest {\n  string message = 1;\n  int32 count = 2;\n}\n\nmessage EchoResponse {\n  string message = 1;\n  int32 sequence = 2;\n}\n";
 
 const STARTER_EXAMPLES: &[(&str, &str)] = &[
-    ("grpc/hello.proto", include_str!("../../../examples/grpc/hello.proto")),
-    ("grpc/echo.grpc", include_str!("../../../examples/grpc/echo.grpc")),
-    ("grpc/watch_stream.grpc", include_str!("../../../examples/grpc/watch_stream.grpc")),
-    ("grpc/echo_local_proto.grpc", include_str!("../../../examples/grpc/echo_local_proto.grpc")),
-    ("get_users.curl", include_str!("../../../examples/get_users.curl")),
-    ("create_user.curl", include_str!("../../../examples/create_user.curl")),
-    ("stream_events.curl", include_str!("../../../examples/stream_events.curl")),
-    ("methods/put_user.curl", include_str!("../../../examples/methods/put_user.curl")),
-    ("methods/file_upload.curl", include_str!("../../../examples/methods/file_upload.curl")),
-    ("methods/patch_user.curl", include_str!("../../../examples/methods/patch_user.curl")),
-    ("methods/delete_user.curl", include_str!("../../../examples/methods/delete_user.curl")),
-    ("methods/head_request.curl", include_str!("../../../examples/methods/head_request.curl")),
-    ("methods/options_request.curl", include_str!("../../../examples/methods/options_request.curl")),
-    ("auth/basic_auth.curl", include_str!("../../../examples/auth/basic_auth.curl")),
-    ("auth/bearer_auth.curl", include_str!("../../../examples/auth/bearer_auth.curl")),
-    ("responses/status_404.curl", include_str!("../../../examples/responses/status_404.curl")),
-    ("responses/inspect_redirect.curl", include_str!("../../../examples/responses/inspect_redirect.curl")),
-    ("responses/follow_redirect.curl", include_str!("../../../examples/responses/follow_redirect.curl")),
-    ("responses/download_file.curl", include_str!("../../../examples/responses/download_file.curl")),
-    ("responses/timeout_test.curl", include_str!("../../../examples/responses/timeout_test.curl")),
+    (
+        "grpc/hello.proto",
+        include_str!("../../../examples/grpc/hello.proto"),
+    ),
+    (
+        "grpc/echo.grpc",
+        include_str!("../../../examples/grpc/echo.grpc"),
+    ),
+    (
+        "grpc/watch_stream.grpc",
+        include_str!("../../../examples/grpc/watch_stream.grpc"),
+    ),
+    (
+        "grpc/echo_local_proto.grpc",
+        include_str!("../../../examples/grpc/echo_local_proto.grpc"),
+    ),
+    (
+        "get_users.curl",
+        include_str!("../../../examples/get_users.curl"),
+    ),
+    (
+        "create_user.curl",
+        include_str!("../../../examples/create_user.curl"),
+    ),
+    (
+        "stream_events.curl",
+        include_str!("../../../examples/stream_events.curl"),
+    ),
+    (
+        "methods/put_user.curl",
+        include_str!("../../../examples/methods/put_user.curl"),
+    ),
+    (
+        "methods/file_upload.curl",
+        include_str!("../../../examples/methods/file_upload.curl"),
+    ),
+    (
+        "methods/patch_user.curl",
+        include_str!("../../../examples/methods/patch_user.curl"),
+    ),
+    (
+        "methods/delete_user.curl",
+        include_str!("../../../examples/methods/delete_user.curl"),
+    ),
+    (
+        "methods/head_request.curl",
+        include_str!("../../../examples/methods/head_request.curl"),
+    ),
+    (
+        "methods/options_request.curl",
+        include_str!("../../../examples/methods/options_request.curl"),
+    ),
+    (
+        "auth/basic_auth.curl",
+        include_str!("../../../examples/auth/basic_auth.curl"),
+    ),
+    (
+        "auth/bearer_auth.curl",
+        include_str!("../../../examples/auth/bearer_auth.curl"),
+    ),
+    (
+        "responses/status_404.curl",
+        include_str!("../../../examples/responses/status_404.curl"),
+    ),
+    (
+        "responses/inspect_redirect.curl",
+        include_str!("../../../examples/responses/inspect_redirect.curl"),
+    ),
+    (
+        "responses/follow_redirect.curl",
+        include_str!("../../../examples/responses/follow_redirect.curl"),
+    ),
+    (
+        "responses/download_file.curl",
+        include_str!("../../../examples/responses/download_file.curl"),
+    ),
+    (
+        "responses/timeout_test.curl",
+        include_str!("../../../examples/responses/timeout_test.curl"),
+    ),
     (
         "scripting/pre_post_scripts.curl",
         include_str!("../../../examples/scripting/pre_post_scripts.curl"),
@@ -77,7 +137,10 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
         "scripting/pre_post_scripts.meta.json",
         include_str!("../../../examples/scripting/pre_post_scripts.meta.json"),
     ),
-    ("streaming/sse_events.curl", include_str!("../../../examples/streaming/sse_events.curl")),
+    (
+        "streaming/sse_events.curl",
+        include_str!("../../../examples/streaming/sse_events.curl"),
+    ),
 ];
 
 /// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
@@ -95,18 +158,112 @@ pub fn get_default_workspace_dir() -> PathBuf {
     }
 }
 
+pub fn app_data_dir() -> PathBuf {
+    dirs::home_dir()
+        .map(|h| h.join(DEFAULT_APP_DIR_NAME))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+}
+
+fn workspace_settings_path() -> PathBuf {
+    app_data_dir().join("settings.json")
+}
+
+pub fn selected_workspace_dir() -> PathBuf {
+    let settings = workspace_settings_path();
+    fs::read_to_string(settings)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| {
+            v.get("workspace_path")
+                .and_then(|p| p.as_str())
+                .map(PathBuf::from)
+        })
+        .unwrap_or_else(|| app_data_dir().join("workspace"))
+}
+
+pub fn set_selected_workspace_dir(path: &Path) -> Result<PathBuf> {
+    if !path.is_dir() {
+        return Err(AppError::FsError(
+            "Workspace path must be an existing folder".into(),
+        ));
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| AppError::FsError(format!("Cannot open workspace folder: {e}")))?;
+    if canonical
+        == app_data_dir()
+            .canonicalize()
+            .unwrap_or_else(|_| app_data_dir())
+    {
+        return Err(AppError::FsError(
+            "The app data folder cannot also be the workspace. Choose a separate folder.".into(),
+        ));
+    }
+    fs::create_dir_all(app_data_dir())
+        .map_err(|e| AppError::FsError(format!("Cannot create app data folder: {e}")))?;
+    let payload = serde_json::json!({"workspace_path": canonical});
+    fs::write(
+        workspace_settings_path(),
+        serde_json::to_vec_pretty(&payload).map_err(|e| AppError::InternalError(e.to_string()))?,
+    )
+    .map_err(|e| AppError::FsError(format!("Cannot save workspace settings: {e}")))?;
+    Ok(canonical)
+}
+
+pub fn initialize_default_workspace() -> Result<PathBuf> {
+    let app_dir = app_data_dir();
+    let workspace = app_dir.join("workspace");
+    fs::create_dir_all(&app_dir)
+        .map_err(|e| AppError::FsError(format!("Cannot create app data folder: {e}")))?;
+    migrate_legacy_workspace_contents(&app_dir, &workspace)?;
+    ensure_workspace_initialized(&workspace)?;
+    let _ = set_selected_workspace_dir(&workspace)?;
+    Ok(workspace)
+}
+
+fn migrate_legacy_workspace_contents(app_dir: &Path, workspace: &Path) -> Result<()> {
+    let entries = fs::read_dir(app_dir)
+        .map_err(|e| AppError::FsError(e.to_string()))?
+        .flatten()
+        .filter(|e| e.file_name() != "settings.json" && e.file_name() != "workspace")
+        .collect::<Vec<_>>();
+    if !workspace.exists() && !entries.is_empty() {
+        fs::create_dir(workspace)
+            .map_err(|e| AppError::FsError(format!("Cannot create default workspace: {e}")))?;
+    }
+    if workspace.exists() && !entries.is_empty() {
+        let conflicts = entries.iter()
+            .map(|entry| workspace.join(entry.file_name()))
+            .filter(|target| target.exists())
+            .collect::<Vec<_>>();
+        if let Some(conflict) = conflicts.first() {
+            return Err(AppError::FsError(format!(
+                "Workspace migration stopped because {} already exists; existing data was left in place.",
+                conflict.display()
+            )));
+        }
+        for entry in entries {
+            fs::rename(entry.path(), workspace.join(entry.file_name()))
+                .map_err(|e| AppError::FsError(format!("Workspace migration failed: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
 /// Ensures the workspace root directory exists and contains default environments and sample requests.
 pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
     if !dir.exists() {
-        fs::create_dir_all(dir)
-            .map_err(|e| AppError::FsError(format!("Failed to create workspace directory: {}", e)))?;
+        fs::create_dir_all(dir).map_err(|e| {
+            AppError::FsError(format!("Failed to create workspace directory: {}", e))
+        })?;
     }
 
     // 1. Environments folder & default environment configs
     let env_dir = dir.join("environments");
     if !env_dir.exists() {
-        fs::create_dir_all(&env_dir)
-            .map_err(|e| AppError::FsError(format!("Failed to create environments directory: {}", e)))?;
+        fs::create_dir_all(&env_dir).map_err(|e| {
+            AppError::FsError(format!("Failed to create environments directory: {}", e))
+        })?;
     }
 
     let dev_env_file = env_dir.join("development.env.json");
@@ -151,8 +308,7 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
         let is_legacy_local_grpc_example = name.starts_with("grpc/")
             && fs::read_to_string(&path)
                 .map(|existing| {
-                    existing.contains("127.0.0.1:50051")
-                        && existing.contains("demo.DemoService")
+                    existing.contains("127.0.0.1:50051") && existing.contains("demo.DemoService")
                 })
                 .unwrap_or(false);
         let is_legacy_postman_grpc_example = name.starts_with("grpc/")
@@ -172,12 +328,15 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
     }
 
     let grpc_examples_dir = examples_dir.join("grpc");
-    for obsolete_name in ["collect_100k_client_stream.grpc", "chat_stream.grpc", "echo_variables.grpc"] {
+    for obsolete_name in [
+        "collect_100k_client_stream.grpc",
+        "chat_stream.grpc",
+        "echo_variables.grpc",
+    ] {
         let path = grpc_examples_dir.join(obsolete_name);
         if fs::read_to_string(&path)
             .map(|existing| {
-                existing.contains("127.0.0.1:50051")
-                    && existing.contains("demo.DemoService")
+                existing.contains("127.0.0.1:50051") && existing.contains("demo.DemoService")
             })
             .unwrap_or(false)
         {
@@ -199,12 +358,14 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
 /// (`~/.api-client-reborn`) and ensures it is initialized.
 pub fn resolve_workspace_root(input: &str) -> PathBuf {
     let p = if input == "." || input.is_empty() {
-        get_default_workspace_dir()
+        if workspace_settings_path().exists() {
+            selected_workspace_dir()
+        } else {
+            initialize_default_workspace().unwrap_or_else(|_| app_data_dir().join("workspace"))
+        }
     } else {
         PathBuf::from(input)
     };
-
-    let _ = ensure_workspace_initialized(&p);
     p
 }
 
@@ -326,21 +487,70 @@ mod tests {
 
     #[test]
     fn test_scan_workspace() {
-        let temp_dir = std::env::temp_dir().join(format!("test_api_client_ws_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("test_api_client_ws_{}", uuid::Uuid::new_v4()));
         ensure_workspace_initialized(&temp_dir).unwrap();
         let items = scan_workspace_tree(&temp_dir).unwrap();
 
         // Must find `examples` folder
         let examples = items.iter().find(|i| i.name == "examples" && i.is_dir);
-        assert!(examples.is_some(), "Expected 'examples' folder to be scanned in workspace");
+        assert!(
+            examples.is_some(),
+            "Expected 'examples' folder to be scanned in workspace"
+        );
 
         let children = examples.unwrap().children.as_ref().unwrap();
-        assert_eq!(count_requests(children), 21, "Expected all manual test requests in examples folder");
+        assert_eq!(
+            count_requests(children),
+            21,
+            "Expected all manual test requests in examples folder"
+        );
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
-        assert!(items.iter().all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
+        assert!(items
+            .iter()
+            .all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn opening_existing_workspace_does_not_seed_examples_or_settings() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("workspace_as_is_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let resolved = resolve_workspace_root(temp_dir.to_str().unwrap());
+        assert_eq!(resolved, temp_dir);
+        assert_eq!(fs::read_dir(&temp_dir).unwrap().count(), 0);
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn legacy_workspace_contents_move_into_default_subfolder() {
+        let app_dir = std::env::temp_dir().join(format!("legacy_app_{}", uuid::Uuid::new_v4()));
+        let workspace = app_dir.join("workspace");
+        fs::create_dir_all(app_dir.join("examples")).unwrap();
+        fs::write(app_dir.join("examples/request.curl"), "curl https://example.com").unwrap();
+        fs::write(app_dir.join("history.json"), "[]").unwrap();
+        migrate_legacy_workspace_contents(&app_dir, &workspace).unwrap();
+        assert!(workspace.join("examples/request.curl").exists());
+        assert!(workspace.join("history.json").exists());
+        assert!(!app_dir.join("examples").exists());
+        let _ = fs::remove_dir_all(app_dir);
+    }
+
+    #[test]
+    fn migration_conflict_leaves_legacy_and_workspace_files_untouched() {
+        let app_dir = std::env::temp_dir().join(format!("legacy_conflict_{}", uuid::Uuid::new_v4()));
+        let workspace = app_dir.join("workspace");
+        fs::create_dir_all(app_dir.join("examples")).unwrap();
+        fs::create_dir_all(workspace.join("examples")).unwrap();
+        fs::write(app_dir.join("examples/request.curl"), "legacy").unwrap();
+        fs::write(workspace.join("examples/request.curl"), "current").unwrap();
+        assert!(migrate_legacy_workspace_contents(&app_dir, &workspace).is_err());
+        assert_eq!(fs::read_to_string(app_dir.join("examples/request.curl")).unwrap(), "legacy");
+        assert_eq!(fs::read_to_string(workspace.join("examples/request.curl")).unwrap(), "current");
+        let _ = fs::remove_dir_all(app_dir);
     }
 }

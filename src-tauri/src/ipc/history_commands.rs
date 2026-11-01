@@ -26,6 +26,10 @@ pub fn get_request_history(workspace_path: String) -> Result<Vec<RequestHistoryE
 #[tauri::command]
 pub fn append_request_history(workspace_path: String, entry: RequestHistoryEntry) -> Result<()> {
     let path = history_path(&workspace_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| AppError::FsError(format!("Failed to create workspace folder: {e}")))?;
+    }
     let mut entries = if path.exists() {
         let content = fs::read_to_string(&path)
             .map_err(|e| AppError::FsError(format!("Failed to read request history: {}", e)))?;
@@ -46,6 +50,10 @@ pub fn append_request_history(workspace_path: String, entry: RequestHistoryEntry
 #[tauri::command]
 pub fn clear_request_history(workspace_path: String) -> Result<()> {
     let path = history_path(&workspace_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| AppError::FsError(format!("Failed to create workspace folder: {e}")))?;
+    }
     fs::write(&path, "[]")
         .map_err(|e| AppError::FsError(format!("Failed to clear request history: {}", e)))
 }

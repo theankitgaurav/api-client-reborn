@@ -1,7 +1,7 @@
 use crate::error::{AppError, Result};
 use crate::env::secret_file::ensure_gitignore_has_secrets;
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
-use crate::fs::workspace::{resolve_workspace_root, scan_workspace_tree};
+use crate::fs::workspace::{app_data_dir, initialize_default_workspace, resolve_workspace_root, scan_workspace_tree, selected_workspace_dir, set_selected_workspace_dir};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
@@ -64,8 +64,13 @@ fn slugify(input: &str) -> String {
 
 #[tauri::command]
 pub fn get_workspace_path() -> Result<String> {
-    let path = resolve_workspace_root(".");
+    let path = if app_data_dir().join("settings.json").exists() { selected_workspace_dir() } else { initialize_default_workspace()? };
     Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn set_workspace_path(workspace_path: String) -> Result<String> {
+    Ok(set_selected_workspace_dir(&PathBuf::from(workspace_path))?.to_string_lossy().to_string())
 }
 
 #[tauri::command]

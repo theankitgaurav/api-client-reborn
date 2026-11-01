@@ -20,6 +20,14 @@ export async function getWorkspacePath(): Promise<string> {
   return '~/.api-client-reborn';
 }
 
+export async function setWorkspacePath(workspacePath: string): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('set_workspace_path', { workspacePath });
+  }
+  return workspacePath;
+}
+
 let mockRequestHistory: RequestHistoryEntry[] = [];
 
 export async function getRequestHistory(workspacePath: string): Promise<RequestHistoryEntry[]> {
