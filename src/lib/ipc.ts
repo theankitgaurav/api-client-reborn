@@ -1,5 +1,6 @@
 import type {
   EnvironmentItem,
+  CollectionVariablesPayload,
   FileDetails,
   GrpcRequestConfig,
   GrpcServiceInfo,
@@ -115,6 +116,20 @@ let mockWorkspaceTree: WorkspaceFileItem[] = [
           },
         ],
       },
+      {
+        name: 'variable-resolution',
+        path: '/examples/variable-resolution',
+        is_dir: true,
+        children: [
+          {
+            name: 'collection-override.curl',
+            path: '/examples/variable-resolution/collection-override.curl',
+            is_dir: false,
+            display_name: 'Variable Resolution - Collection Override',
+            method: 'GET',
+          },
+        ],
+      },
     ],
   },
 ];
@@ -222,6 +237,16 @@ export async function readRequestFile(path: string): Promise<FileDetails> {
       metadata: {
         name: 'Create User Profile',
         timeout_ms: 15000,
+      },
+    };
+  } else if (path.includes('collection-override')) {
+    return {
+      path,
+      raw_content: `# @name Variable Resolution - Collection Override\n# @description Sends collection and environment values to httpbin so you can inspect the winning source.\n# @timeout 30000\n\ncurl -X GET "https://httpbin.org/anything?scope_probe={{scope_probe}}&secret_probe={{secret_probe}}" \\\n  -H "Accept: application/json"`,
+      metadata: {
+        name: 'Variable Resolution - Collection Override',
+        description: 'Sends collection and environment values to httpbin so you can inspect the winning source.',
+        timeout_ms: 30000,
       },
     };
   } else if (path.includes('download_file')) {
@@ -374,19 +399,36 @@ export async function executeRequest(
       }, 200);
     } else {
       setTimeout(() => {
+        let echoedArgs: Record<string, string> = { limit: '20', page: '1' };
+        let resolvedUrl = 'https://httpbin.org/get?page=1&limit=20';
+        const urlMatch = rawContent.match(/https?:\/\/[^\s"']+/);
+        if (urlMatch) {
+          let u = urlMatch[0];
+          for (const [k, v] of Object.entries(variables)) {
+            u = u.replaceAll(`{{${k}}}`, v);
+          }
+          resolvedUrl = u;
+          try {
+            const parsedUrl = new URL(u);
+            const queryArgs: Record<string, string> = {};
+            parsedUrl.searchParams.forEach((v, k) => { queryArgs[k] = v; });
+            if (Object.keys(queryArgs).length > 0) echoedArgs = queryArgs;
+          } catch {}
+        }
+
         onChunk({
           type: 'BodyChunk',
           payload: {
             text: JSON.stringify(
               {
-                args: { limit: '20', page: '1' },
+                args: echoedArgs,
                 headers: {
                   Accept: 'application/json',
                   Host: 'httpbin.org',
                   'X-Trace-Id': '3fa85f64-5717-4562-b3fc-2c963f66afa6',
                 },
                 origin: '127.0.0.1',
-                url: 'https://httpbin.org/get?page=1&limit=20',
+                url: resolvedUrl,
               },
               null,
               2
@@ -502,7 +544,54 @@ export async function getCollectionVariables(requestFilePath: string): Promise<R
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('get_collection_variables', { requestFilePath });
   }
-  return {};
+  const detail = await getCollectionVariablesForEditor(requestFilePath);
+  return detail ? { ...detail.public_vars, ...detail.secret_vars } : {};
+}
+
+const mockCollectionVariableSets = new Map<string, CollectionVariablesPayload>();
+
+function mockCollectionKey(requestFilePath: string): string {
+  const normalized = requestFilePath.replaceAll('\\', '/');
+  if (normalized.includes('/variable-resolution/')) return '/examples/variable-resolution';
+  const parent = normalized.slice(0, normalized.lastIndexOf('/'));
+  return parent || '/';
+}
+
+export async function getCollectionVariablesForEditor(
+  requestFilePath: string
+): Promise<CollectionVariablesPayload | null> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_collection_variables_for_editor', { requestFilePath });
+  }
+  const key = mockCollectionKey(requestFilePath);
+  if (!mockCollectionVariableSets.has(key) && key === '/examples/variable-resolution') {
+    mockCollectionVariableSets.set(key, {
+      collection_name: 'variable-resolution',
+      public_vars: { scope_probe: 'from-collection' },
+      secret_vars: {},
+    });
+  }
+  return mockCollectionVariableSets.get(key) || null;
+}
+
+export async function saveCollectionVariables(
+  requestFilePath: string,
+  publicVars: Record<string, string>,
+  secretVars: Record<string, string>
+): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('save_collection_variables', { requestFilePath, publicVars, secretVars });
+  }
+  const key = mockCollectionKey(requestFilePath);
+  const existing = await getCollectionVariablesForEditor(requestFilePath);
+  const pathParts = key.split('/').filter(Boolean);
+  mockCollectionVariableSets.set(key, {
+    collection_name: existing?.collection_name || pathParts[pathParts.length - 1] || 'Collection',
+    public_vars: { ...publicVars },
+    secret_vars: { ...secretVars },
+  });
 }
 
 export async function getWorkspaceSecrets(

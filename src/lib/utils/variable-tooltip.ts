@@ -163,7 +163,9 @@ export function getVariableAtPosition(params: {
 export function getVariableInfo(
   token: string,
   variables: VariableItem[],
-  mergedVariables?: Record<string, string>
+  mergedVariables?: Record<string, string>,
+  collectionVariableNames?: ReadonlySet<string>,
+  collectionSecretNames?: ReadonlySet<string>
 ): VariableInfo {
   const key = token.trim();
 
@@ -201,12 +203,16 @@ export function getVariableInfo(
   const found = variables.find((v) => v.key.trim() === key);
   if (mergedVariables && key in mergedVariables) {
     const effectiveValue = mergedVariables[key];
-    const isCollectionOverride = !found || found.value !== effectiveValue;
+    const isCollectionOverride = collectionVariableNames
+      ? collectionVariableNames.has(key)
+      : !found || found.value !== effectiveValue;
     return {
       variableName: key,
       variableValue: effectiveValue,
       isDefined: true,
-      isSecret: !isCollectionOverride && !!found?.isSecret,
+      isSecret: isCollectionOverride
+        ? !!collectionSecretNames?.has(key)
+        : !!found?.isSecret,
       isDynamic: false,
       source: isCollectionOverride ? 'Collection Variable' : found?.scope === 'environment' ? 'Selected Environment' : found?.isSecret ? 'Secret Variable' : 'Workspace Variable',
     };

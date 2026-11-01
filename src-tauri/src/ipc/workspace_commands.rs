@@ -32,6 +32,13 @@ pub struct ImportSummary {
     pub env_file: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionVariables {
+    pub collection_name: String,
+    pub public_vars: HashMap<String, String>,
+    pub secret_vars: HashMap<String, String>,
+}
+
 fn resolve_item_path(input: &str) -> PathBuf {
     let p = PathBuf::from(input);
     if p.is_absolute() {
@@ -555,12 +562,12 @@ pub fn get_collection_variables(request_file_path: String) -> Result<HashMap<Str
     while let Some(path) = directory {
         let metadata_dir = path.join(".apiclient");
         let variables_path = metadata_dir.join("collection_variables.json");
-        if variables_path.is_file() {
+        let secrets_path = metadata_dir.join("collection.secrets.json");
+        if variables_path.is_file() || secrets_path.is_file() {
             let mut variables = fs::read_to_string(&variables_path)
                 .ok()
                 .and_then(|raw| serde_json::from_str::<HashMap<String, String>>(&raw).ok())
                 .unwrap_or_default();
-            let secrets_path = metadata_dir.join("collection.secrets.json");
             if let Ok(raw) = fs::read_to_string(secrets_path) {
                 if let Ok(secrets) = serde_json::from_str::<HashMap<String, String>>(&raw) {
                     variables.extend(secrets);
@@ -571,6 +578,105 @@ pub fn get_collection_variables(request_file_path: String) -> Result<HashMap<Str
         directory = path.parent();
     }
     Ok(HashMap::new())
+}
+
+fn collection_metadata_dir(request_file_path: &str) -> Result<Option<(PathBuf, String)>> {
+    let root = resolve_workspace_root(".");
+    let request_path = resolve_item_path(request_file_path);
+    let relative = request_path.strip_prefix(&root).map_err(|_| {
+        AppError::FsError("Request is outside the active workspace".to_string())
+    })?;
+
+    let mut directory = request_path.parent();
+    while let Some(path) = directory {
+        if path == root {
+            break;
+        }
+        let metadata_dir = path.join(".apiclient");
+        if metadata_dir.is_dir()
+            && (metadata_dir.join("collection_variables.json").is_file()
+                || metadata_dir.join("collection.secrets.json").is_file())
+        {
+            let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("Collection");
+            return Ok(Some((metadata_dir, name.to_string())));
+        }
+        directory = path.parent();
+    }
+
+    let mut components = relative.components();
+    let Some(first) = components.next() else {
+        return Ok(None);
+    };
+    let collection_root = root.join(first.as_os_str());
+    if !collection_root.is_dir() {
+        return Ok(None);
+    }
+    let name = collection_root.file_name().and_then(|name| name.to_str()).unwrap_or("Collection");
+    Ok(Some((collection_root.join(".apiclient"), name.to_string())))
+}
+
+#[tauri::command]
+pub fn get_collection_variables_for_editor(request_file_path: String) -> Result<Option<CollectionVariables>> {
+    let Some((metadata_dir, collection_name)) = collection_metadata_dir(&request_file_path)? else {
+        return Ok(None);
+    };
+    let read_map = |file_name: &str| -> HashMap<String, String> {
+        fs::read_to_string(metadata_dir.join(file_name))
+            .ok()
+            .and_then(|raw| serde_json::from_str::<HashMap<String, String>>(&raw).ok())
+            .unwrap_or_default()
+    };
+    Ok(Some(CollectionVariables {
+        collection_name,
+        public_vars: read_map("collection_variables.json"),
+        secret_vars: read_map("collection.secrets.json"),
+    }))
+}
+
+#[tauri::command]
+pub fn save_collection_variables(
+    request_file_path: String,
+    public_vars: HashMap<String, String>,
+    secret_vars: HashMap<String, String>,
+) -> Result<()> {
+    let Some((metadata_dir, _)) = collection_metadata_dir(&request_file_path)? else {
+        return Err(AppError::FsError("Save this request in a collection to manage collection variables".to_string()));
+    };
+    fs::create_dir_all(&metadata_dir)
+        .map_err(|e| AppError::FsError(format!("Failed to create collection metadata folder: {e}")))?;
+
+    let public_vars = public_vars.into_iter()
+        .map(|(key, value)| (key.trim().to_string(), value))
+        .filter(|(key, _)| !key.is_empty())
+        .collect::<HashMap<_, _>>();
+    let secret_vars = secret_vars.into_iter()
+        .map(|(key, value)| (key.trim().to_string(), value))
+        .filter(|(key, _)| !key.is_empty())
+        .collect::<HashMap<_, _>>();
+
+    let variables_path = metadata_dir.join("collection_variables.json");
+    if !public_vars.is_empty() || !secret_vars.is_empty() {
+        let content = serde_json::to_string_pretty(&public_vars)
+            .map_err(|e| AppError::FsError(format!("Failed to serialize collection variables: {e}")))?;
+        fs::write(&variables_path, content)
+            .map_err(|e| AppError::FsError(format!("Failed to save collection variables: {e}")))?;
+    } else if variables_path.exists() {
+        fs::remove_file(&variables_path)
+            .map_err(|e| AppError::FsError(format!("Failed to remove collection variables: {e}")))?;
+    }
+
+    let secrets_path = metadata_dir.join("collection.secrets.json");
+    if !secret_vars.is_empty() {
+        let content = serde_json::to_string_pretty(&secret_vars)
+            .map_err(|e| AppError::FsError(format!("Failed to serialize collection secrets: {e}")))?;
+        fs::write(secrets_path, content)
+            .map_err(|e| AppError::FsError(format!("Failed to save collection secrets: {e}")))?;
+        ensure_gitignore_has_secrets(&resolve_workspace_root("."))?;
+    } else if secrets_path.exists() {
+        fs::remove_file(&secrets_path)
+            .map_err(|e| AppError::FsError(format!("Failed to remove collection secrets: {e}")))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

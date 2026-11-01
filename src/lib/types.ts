@@ -56,7 +56,13 @@ export interface VariableItem {
   key: string;
   value: string;
   isSecret: boolean;
-  scope?: 'environment' | 'workspace';
+  scope?: 'environment' | 'workspace' | 'collection';
+}
+
+export interface CollectionVariablesPayload {
+  collection_name: string;
+  public_vars: Record<string, string>;
+  secret_vars: Record<string, string>;
 }
 
 export interface FileDetails {

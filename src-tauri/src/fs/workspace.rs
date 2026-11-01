@@ -141,6 +141,14 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
         "streaming/sse_events.curl",
         include_str!("../../../examples/streaming/sse_events.curl"),
     ),
+    (
+        "variable-resolution/collection-override.curl",
+        include_str!("../../../examples/variable-resolution/collection-override.curl"),
+    ),
+    (
+        "variable-resolution/.apiclient/collection_variables.json",
+        include_str!("../../../examples/variable-resolution/.apiclient/collection_variables.json"),
+    ),
 ];
 
 /// Returns the default workspace directory in the user's home folder (`~/.api-client-reborn`).
@@ -502,7 +510,7 @@ mod tests {
         let children = examples.unwrap().children.as_ref().unwrap();
         assert_eq!(
             count_requests(children),
-            21,
+            22,
             "Expected all manual test requests in examples folder"
         );
 

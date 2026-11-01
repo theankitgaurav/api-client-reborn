@@ -117,3 +117,37 @@ test('getVariableInfo resolves dynamic variables, secrets, workspace vars, and u
   assert.equal(unresolvedInfo.variableValue, null);
   assert.equal(unresolvedInfo.source, 'Unresolved Variable');
 });
+
+test('getVariableInfo reports collection precedence explicitly even when values match', () => {
+  const environmentVariables: VariableItem[] = [
+    { id: '1', key: 'api_host', value: 'same-value', isSecret: false, scope: 'environment' },
+  ];
+  const info = getVariableInfo(
+    'api_host',
+    environmentVariables,
+    { api_host: 'same-value' },
+    new Set(['api_host']),
+    new Set()
+  );
+
+  assert.equal(info.source, 'Collection Variable');
+  assert.equal(info.variableValue, 'same-value');
+  assert.equal(info.isSecret, false);
+});
+
+test('getVariableInfo keeps collection secret status while reporting its winning scope', () => {
+  const environmentVariables: VariableItem[] = [
+    { id: '1', key: 'api_token', value: 'environment-token', isSecret: false, scope: 'environment' },
+  ];
+  const info = getVariableInfo(
+    'api_token',
+    environmentVariables,
+    { api_token: 'collection-token' },
+    new Set(['api_token']),
+    new Set(['api_token'])
+  );
+
+  assert.equal(info.source, 'Collection Variable');
+  assert.equal(info.isSecret, true);
+  assert.equal(info.variableValue, 'collection-token');
+});

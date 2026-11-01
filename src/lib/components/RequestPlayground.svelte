@@ -22,6 +22,8 @@
     Check,
     Plus,
     Trash2,
+    Eye,
+    EyeOff,
   } from '$lib/components/icons';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
 
@@ -34,6 +36,8 @@
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
   let tooltipVariables = $state<Record<string, string>>({});
+  let tooltipCollectionVariables = $state<Set<string>>(new Set());
+  let tooltipCollectionSecrets = $state<Set<string>>(new Set());
 
   let isMac = $derived(shortcutsState.isMac);
 
@@ -48,8 +52,17 @@
 
   $effect(() => {
     const filePath = workspaceState.activeTab?.filePath;
-    void envState.variablesForRequest(filePath).then((variables) => {
+    envState.collectionVariablesRevision;
+    void Promise.all([
+      envState.variablesForRequest(filePath),
+      filePath ? envState.collectionVariablesForRequest(filePath) : Promise.resolve(null),
+    ]).then(([variables, collection]) => {
       tooltipVariables = variables;
+      tooltipCollectionVariables = new Set([
+        ...Object.keys(collection?.public_vars || {}),
+        ...Object.keys(collection?.secret_vars || {}),
+      ]);
+      tooltipCollectionSecrets = new Set(Object.keys(collection?.secret_vars || {}));
     });
   });
 
@@ -249,8 +262,29 @@
   let varTooltip = $state<VarTooltipData | null>(null);
   let activeHoverToken = $state<string | null>(null);
   let activeHoverInfo = $state<VariableInfo | null>(null);
+  let revealedTooltipSecrets = $state<Record<string, boolean>>({});
+  let isAltPressed = $state(false);
+  let tooltipLeaveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let isHoveringTooltip = false;
+
+  function handleWindowKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Alt') {
+      isAltPressed = true;
+    }
+  }
+
+  function handleWindowKeyUp(e: KeyboardEvent) {
+    if (e.key === 'Alt') {
+      isAltPressed = false;
+    }
+  }
 
   function handleVarHover(e: MouseEvent, text: string) {
+    if (tooltipLeaveTimeout) {
+      clearTimeout(tooltipLeaveTimeout);
+      tooltipLeaveTimeout = null;
+    }
+
     if (!text || !text.includes('{{')) {
       varTooltip = null;
       activeHoverToken = null;
@@ -279,7 +313,13 @@
     if (activeHoverToken === match.name && activeHoverInfo) {
       info = activeHoverInfo;
     } else {
-      info = getVariableInfo(match.name, envState.variables, tooltipVariables);
+      info = getVariableInfo(
+        match.name,
+        envState.variables,
+        tooltipVariables,
+        tooltipCollectionVariables,
+        tooltipCollectionSecrets
+      );
       activeHoverToken = match.name;
       activeHoverInfo = info;
     }
@@ -307,11 +347,33 @@
   }
 
   function handleVarLeave() {
+    if (tooltipLeaveTimeout) clearTimeout(tooltipLeaveTimeout);
+    tooltipLeaveTimeout = setTimeout(() => {
+      if (!isHoveringTooltip) {
+        varTooltip = null;
+        activeHoverToken = null;
+        activeHoverInfo = null;
+      }
+    }, 180);
+  }
+
+  function onTooltipMouseEnter() {
+    if (tooltipLeaveTimeout) {
+      clearTimeout(tooltipLeaveTimeout);
+      tooltipLeaveTimeout = null;
+    }
+    isHoveringTooltip = true;
+  }
+
+  function onTooltipMouseLeave() {
+    isHoveringTooltip = false;
     varTooltip = null;
     activeHoverToken = null;
     activeHoverInfo = null;
   }
 </script>
+
+<svelte:window onkeydown={handleWindowKeyDown} onkeyup={handleWindowKeyUp} />
 
 <div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
   <!-- Top Request Metadata & Toolbar -->
@@ -1002,7 +1064,10 @@
   <!-- Variable Hover Tooltip Card -->
   {#if varTooltip && varTooltip.visible}
     <div
-      class="fixed z-50 pointer-events-none transition-all duration-100 ease-out bg-[#1e1e20] dark:bg-[#202022] text-neutral-100 border border-[#3e3e42] dark:border-[#38383c] shadow-2xl rounded-lg p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
+      role="tooltip"
+      onmouseenter={onTooltipMouseEnter}
+      onmouseleave={onTooltipMouseLeave}
+      class="fixed z-50 pointer-events-auto transition-all duration-100 ease-out bg-[#1e1e20] dark:bg-[#202022] text-neutral-100 border border-[#3e3e42] dark:border-[#38383c] shadow-2xl rounded-lg p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
       style="left: {varTooltip.x}px; top: {varTooltip.y}px;"
     >
       <!-- Header: variable name & origin -->
@@ -1031,9 +1096,39 @@
         <div class="font-mono text-[11px] p-1.5 rounded bg-[#141416] border border-[#2a2a2e] break-all select-text max-h-24 overflow-y-auto">
           {#if varTooltip.isDefined}
             {#if varTooltip.isSecret}
-              <div class="flex items-center justify-between">
-                <span class="text-emerald-400 font-semibold">{varTooltip.variableValue || '<empty>'}</span>
-                <span class="text-[9px] text-amber-400 bg-amber-500/10 px-1 rounded ml-1">secret</span>
+              {@const isRevealed = isAltPressed || !!revealedTooltipSecrets[varTooltip.variableName]}
+              <div class="flex items-center justify-between gap-1.5">
+                <div class="flex-1 min-w-0">
+                  {#if isRevealed}
+                    <span class="text-amber-400 font-semibold">{varTooltip.variableValue || '<empty>'}</span>
+                  {:else}
+                    <span class="text-neutral-500 font-mono tracking-widest select-none">••••••••••••</span>
+                  {/if}
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <span class="text-[9px] text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded font-mono">secret</span>
+                  <button
+                    type="button"
+                    onclick={() => {
+                      if (varTooltip) {
+                        revealedTooltipSecrets[varTooltip.variableName] = !revealedTooltipSecrets[varTooltip.variableName];
+                      }
+                    }}
+                    title={isRevealed ? 'Hide secret' : `Reveal secret (or hold ${isMac ? '⌥' : 'Alt'})`}
+                    aria-label={isRevealed ? 'Hide secret' : 'Reveal secret'}
+                    class="p-0.5 text-neutral-400 hover:text-neutral-200 transition-colors rounded hover:bg-neutral-800"
+                  >
+                    {#if isRevealed}
+                      <EyeOff size={12} />
+                    {:else}
+                      <Eye size={12} />
+                    {/if}
+                  </button>
+                </div>
+              </div>
+              <div class="text-[9px] text-neutral-500 pt-0.5 flex items-center justify-between">
+                <span>{isRevealed ? 'Revealed' : 'Hidden for security'}</span>
+                <span class="font-mono text-[8px] opacity-75">{isMac ? 'Hold ⌥ to peek' : 'Hold Alt to peek'}</span>
               </div>
             {:else}
               <span class="text-emerald-400 font-semibold">{varTooltip.variableValue || '<empty string>'}</span>

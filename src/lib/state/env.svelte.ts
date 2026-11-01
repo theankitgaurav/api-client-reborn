@@ -1,11 +1,13 @@
 import {
+  getCollectionVariablesForEditor,
   getCollectionVariables,
   getWorkspaceEnvironments,
   getWorkspaceSecrets,
+  saveCollectionVariables,
   saveWorkspaceEnvironment,
   saveWorkspaceSecrets,
 } from '../ipc';
-import type { EnvironmentItem, VariableItem } from '../types';
+import type { CollectionVariablesPayload, EnvironmentItem, VariableItem } from '../types';
 
 function createVariable(key: string, value: string, isSecret: boolean, scope: 'environment' | 'workspace'): VariableItem {
   return { id: String(Date.now() + Math.random()), key, value, isSecret, scope };
@@ -16,6 +18,7 @@ export class EnvironmentState {
   environments = $state<EnvironmentItem[]>([]);
   activeEnvName = $state('default');
   isVariablesModalOpen = $state(false);
+  collectionVariablesRevision = $state(0);
 
   get isSecretsModalOpen(): boolean {
     return this.isVariablesModalOpen;
@@ -142,6 +145,22 @@ export class EnvironmentState {
       console.error('Failed to load collection variables:', error);
       return this.mergedVariables;
     }
+  }
+
+  async collectionVariablesForRequest(requestPath: string): Promise<CollectionVariablesPayload | null> {
+    return getCollectionVariablesForEditor(requestPath);
+  }
+
+  async updateCollectionVariables(requestPath: string, variables: VariableItem[]) {
+    const publicVars: Record<string, string> = {};
+    const secretVars: Record<string, string> = {};
+    for (const variable of variables) {
+      const key = variable.key.trim();
+      if (!key) continue;
+      (variable.isSecret ? secretVars : publicVars)[key] = variable.value;
+    }
+    await saveCollectionVariables(requestPath, publicVars, secretVars);
+    this.collectionVariablesRevision += 1;
   }
 }
 

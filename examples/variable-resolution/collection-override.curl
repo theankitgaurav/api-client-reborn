@@ -1,0 +1,6 @@
+# @name Variable Resolution - Collection Override
+# @description Sends a collection variable to httpbin so you can compare the inspector's winning source with the echoed request value.
+# @timeout 30000
+
+curl -X GET "https://httpbin.org/anything?scope_probe={{scope_probe}}&secret_probe={{secret_probe}}" \
+  -H "Accept: application/json"
