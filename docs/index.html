@@ -118,6 +118,7 @@
       <a class="brand" href="#top" aria-label="API Client Reborn home"><img src="app-icon.svg" alt="" />API Client Reborn</a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#features">Features</a>
+        <a href="#mcp">MCP &amp; AI</a>
         <a href="#local-first">Local-first</a>
         <a class="nav-cta" href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Get the app <span aria-hidden="true">↗</span></a>
       </nav>
@@ -148,6 +149,7 @@
       <div class="shell proof" aria-label="Project principles">
         <div><strong>Local-first</strong>Your workspace stays on your machine</div>
         <div><strong>Git-friendly</strong>Readable request files, easy diffs</div>
+        <div><strong>MCP-enabled</strong>AI agents test and write your APIs</div>
         <div><strong>HTTP + gRPC</strong>One focused desktop client</div>
         <div><strong>Open source</strong>MIT licensed and community-visible</div>
       </div>
@@ -180,15 +182,40 @@
             <p>Import Postman environments, switch context as you work, and keep local secrets outside version control.</p>
           </article>
           <article class="card">
+            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>
+            <h3>AI-native with MCP</h3>
+            <p>Connect Cursor, Claude Desktop, and Antigravity to your API workspace via standard Model Context Protocol.</p>
+          </article>
+          <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 8 4 12l4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></div>
             <h3>CLI when you need it</h3>
-            <p>Copy requests as cURL or grpcurl, and export collections as portable shell scripts.</p>
+            <p>Run headless with <code>api-client-reborn mcp</code>, copy cURL or grpcurl, and export portable shell scripts.</p>
           </article>
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></div>
             <h3>Fits your desktop</h3>
             <p>Use a native desktop app with a theme that follows your system or switches to light or dark.</p>
           </article>
+        </div>
+      </section>
+
+      <section class="shell content" id="mcp" aria-labelledby="mcp-title">
+        <div class="workflow">
+          <div>
+            <div class="eyebrow"><i></i> AI-Agent Native</div>
+            <h2 id="mcp-title">Your AI assistant now speaks your APIs.</h2>
+            <p>API Client Reborn includes a built-in Model Context Protocol (MCP) server over standard JSON-RPC. AI coding assistants like Cursor, Claude Desktop, and Antigravity can discover your requests, execute tests with secrets, and author new endpoints directly into your Git repository.</p>
+            <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn/blob/main/docs/MCP_GUIDE.md">Read the MCP Setup Guide <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="file-tree" aria-label="MCP Tool Capabilities">
+            <span class="dim">// Available MCP Tools for Coding Agents</span><br />
+            ├── <span class="accent">list_requests</span> <span class="dim">→ Discover all .curl &amp; .grpc files</span><br />
+            ├── <span class="accent">get_request</span> <span class="dim">→ Inspect headers, params &amp; tests</span><br />
+            ├── <span class="accent">execute_request</span> <span class="dim">→ Run with secret injection</span><br />
+            ├── <span class="accent">execute_quick_curl</span> <span class="dim">→ Ad-hoc cURL execution</span><br />
+            ├── <span class="accent">save_request</span> <span class="dim">→ Save new routes to repo</span><br />
+            └── <span class="file">list_environments</span> <span class="dim">→ Read env variables safely</span>
+          </div>
         </div>
       </section>
 

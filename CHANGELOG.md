@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0] — 2026-11-11
+
+### Added
+
+- Native Model Context Protocol (MCP) server running over JSON-RPC 2.0 stdio (`2024-11-05` spec), enabling AI coding assistants (Cursor, Claude Desktop, Antigravity, VS Code Copilot) to discover, inspect, execute, and generate API requests.
+- Six core MCP tools: `list_requests`, `get_request`, `execute_request`, `execute_quick_curl`, `save_request`, and `list_environments`.
+- Safe secret resolution and masking preventing secret exposure in LLM prompts while injecting credentials into network requests.
+- Headless execution engine supporting pre/post JavaScript scripts and Chai test assertions (`pm.test()`, `pm.expect()`).
+- Desktop app AI & MCP Integration modal (`McpModal.svelte`) with one-click configuration copying for Cursor, Claude Desktop, Antigravity, and NPX.
+- Desktop binary CLI bridge: launching `api-client-reborn mcp --workspace <path>` executes the headless MCP server without launching the GUI.
+- Executable runner script (`bin/mcp.js`) and comprehensive MCP documentation guide (`docs/MCP_GUIDE.md`).
+
 ## [0.7.0] — 2026-11-01
 
 ### Added
