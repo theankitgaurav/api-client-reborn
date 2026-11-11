@@ -51,7 +51,7 @@
         name: openTab?.name || item.display_name || item.name,
         method: openTab?.method || item.method || 'GET',
         command: content,
-        ...(item.kind === 'grpc' || item.path.toLowerCase().endsWith('.grpc') ? { kind: 'grpc' as const } : {}),
+        ...(item.kind === 'grpc' || /\.(?:grpcurl|grpc)$/i.test(item.path) ? { kind: 'grpc' as const } : {}),
       });
     }
 

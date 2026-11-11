@@ -30,7 +30,7 @@
     if (workspaceState.isSaveModalOpen) {
       requestName = workspaceState.activeTab?.name || 'New Request';
       selectedFolder = workspaceState.targetNewRequestFolder || '.';
-      const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpc' : '.curl';
+      const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpcurl' : '.curl';
       customFileName = requestName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
@@ -46,15 +46,21 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '');
-    const extension = workspaceState.activeTab?.requestType === 'grpc' ? 'grpc' : 'curl';
+    const extension = workspaceState.activeTab?.requestType === 'grpc' ? 'grpcurl' : 'curl';
     customFileName = `${slug || 'request'}.${extension}`;
   }
 
   async function handleSave() {
     if (!requestName.trim()) return;
     let fileName = customFileName.trim();
-    const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpc' : '.curl';
-    if (!fileName.toLowerCase().endsWith(extension)) fileName += extension;
+    const isGrpc = workspaceState.activeTab?.requestType === 'grpc';
+    const isExistingGrpcExt = fileName.toLowerCase().endsWith('.grpcurl') || fileName.toLowerCase().endsWith('.grpc');
+    const extension = isGrpc ? '.grpcurl' : '.curl';
+    if (isGrpc) {
+      if (!isExistingGrpcExt) fileName += extension;
+    } else if (!fileName.toLowerCase().endsWith(extension)) {
+      fileName += extension;
+    }
 
     const fullPath = selectedFolder === '.' ? fileName : `${selectedFolder}/${fileName}`;
     await workspaceState.saveActiveFileAs(fullPath, requestName.trim());

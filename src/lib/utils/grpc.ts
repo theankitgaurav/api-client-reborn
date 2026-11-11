@@ -1,4 +1,5 @@
 import type { GrpcRequestConfig } from '../types';
+import { parseGrpcurlCommand } from './grpcurl-importer.ts';
 
 export function createDefaultGrpcRequest(name = 'New gRPC Request'): GrpcRequestConfig {
   return {
@@ -18,20 +19,91 @@ export function createDefaultGrpcRequest(name = 'New gRPC Request'): GrpcRequest
 }
 
 export function parseGrpcRequest(rawContent: string): GrpcRequestConfig {
+  const trimmed = rawContent.trimStart();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawContent) as Partial<GrpcRequestConfig>;
+      return {
+        ...createDefaultGrpcRequest(),
+        ...parsed,
+        metadata: Array.isArray(parsed.metadata) ? parsed.metadata : [],
+      };
+    } catch {
+      return createDefaultGrpcRequest();
+    }
+  }
+
   try {
-    const parsed = JSON.parse(rawContent) as Partial<GrpcRequestConfig>;
-    return {
-      ...createDefaultGrpcRequest(),
-      ...parsed,
-      metadata: Array.isArray(parsed.metadata) ? parsed.metadata : [],
-    };
+    const result = parseGrpcurlCommand(rawContent);
+    return result.config;
   } catch {
     return createDefaultGrpcRequest();
   }
 }
 
 export function serializeGrpcRequest(config: GrpcRequestConfig): string {
-  return `${JSON.stringify(config, null, 2)}\n`;
+  const lines: string[] = [];
+
+  if (config.name?.trim()) {
+    lines.push(`# @name ${config.name.trim()}`);
+  }
+  if (config.timeout_ms) {
+    lines.push(`# @timeout ${config.timeout_ms}`);
+  }
+  lines.push('');
+
+  const commandParts: string[] = [];
+  let prefix = '';
+
+  let requestData = config.request_json.trim() || '{}';
+  try {
+    const value = JSON.parse(requestData);
+    if (Array.isArray(value)) {
+      prefix = `printf '%s\\n' ${value.map((item) => shellQuote(JSON.stringify(item))).join(' ')} | `;
+      requestData = '@';
+    }
+  } catch {
+    // Keep as is for unparseable or variable-laden JSON
+  }
+
+  commandParts.push(`${prefix}grpcurl`);
+
+  if (!config.tls_enabled) {
+    commandParts.push('  -plaintext');
+  } else if (config.tls_insecure) {
+    commandParts.push('  -insecure');
+  }
+
+  if (config.tls_enabled && config.tls_ca_file?.trim()) {
+    commandParts.push(`  -cacert ${shellQuote(config.tls_ca_file.trim())}`);
+  }
+
+  if (config.proto_file?.trim()) {
+    const protoFile = config.proto_file.trim();
+    const slash = Math.max(protoFile.lastIndexOf('/'), protoFile.lastIndexOf('\\'));
+    if (slash >= 0) {
+      commandParts.push(`  -import-path ${shellQuote(protoFile.slice(0, slash) || '/')}`);
+    }
+    commandParts.push(`  -proto ${shellQuote(protoFile.slice(slash + 1))}`);
+  }
+
+  for (const item of config.metadata) {
+    if (item.key.trim()) {
+      commandParts.push(`  -H ${shellQuote(`${item.key.trim()}: ${item.value}`)}`);
+    }
+  }
+
+  commandParts.push(`  -d ${shellQuote(requestData)}`);
+
+  const target = (config.endpoint.trim() || 'localhost:50051').replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  commandParts.push(`  ${shellQuote(target)}`);
+
+  const service = config.service?.trim() || '';
+  const method = config.method?.trim() || '';
+  const serviceMethod = service && method ? `${service}/${method}` : (service || method || 'Service/Method');
+  commandParts.push(`  ${shellQuote(serviceMethod)}`);
+
+  return `${lines.join('\n')}${commandParts.join(' \\\n')}\n`;
 }
 
 function shellQuote(value: string): string {

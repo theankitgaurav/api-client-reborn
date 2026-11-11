@@ -9,6 +9,7 @@ import type {
   ResponseChunk,
   WorkspaceFileItem,
 } from './types';
+import { parseGrpcRequest } from './utils/grpc.ts';
 
 // Detect whether running in Tauri desktop environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -156,15 +157,17 @@ function findMockItem(items: WorkspaceFileItem[], targetPath: string): Workspace
 
 function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
   const existing = findMockItem(mockWorkspaceTree, path);
-  const isGrpc = path.toLowerCase().endsWith('.grpc');
+  const isGrpc = /\.(?:grpcurl|grpc)$/i.test(path);
   const nameMatch = rawContent.match(/^[ \t]*#[ \t]*@name\b[ \t]*(.*)$/m);
   let grpcRequest: Partial<GrpcRequestConfig> = {};
   if (isGrpc) {
-    try { grpcRequest = JSON.parse(rawContent); } catch { /* malformed mock request remains visible */ }
+    grpcRequest = parseGrpcRequest(rawContent);
   }
-  const displayName = (isGrpc ? grpcRequest.name : sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined));
+  const displayName = isGrpc
+    ? (nameMatch ? nameMatch[1].trim() : grpcRequest.name)
+    : sidecar?.name || (nameMatch ? nameMatch[1].trim() : undefined);
 
-  let method = isGrpc ? `${grpcRequest.service || ''}/${grpcRequest.method || ''}` : 'GET';
+  let method = isGrpc ? (grpcRequest.service && grpcRequest.method ? `${grpcRequest.service}/${grpcRequest.method}` : 'gRPC') : 'GET';
   const methodMatch = rawContent.match(/curl\s+.*?-X\s+([A-Z]+)/i);
   if (methodMatch) {
     method = methodMatch[1].toUpperCase();
@@ -185,7 +188,7 @@ function upsertItemInMockTree(path: string, rawContent: string, sidecar?: any) {
     name: fileName,
     path,
     is_dir: false,
-    display_name: displayName || fileName.replace(/\.(?:curl|grpc)$/i, ''),
+    display_name: displayName || fileName.replace(/\.(?:curl|grpc|grpcurl)$/i, ''),
     method,
     kind: isGrpc ? 'grpc' : 'http',
   };
@@ -747,10 +750,11 @@ export async function renameWorkspaceItem(
     const normOld = normalizeMockPath(oldPath);
     for (const item of items) {
       if (item.path === oldPath || normalizeMockPath(item.path) === normOld) {
-        const isGrpc = item.name.toLowerCase().endsWith('.grpc');
+        const isGrpcurl = item.name.toLowerCase().endsWith('.grpcurl');
+        const isGrpc = item.name.toLowerCase().endsWith('.grpc') || isGrpcurl;
         const isRequest = item.name.endsWith('.curl') || isGrpc;
         if (isRequest) {
-          const ext = isGrpc ? 'grpc' : 'curl';
+          const ext = isGrpcurl ? 'grpcurl' : isGrpc ? 'grpc' : 'curl';
           const trimmed = newName.trim();
           let displayName = trimmed;
           let fileName = trimmed;
@@ -820,11 +824,13 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
     return invoke('duplicate_request_file', { sourcePath });
   }
 
-  const ext = sourcePath.toLowerCase().endsWith('.grpc') ? 'grpc' : 'curl';
+  const isGrpcurl = sourcePath.toLowerCase().endsWith('.grpcurl');
+  const isGrpc = sourcePath.toLowerCase().endsWith('.grpc') || isGrpcurl;
+  const ext = isGrpcurl ? 'grpcurl' : isGrpc ? 'grpc' : 'curl';
   const lastSlash = sourcePath.lastIndexOf('/');
   const dir = lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : '';
   const fileBasename = lastSlash >= 0 ? sourcePath.substring(lastSlash + 1) : sourcePath;
-  const stem = fileBasename.replace(/\.(?:curl|grpc)$/i, '');
+  const stem = fileBasename.replace(/\.(?:curl|grpc|grpcurl)$/i, '');
 
   function getSiblingNames(items: WorkspaceFileItem[], targetPath: string): string[] {
     const normTarget = normalizeMockPath(targetPath);

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { parseGrpcRequest } from '../lib/utils/grpc.ts';
 
 export interface RequestSummary {
   path: string; // Relative to workspace root, using forward slashes
@@ -129,7 +130,7 @@ export class WorkspaceManager {
         if (name.endsWith('.curl')) {
           const summary = this.parseCurlSummary(fullPath);
           if (summary) results.push(summary);
-        } else if (name.endsWith('.grpc')) {
+        } else if (name.endsWith('.grpcurl') || name.endsWith('.grpc')) {
           const summary = this.parseGrpcSummary(fullPath);
           if (summary) results.push(summary);
         }
@@ -188,16 +189,17 @@ export class WorkspaceManager {
   private parseGrpcSummary(filePath: string): RequestSummary | null {
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
-      const parsed = JSON.parse(content);
+      const config = parseGrpcRequest(content);
       const relPath = path.relative(this.workspaceRoot, filePath).replace(/\\/g, '/');
+      const ext = path.extname(filePath);
 
       return {
         path: relPath,
-        name: parsed.name || path.basename(filePath, '.grpc'),
-        description: parsed.description,
+        name: config.name || path.basename(filePath, ext),
+        description: undefined,
         type: 'grpc',
-        method: parsed.method ? `${parsed.service || ''}/${parsed.method}` : 'gRPC',
-        endpoint: parsed.endpoint || '',
+        method: config.service && config.method ? `${config.service}/${config.method}` : 'gRPC',
+        endpoint: config.endpoint || '',
       };
     } catch {
       return null;
@@ -214,11 +216,11 @@ export class WorkspaceManager {
     }
 
     const rawContent = fs.readFileSync(fullPath, 'utf-8');
-    const isGrpc = fullPath.endsWith('.grpc');
+    const isGrpc = fullPath.endsWith('.grpcurl') || fullPath.endsWith('.grpc');
 
     let sidecar: DetailedRequest['sidecar'] = undefined;
-    const metaPath = fullPath.replace(/\.(curl|grpc)$/, '.meta.json');
-    const sidecarPath = fullPath.replace(/\.(curl|grpc)$/, '.sidecar.json');
+    const metaPath = fullPath.replace(/\.(curl|grpc|grpcurl)$/, '.meta.json');
+    const sidecarPath = fullPath.replace(/\.(curl|grpc|grpcurl)$/, '.sidecar.json');
     const targetSidecar = fs.existsSync(metaPath) ? metaPath : fs.existsSync(sidecarPath) ? sidecarPath : null;
 
     if (targetSidecar) {
@@ -231,15 +233,16 @@ export class WorkspaceManager {
     }
 
     if (isGrpc) {
-      const parsed = JSON.parse(rawContent);
+      const config = parseGrpcRequest(rawContent);
+      const ext = path.extname(fullPath);
       return {
         path: relPath.replace(/\\/g, '/'),
-        name: parsed.name || path.basename(fullPath, '.grpc'),
-        description: parsed.description,
+        name: config.name || path.basename(fullPath, ext),
+        description: undefined,
         type: 'grpc',
-        method: parsed.method ? `${parsed.service || ''}/${parsed.method}` : 'gRPC',
-        endpoint: parsed.endpoint || '',
-        body: parsed.request_json,
+        method: config.service && config.method ? `${config.service}/${config.method}` : 'gRPC',
+        endpoint: config.endpoint || '',
+        body: config.request_json,
         rawContent,
         sidecar,
       };
@@ -297,7 +300,7 @@ export class WorkspaceManager {
     sidecar?: DetailedRequest['sidecar']
   ): { path: string; fullPath: string } {
     let sanitizedRel = relPath.replace(/\\/g, '/').replace(/^\/+/, '');
-    if (!sanitizedRel.endsWith('.curl') && !sanitizedRel.endsWith('.grpc')) {
+    if (!sanitizedRel.endsWith('.curl') && !sanitizedRel.endsWith('.grpcurl') && !sanitizedRel.endsWith('.grpc')) {
       sanitizedRel += '.curl';
     }
 
@@ -308,7 +311,7 @@ export class WorkspaceManager {
     }
 
     let finalContent = content;
-    if (sanitizedRel.endsWith('.curl')) {
+    if (sanitizedRel.endsWith('.curl') || sanitizedRel.endsWith('.grpcurl') || sanitizedRel.endsWith('.grpc')) {
       // Ensure or update # @name and # @description directives
       if (name || description) {
         const lines = content.split('\n');
@@ -342,7 +345,7 @@ export class WorkspaceManager {
 
     // Write companion sidecar if specified
     if (sidecar && (sidecar.pre_request_script || sidecar.post_response_script || (sidecar.tests && sidecar.tests.length > 0))) {
-      const metaPath = fullPath.replace(/\.(curl|grpc)$/, '.meta.json');
+      const metaPath = fullPath.replace(/\.(curl|grpc|grpcurl)$/, '.meta.json');
       fs.writeFileSync(metaPath, JSON.stringify(sidecar, null, 2), 'utf-8');
     }
 

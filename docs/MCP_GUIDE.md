@@ -3,7 +3,7 @@
 The **API Client Reborn MCP Server** exposes your local, Git-versioned API collections and environments to modern AI coding assistants (Claude Desktop, Cursor, Antigravity, VS Code Copilot, Zed).
 
 AI agents can automatically:
-1. **Discover & inspect** `.curl` and `.grpc` requests in your repository.
+1. **Discover & inspect** `.curl`, `.grpcurl`, and `.grpc` requests in your repository.
 2. **Execute requests** against local or remote environments (`development`, `staging`, `production`).
 3. **Run test assertions** headlessly (`pm.test()`, `pm.expect()`) and inspect status codes, headers, and responses.
 4. **Safely resolve secrets** from `.apiclient/.secrets.json` (secrets are injected into outgoing requests, but masked in prompts).
@@ -89,11 +89,11 @@ Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 
 | Tool Name | Parameters | Description |
 | :--- | :--- | :--- |
-| `list_requests` | `folder?: string` | Lists all `.curl` and `.grpc` requests with their method, name, description, and relative path. |
+| `list_requests` | `folder?: string` | Lists all `.curl`, `.grpcurl`, and `.grpc` requests with their method, name, description, and relative path. |
 | `get_request` | `path: string` | Reads and parses a request file, returning method, url, headers, body, sidecar tests, and raw file content. |
 | `execute_request` | `path: string`, `environment?: string`, `variables?: Record<string, string>` | Executes a saved `.curl` request with environment resolution and secret injection; runs test assertions and returns status, headers, body, duration, and test results. |
 | `execute_quick_curl` | `curl_command: string`, `environment?: string`, `variables?: Record<string, string>` | Executes an ad-hoc raw cURL command against an environment without saving it to disk. |
-| `save_request` | `path: string`, `content: string`, `name?: string`, `description?: string`, `sidecar?: object` | Creates or updates a `.curl` or `.grpc` request file and companion sidecar metadata on disk. |
+| `save_request` | `path: string`, `content: string`, `name?: string`, `description?: string`, `sidecar?: object` | Creates or updates a `.curl`, `.grpcurl`, or `.grpc` request file and companion sidecar metadata on disk. |
 | `list_environments` | none | Lists all available environment configurations (`environments/*.env.json`) with secrets safely masked. |
 
 ---

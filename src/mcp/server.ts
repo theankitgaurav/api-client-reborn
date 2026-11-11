@@ -35,7 +35,7 @@ export class McpServer {
     return [
       {
         name: 'list_requests',
-        description: 'Lists all .curl and .grpc requests in the workspace with method, name, description, and relative path.',
+        description: 'Lists all .curl, .grpcurl, and .grpc requests in the workspace with method, name, description, and relative path.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -48,7 +48,7 @@ export class McpServer {
       },
       {
         name: 'get_request',
-        description: 'Reads and inspects a request file (.curl or .grpc), including headers, directives, and companion sidecar scripts.',
+        description: 'Reads and inspects a request file (.curl, .grpcurl, or .grpc), including headers, directives, and companion sidecar scripts.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -106,7 +106,7 @@ export class McpServer {
       },
       {
         name: 'save_request',
-        description: 'Creates or updates a .curl or .grpc request file and companion sidecar metadata in the workspace repository.',
+        description: 'Creates or updates a .curl, .grpcurl, or .grpc request file and companion sidecar metadata in the workspace repository.',
         inputSchema: {
           type: 'object',
           properties: {

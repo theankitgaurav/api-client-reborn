@@ -197,9 +197,14 @@ export function openHistoryEntryInTabs(
     filePath: null,
     name: entry.request_name,
     method: entry.method,
-    requestType: entry.request_path?.toLowerCase().endsWith('.grpc') || entry.raw_command.trimStart().startsWith('{')
-      ? 'grpc'
-      : 'http',
+    requestType:
+      entry.request_path?.toLowerCase().endsWith('.grpcurl') ||
+      entry.request_path?.toLowerCase().endsWith('.grpc') ||
+      entry.raw_command.trimStart().startsWith('{') ||
+      entry.raw_command.trimStart().startsWith('grpcurl') ||
+      entry.raw_command.includes('| grpcurl')
+        ? 'grpc'
+        : 'http',
     rawContent: entry.raw_command,
     isDirty: false,
     isPinned: false,
@@ -244,7 +249,7 @@ export function formatDuplicateRequestName(
   ext?: string
 ): string {
   const extension = (ext || 'curl').replace(/^\./, '');
-  let cleanStem = stem.replace(/\.curl$/i, '');
+  let cleanStem = stem.replace(/\.(?:curl|grpc|grpcurl)$/i, '');
 
   // Strip trailing extension if matching
   if (cleanStem.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
@@ -280,12 +285,16 @@ export function formatDuplicateRequestName(
  */
 export function sanitizeRequestRename(currentPath: string, newNameInput: string): string {
   const lowerCurrent = currentPath.toLowerCase();
-  const ext = lowerCurrent.endsWith('.grpc') ? '.grpc' : '.curl';
+  const ext = lowerCurrent.endsWith('.grpcurl')
+    ? '.grpcurl'
+    : lowerCurrent.endsWith('.grpc')
+      ? '.grpc'
+      : '.curl';
 
   let base = newNameInput.trim();
 
   // Strip a typed request extension before preserving the source type.
-  base = base.replace(/\.(?:curl|grpc)$/i, '');
+  base = base.replace(/\.(?:curl|grpc|grpcurl)$/i, '');
 
   // If ext is non-standard, also strip if present
   if (ext && base.toLowerCase().endsWith(ext.toLowerCase())) {
@@ -298,7 +307,7 @@ export function sanitizeRequestRename(currentPath: string, newNameInput: string)
   // Fallback if base is empty
   if (!base) {
     const currentLeaf = currentPath.split(/[\\\/]/).pop() || 'request';
-    base = currentLeaf.replace(/\.(?:curl|grpc)$/i, '') || 'request';
+    base = currentLeaf.replace(/\.(?:curl|grpc|grpcurl)$/i, '') || 'request';
   }
 
   return `${base}${ext}`;

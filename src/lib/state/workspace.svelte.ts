@@ -10,7 +10,7 @@ import {
   scanWorkspace,
 } from '../ipc';
 import type { FileDetails, RequestHistoryEntry, SidecarMetadata, TestResultItem, WorkspaceFileItem } from '../types';
-import { createDefaultGrpcRequest, parseGrpcRequest, serializeGrpcRequest } from '../utils/grpc';
+import { createDefaultGrpcRequest, parseGrpcRequest, serializeGrpcRequest } from '../utils/grpc.ts';
 import {
   cascadeFolderRename,
   filterTabsOnFolderDelete,
@@ -164,7 +164,7 @@ export class WorkspaceState {
     // 2. Read from disk
     try {
       const details = await readRequestFile(path);
-      const requestType = path.toLowerCase().endsWith('.grpc') ? 'grpc' : 'http';
+      const requestType = /\.(?:grpcurl|grpc)$/i.test(path) ? 'grpc' : 'http';
       const grpcConfig = requestType === 'grpc' ? parseGrpcRequest(details.raw_content) : null;
       const name = grpcConfig?.name || details.metadata.name || this.inferName(path, details.raw_content);
       const method = grpcConfig ? 'gRPC' : details.metadata.method || this.inferMethod(details.raw_content, path);
@@ -470,7 +470,7 @@ export class WorkspaceState {
       } else {
         const sanitized = sanitizeRequestRename(oldPath, newName.trim());
         const newPath = await renameWorkspaceItem(oldPath, sanitized);
-        const displayName = sanitized.replace(/\.(curl|grpc)$/i, '');
+        const displayName = sanitized.replace(/\.(?:curl|grpc|grpcurl)$/i, '');
 
         const openTab = this.tabs.find((t) => t.filePath === oldPath);
         if (openTab) {

@@ -301,7 +301,7 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
 
     // It's a file
     let ext = source.extension().and_then(|s| s.to_str()).unwrap_or("");
-    let is_request = ext == "curl" || ext == "grpc";
+    let is_request = ext == "curl" || ext == "grpc" || ext == "grpcurl";
 
     if is_request {
         let sanitized = trimmed_name.replace(['/', '\\'], "_");
@@ -343,7 +343,8 @@ pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<Strin
 
         // Update request name using the storage format for this request type.
         if let Ok(content) = fs::read_to_string(&target) {
-            if ext == "grpc" {
+            let trimmed = content.trim_start();
+            if (ext == "grpc" || ext == "grpcurl") && trimmed.starts_with('{') {
                 if let Ok(mut config) = serde_json::from_str::<crate::engine::grpc::GrpcRequestConfig>(&content) {
                     config.name = display_name.clone();
                     if let Ok(updated_content) = serde_json::to_string_pretty(&config) {
@@ -436,7 +437,7 @@ pub fn duplicate_request_file(source_path: String) -> Result<String> {
     let content = fs::read_to_string(&source)
         .map_err(|e| AppError::FsError(format!("Failed to read file: {}", e)))?;
 
-    if ext == "grpc" {
+    if (ext == "grpc" || ext == "grpcurl") && content.trim_start().starts_with('{') {
         let mut config = serde_json::from_str::<crate::engine::grpc::GrpcRequestConfig>(&content)
             .map_err(|e| AppError::FsError(format!("Invalid gRPC request file: {e}")))?;
         config.name = format!("{} (Copy)", config.name);

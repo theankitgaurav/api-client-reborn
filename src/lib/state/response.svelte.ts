@@ -2,7 +2,7 @@ import { tick } from 'svelte';
 import { cancelRequest, executeGrpcRequest, executeRequest, exportSpooledStream } from '../ipc';
 import type { RequestHistoryEntry, ResponseChunk, TestResultItem } from '../types';
 import { parseCurlToPlayground } from '../utils/curl-serializer';
-import { parseGrpcRequest, resolveGrpcVariables } from '../utils/grpc';
+import { parseGrpcRequest, resolveGrpcVariables } from '../utils/grpc.ts';
 import { runScript } from '../utils/script-runner';
 import {
   MAX_BODY_TEXT_BYTES,

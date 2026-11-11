@@ -154,7 +154,7 @@
         rawContent = details.raw_content;
       }
 
-      const isGrpc = item.kind === 'grpc' || item.name.toLowerCase().endsWith('.grpc');
+      const isGrpc = item.kind === 'grpc' || /\.(?:grpcurl|grpc)$/i.test(item.name);
       const variables = await envState.variablesForRequest(openTab?.filePath || item.path);
       const resolved = isGrpc
         ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(rawContent), variables))
@@ -602,7 +602,7 @@
           closeContextMenu();
         }}
       >
-        {itemContextMenu.item.kind === 'grpc' || itemContextMenu.item.name.toLowerCase().endsWith('.grpc') ? 'Copy as grpcurl' : 'Copy as cURL'}
+        {itemContextMenu.item.kind === 'grpc' || /\.(?:grpcurl|grpc)$/i.test(itemContextMenu.item.name) ? 'Copy as grpcurl' : 'Copy as cURL'}
       </button>
 
       <button

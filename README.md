@@ -40,7 +40,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 **API Client Reborn** is built on a clean, modern philosophy:
 
 - 🚀 **Blazing Native Performance**: Powered by **Tauri v2** and **Rust** with native OS webviews. Cold startup is virtually instantaneous (<150 ms) and idle memory footprint is just **~35 MB** (instead of 500+ MB on Electron).
-- 💾 **100% Local & Git-Native**: HTTP requests use plain `.curl` files and gRPC requests use readable `.grpc` JSON files. Version-control collections alongside your code with standard `git commit`, `git diff`, and pull requests.
+- 💾 **100% Local & Git-Native**: HTTP requests use plain `.curl` files and gRPC requests use readable `.grpcurl` files. Version-control collections alongside your code with standard `git commit`, `git diff`, and pull requests.
 - 🕘 **Persistent Request History**: Every sent request and its response are recorded in `history.json` under the workspace directory (by default `~/.api-client-reborn`) and can be searched in the sidebar.
 - 🐚 **True CLI Interoperability**: Copy HTTP requests as cURL and gRPC requests as `grpcurl`. Export collections to POSIX shell scripts; exported gRPC requests require `grpcurl` installed.
 - 🛡️ **Zero Cloud Lock-In & Zero Telemetry**: No mandatory accounts, no cloud sync, no tracking, and no paywalls. Everything executes on your own machine.
@@ -76,7 +76,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 - **Unary and Streaming RPCs**: Send unary, client-streaming, server-streaming, and bidirectional calls with JSON messages and request metadata.
 - **Proto Discovery**: Load services and methods from server reflection or a local `.proto` file. Local proto discovery works without connecting to the server.
 - **TLS Controls**: Use system trust roots or a custom CA, with an explicit option to bypass server certificate validation.
-- **Saved Requests and CLI Copy**: Save requests as `.grpc` files in collection folders and copy them as `grpcurl` commands.
+- **Saved Requests and CLI Copy**: Save requests as `.grpcurl` files in collection folders and copy them as `grpcurl` commands.
 - **Disk-Spooled Responses**: Streaming response bodies are written to disk, with a bounded response preview in the UI and history and an option to export the full stream.
 
 ### 🌊 Real-Time Streaming & Server-Sent Events (SSE)
@@ -135,7 +135,7 @@ graph TD
     D --> D2["auth/.apiclient/login.sidecar.json"]
     D --> D3["users/create_user.curl"]
     D --> D4["users/stream_events.curl"]
-    D --> D5["users/ListUsers.grpc"]
+    D --> D5["users/ListUsers.grpcurl"]
     A --> E["history.json"]
     A --> F[".apiclient/cache/stream_*.bin"]
   end
@@ -160,24 +160,21 @@ curl -X POST "{{base_url}}/users" \
   }'
 ```
 
-### 2. `.grpc` Request File
-gRPC requests are stored as JSON files and support reflection or local proto descriptors, metadata, TLS settings, and JSON request messages:
+### 2. `.grpcurl` Request File
+gRPC requests are stored as directly executable `grpcurl` commands with leading `# @directive` comment headers for metadata:
 
-```json
-{
-  "name": "List Users",
-  "endpoint": "https://localhost:50051",
-  "service": "users.v1.UserService",
-  "method": "ListUsers",
-  "request_json": "{\n  \"page_size\": 20\n}",
-  "metadata": [],
-  "proto_file": null,
-  "use_reflection": true,
-  "tls_enabled": true,
-  "tls_insecure": false,
-  "tls_ca_file": null,
-  "timeout_ms": 30000
-}
+```bash
+# @name List Users
+# @description Fetches active user profiles with reflection
+# @timeout 30000
+
+grpcurl -plaintext \
+  -H 'x-tenant-id: acme-corp' \
+  -d '{
+    "page_size": 20
+  }' \
+  localhost:50051 \
+  users.v1.UserService/ListUsers
 ```
 
 For client-streaming methods, `request_json` is a JSON array of request messages. Server-streaming responses are spooled under `.apiclient/cache/`; their history entries retain a bounded preview and the full response file path.

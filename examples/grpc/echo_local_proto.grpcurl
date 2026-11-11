@@ -1,0 +1,10 @@
+# @name gRPC Say Hello (Local Proto, Unary)
+# @timeout 30000
+
+grpcurl \
+  -plaintext \
+  -import-path 'examples/grpc' \
+  -proto 'hello.proto' \
+  -d '{"greeting": "Hello local proto"}' \
+  'grpc.postman-echo.com:443' \
+  'HelloService/SayHello'

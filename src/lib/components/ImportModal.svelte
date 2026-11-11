@@ -9,6 +9,7 @@ import {
   type PostmanImportResult,
 } from '$lib/utils/postman-importer';
   import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
+  import { serializeGrpcRequest } from '$lib/utils/grpc';
   import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
 
   let rawInput = $state('');
@@ -118,8 +119,8 @@ import {
           collectionName: 'Imported Requests',
           items: [
             {
-              relativePath: `imported/${slug}.grpc`,
-              content: `${JSON.stringify(imported.config, null, 2)}\n`,
+              relativePath: `imported/${slug}.grpcurl`,
+              content: serializeGrpcRequest(imported.config),
               name: imported.name,
             },
           ],

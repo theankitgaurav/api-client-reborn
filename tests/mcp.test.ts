@@ -312,6 +312,60 @@ test('MCP Tool: save_request creates new .curl file and sidecar', async () => {
   }
 });
 
+test('MCP Tool: save_request and list_requests handle .grpcurl requests', async () => {
+  const tmpDir = createTempWorkspace();
+  const server = new McpServer(tmpDir);
+
+  try {
+    const saveReq = {
+      jsonrpc: '2.0',
+      id: 60,
+      method: 'tools/call',
+      params: {
+        name: 'save_request',
+        arguments: {
+          path: 'grpc/say_hello.grpcurl',
+          name: 'Say Hello gRPC',
+          content: `grpcurl -plaintext -d '{"greeting":"Hello"}' localhost:50051 demo.Service/SayHello`,
+        },
+      },
+    };
+
+    const resSave = await server.handleMessage(JSON.stringify(saveReq));
+    assert.ok(resSave);
+
+    const getReq = {
+      jsonrpc: '2.0',
+      id: 61,
+      method: 'tools/call',
+      params: {
+        name: 'get_request',
+        arguments: { path: 'grpc/say_hello.grpcurl' },
+      },
+    };
+    const resGet = await server.handleMessage(JSON.stringify(getReq));
+    const details = JSON.parse(JSON.parse(resGet).result.content[0].text);
+    assert.equal(details.type, 'grpc');
+    assert.equal(details.name, 'Say Hello gRPC');
+    assert.equal(details.method, 'demo.Service/SayHello');
+
+    const listReq = {
+      jsonrpc: '2.0',
+      id: 62,
+      method: 'tools/call',
+      params: {
+        name: 'list_requests',
+        arguments: {},
+      },
+    };
+    const resList = await server.handleMessage(JSON.stringify(listReq));
+    const listData = JSON.parse(JSON.parse(resList).result.content[0].text);
+    assert.ok(listData.requests.some((r: any) => r.path === 'grpc/say_hello.grpcurl' && r.type === 'grpc'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('MCP Tool: list_environments masks secret tokens', async () => {
   const tmpDir = createTempWorkspace();
   const server = new McpServer(tmpDir);

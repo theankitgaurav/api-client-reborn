@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDefaultGrpcRequest, toGrpcurl } from '../src/lib/utils/grpc.ts';
+import { createDefaultGrpcRequest, parseGrpcRequest, serializeGrpcRequest, toGrpcurl } from '../src/lib/utils/grpc.ts';
 import { parseGrpcurlCommand } from '../src/lib/utils/grpcurl-importer.ts';
 
 test('imports grpcurl unary commands with plaintext, JSON, and metadata', () => {
@@ -45,4 +45,52 @@ test('imports TLS and local proto options', () => {
 test('reports invalid grpcurl commands clearly', () => {
   assert.throws(() => parseGrpcurlCommand('grpcurl -plaintext localhost:50051'), /target and a fully qualified service\/method/);
   assert.throws(() => parseGrpcurlCommand('grpcurl -plaintext -d @ localhost:50051 demo.Service/Echo'), /piped with printf/);
+});
+
+test('serializeGrpcRequest formats runnable grpcurl command with metadata directives', () => {
+  const config = createDefaultGrpcRequest('Say Hello Demo');
+  config.timeout_ms = 15000;
+  config.endpoint = 'http://127.0.0.1:50051';
+  config.service = 'demo.DemoService';
+  config.method = 'SayHello';
+  config.request_json = '{\n  "greeting": "Hello {{tenant_id}}"\n}';
+  config.metadata = [{ key: 'x-tenant', value: 'tenant-123' }];
+
+  const serialized = serializeGrpcRequest(config);
+  assert.ok(serialized.includes('# @name Say Hello Demo'));
+  assert.ok(serialized.includes('# @timeout 15000'));
+  assert.ok(serialized.includes('grpcurl \\\n  -plaintext'));
+  assert.ok(serialized.includes("-H 'x-tenant: tenant-123'"));
+  assert.ok(serialized.includes("'127.0.0.1:50051'"));
+  assert.ok(serialized.includes("'demo.DemoService/SayHello'"));
+
+  // Roundtrip test
+  const roundtrip = parseGrpcRequest(serialized);
+  assert.equal(roundtrip.name, 'Say Hello Demo');
+  assert.equal(roundtrip.timeout_ms, 15000);
+  assert.equal(roundtrip.endpoint, 'http://127.0.0.1:50051');
+  assert.equal(roundtrip.service, 'demo.DemoService');
+  assert.equal(roundtrip.method, 'SayHello');
+  assert.equal(roundtrip.tls_enabled, false);
+  assert.deepEqual(roundtrip.metadata, [{ key: 'x-tenant', value: 'tenant-123' }]);
+  assert.ok(roundtrip.request_json.includes('Hello {{tenant_id}}'));
+});
+
+test('parseGrpcRequest parses legacy JSON format transparently', () => {
+  const legacyJson = JSON.stringify({
+    name: 'Legacy Request',
+    endpoint: 'http://127.0.0.1:50051',
+    service: 'demo.DemoService',
+    method: 'Echo',
+    request_json: '{"message": "hello"}',
+    metadata: [{ key: 'x-api', value: 'test' }],
+    timeout_ms: 25000,
+  });
+
+  const config = parseGrpcRequest(legacyJson);
+  assert.equal(config.name, 'Legacy Request');
+  assert.equal(config.service, 'demo.DemoService');
+  assert.equal(config.method, 'Echo');
+  assert.equal(config.timeout_ms, 25000);
+  assert.deepEqual(config.metadata, [{ key: 'x-api', value: 'test' }]);
 });

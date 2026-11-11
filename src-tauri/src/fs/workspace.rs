@@ -54,16 +54,16 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
         include_str!("../../../examples/grpc/hello.proto"),
     ),
     (
-        "grpc/echo.grpc",
-        include_str!("../../../examples/grpc/echo.grpc"),
+        "grpc/echo.grpcurl",
+        include_str!("../../../examples/grpc/echo.grpcurl"),
     ),
     (
-        "grpc/watch_stream.grpc",
-        include_str!("../../../examples/grpc/watch_stream.grpc"),
+        "grpc/watch_stream.grpcurl",
+        include_str!("../../../examples/grpc/watch_stream.grpcurl"),
     ),
     (
-        "grpc/echo_local_proto.grpc",
-        include_str!("../../../examples/grpc/echo_local_proto.grpc"),
+        "grpc/echo_local_proto.grpcurl",
+        include_str!("../../../examples/grpc/echo_local_proto.grpcurl"),
     ),
     (
         "get_users.curl",
@@ -340,14 +340,12 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
         "collect_100k_client_stream.grpc",
         "chat_stream.grpc",
         "echo_variables.grpc",
+        "echo.grpc",
+        "watch_stream.grpc",
+        "echo_local_proto.grpc",
     ] {
         let path = grpc_examples_dir.join(obsolete_name);
-        if fs::read_to_string(&path)
-            .map(|existing| {
-                existing.contains("127.0.0.1:50051") && existing.contains("demo.DemoService")
-            })
-            .unwrap_or(false)
-        {
+        if path.exists() {
             let _ = fs::remove_file(path);
         }
     }
@@ -375,6 +373,50 @@ pub fn resolve_workspace_root(input: &str) -> PathBuf {
         PathBuf::from(input)
     };
     p
+}
+
+pub fn parse_grpc_method_from_command(command: &str) -> Option<String> {
+    if let Ok(tokens) = crate::parser::lexer::tokenize_command(command) {
+        if let Some(grpcurl_pos) = tokens.iter().rposition(|t| {
+            t == "grpcurl" || t.ends_with("/grpcurl") || t.ends_with("\\grpcurl")
+        }) {
+            let grpcurl_args = &tokens[grpcurl_pos + 1..];
+            let mut skip_next = false;
+            let mut positionals = Vec::new();
+
+            for arg in grpcurl_args {
+                if skip_next {
+                    skip_next = false;
+                    continue;
+                }
+                if matches!(
+                    arg.as_str(),
+                    "-d" | "-H"
+                        | "-proto"
+                        | "-import-path"
+                        | "-cacert"
+                        | "-cert"
+                        | "-key"
+                        | "-max-time"
+                        | "-connect-timeout"
+                ) {
+                    skip_next = true;
+                    continue;
+                }
+                if arg.starts_with('-') {
+                    continue;
+                }
+                positionals.push(arg.clone());
+            }
+
+            if let Some(last) = positionals.last() {
+                if last.contains('/') {
+                    return Some(last.clone());
+                }
+            }
+        }
+    }
+    Some("gRPC".to_string())
 }
 
 /// Recursively scans a workspace directory and builds a hierarchical tree of folders and request files
@@ -415,17 +457,24 @@ pub fn scan_workspace_tree(dir: &Path) -> Result<Vec<WorkspaceFileItem>> {
                 kind: None,
                 children: Some(children),
             });
-        } else if file_name.ends_with(".grpc") {
+        } else if file_name.ends_with(".grpcurl") || file_name.ends_with(".grpc") {
             let mut display_name = None;
             let mut method = None;
             if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(config) = serde_json::from_str::<GrpcRequestConfig>(&content) {
-                    display_name = Some(config.name);
-                    method = Some(if config.service.is_empty() || config.method.is_empty() {
-                        "gRPC".to_string()
-                    } else {
-                        format!("{}/{}", config.service, config.method)
-                    });
+                let trimmed = content.trim_start();
+                if trimmed.starts_with('{') {
+                    if let Ok(config) = serde_json::from_str::<GrpcRequestConfig>(&content) {
+                        display_name = Some(config.name);
+                        method = Some(if config.service.is_empty() || config.method.is_empty() {
+                            "gRPC".to_string()
+                        } else {
+                            format!("{}/{}", config.service, config.method)
+                        });
+                    }
+                } else {
+                    let (meta, cmd) = extract_comments_and_command(&content);
+                    display_name = meta.name;
+                    method = parse_grpc_method_from_command(&cmd);
                 }
             }
             items.push(WorkspaceFileItem {
@@ -560,5 +609,17 @@ mod tests {
         assert_eq!(fs::read_to_string(app_dir.join("examples/request.curl")).unwrap(), "legacy");
         assert_eq!(fs::read_to_string(workspace.join("examples/request.curl")).unwrap(), "current");
         let _ = fs::remove_dir_all(app_dir);
+    }
+
+    #[test]
+    fn test_parse_grpc_method_from_command() {
+        let cmd = "grpcurl -plaintext -d '{\"greeting\":\"hello\"}' localhost:50051 demo.DemoService/Echo";
+        assert_eq!(parse_grpc_method_from_command(cmd).as_deref(), Some("demo.DemoService/Echo"));
+
+        let streaming_cmd = "printf '%s\\n' '{\"id\":1}' | grpcurl -plaintext -d @ api.test.com:443 package.Service/Collect";
+        assert_eq!(parse_grpc_method_from_command(streaming_cmd).as_deref(), Some("package.Service/Collect"));
+
+        let multiline_cmd = "grpcurl \\\n  -plaintext \\\n  -import-path examples/grpc \\\n  -proto hello.proto \\\n  -d '{}' \\\n  grpc.postman-echo.com:443 \\\n  HelloService/SayHello";
+        assert_eq!(parse_grpc_method_from_command(multiline_cmd).as_deref(), Some("HelloService/SayHello"));
     }
 }

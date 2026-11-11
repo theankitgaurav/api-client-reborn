@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] — 2026-11-11
+
+### Added
+
+- Persist gRPC requests as plain, directly executable `grpcurl` commands with `# @name` and `# @timeout` comment directives, achieving full symmetry with `.curl` files.
+- Standardized on the `.grpcurl` file extension for gRPC requests across the workspace, sidebar, and modals.
+- Transparent backward compatibility: existing `.grpc` files and legacy JSON-formatted requests continue to be parsed and displayed seamlessly.
+- Native Rust command-line parsing (`parse_grpc_method_from_command`) to extract gRPC `Service/Method` directly from command tokens in the workspace scanner.
+- Updated collection export, MCP server tools, and starter examples to support `.grpcurl` requests.
+
 ## [0.8.0] — 2026-11-11
 
 ### Added

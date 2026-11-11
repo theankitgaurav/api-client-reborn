@@ -1,0 +1,10 @@
+# @name gRPC Lots of Replies (Server Stream, Spooled)
+# @timeout 30000
+
+grpcurl \
+  -plaintext \
+  -import-path 'examples/grpc' \
+  -proto 'hello.proto' \
+  -d '{"greeting": "Hello server streaming"}' \
+  'grpc.postman-echo.com:443' \
+  'HelloService/LotsOfReplies'

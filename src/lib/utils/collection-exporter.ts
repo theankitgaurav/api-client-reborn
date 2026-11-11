@@ -29,7 +29,7 @@ export function flattenWorkspaceRequests(
         name: item.display_name || item.name,
         method: item.method || 'GET',
         command: rawContent,
-        ...(item.kind === 'grpc' || item.path.toLowerCase().endsWith('.grpc') ? { kind: 'grpc' as const } : {}),
+        ...(item.kind === 'grpc' || /\.(?:grpcurl|grpc)$/i.test(item.path) ? { kind: 'grpc' as const } : {}),
       });
     }
   }
@@ -92,7 +92,7 @@ export function generateCollectionShellScript(
   // Iterate over each request
   requests.forEach((req, idx) => {
     const reqNum = idx + 1;
-    const isGrpc = req.kind === 'grpc' || req.path.toLowerCase().endsWith('.grpc');
+    const isGrpc = req.kind === 'grpc' || /\.(?:grpcurl|grpc)$/i.test(req.path);
     const resolvedCmd = isGrpc
       ? toGrpcurl(resolveGrpcVariables(parseGrpcRequest(req.command), envVars))
       : getResolvedCommand(req.command, envVars);
