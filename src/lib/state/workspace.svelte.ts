@@ -35,6 +35,7 @@ export class WorkspaceState {
   isSaveModalOpen = $state(false);
   isImportModalOpen = $state(false);
   isExportModalOpen = $state(false);
+  isMcpModalOpen = $state(false);
   exportTargetFolder = $state<WorkspaceFileItem | null>(null);
   targetNewRequestFolder = $state<string>('.');
   private refreshRequestId = 0;

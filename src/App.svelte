@@ -10,6 +10,7 @@
   import ImportModal from '$lib/components/ImportModal.svelte';
   import ExportModal from '$lib/components/ExportModal.svelte';
   import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
+  import McpModal from '$lib/components/McpModal.svelte';
   import { executeShortcut, type ShortcutContext } from '$lib/utils/shortcuts';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { responseState } from '$lib/state/response.svelte';
@@ -68,6 +69,10 @@
       }
       if (workspaceState.isExportModalOpen) {
         workspaceState.isExportModalOpen = false;
+        return true;
+      }
+      if (workspaceState.isMcpModalOpen) {
+        workspaceState.isMcpModalOpen = false;
         return true;
       }
       if (envState.isVariablesModalOpen) {
@@ -129,4 +134,7 @@
 
   <!-- Keyboard Shortcuts Cheat Sheet Modal -->
   <ShortcutsModal />
+
+  <!-- AI & Model Context Protocol (MCP) Modal -->
+  <McpModal />
 </main>

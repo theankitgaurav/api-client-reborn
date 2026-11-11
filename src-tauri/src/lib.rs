@@ -13,7 +13,7 @@ use tauri::{AppHandle, Runtime};
 use ipc::{
     append_request_history, cancel_request, clear_request_history, create_collection_folder,
     create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
-    execute_grpc_request, discover_grpc_services, export_spooled_stream, get_request_history, get_workspace_environments, get_workspace_path,
+    execute_grpc_request, discover_grpc_services, export_spooled_stream, get_mcp_config_info, get_request_history, get_workspace_environments, get_workspace_path,
     get_collection_variables, get_collection_variables_for_editor, get_workspace_secrets, get_workspace_variables, import_collection_bundle, parse_curl_preview,
     read_request_file, rename_workspace_item, save_collection_variables, save_request_file, save_workspace_secrets,
     save_workspace_environment, save_workspace_variables, scan_workspace, set_workspace_path,
@@ -99,6 +99,68 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     }
 }
 
+pub fn run_cli_or_app() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && (args[1] == "mcp" || args[1] == "--mcp") {
+        run_mcp_cli(&args[2..]);
+        return;
+    }
+    run();
+}
+
+pub fn run_mcp_cli(args: &[String]) {
+    let mut workspace = ".".to_string();
+    let mut i = 0;
+    while i < args.len() {
+        if (args[i] == "--workspace" || args[i] == "-w") && i + 1 < args.len() {
+            workspace = args[i + 1].clone();
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+
+    let ws_path = std::path::PathBuf::from(&workspace);
+    let current_exe = std::env::current_exe().ok();
+
+    // Check candidate locations for bin/mcp.js
+    let candidates = [
+        ws_path.join("bin").join("mcp.js"),
+        ws_path.join("api-client-reborn").join("bin").join("mcp.js"),
+        current_exe
+            .as_ref()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .map(|p| p.join("bin").join("mcp.js"))
+            .unwrap_or_default(),
+    ];
+
+    let mut script_path = None;
+    for cand in &candidates {
+        if cand.exists() {
+            script_path = Some(cand.clone());
+            break;
+        }
+    }
+
+    if let Some(script) = script_path {
+        let status = std::process::Command::new("node")
+            .arg("--experimental-strip-types")
+            .arg(script)
+            .args(args)
+            .status();
+
+        if let Ok(exit_status) = status {
+            std::process::exit(exit_status.code().unwrap_or(0));
+        }
+    }
+
+    eprintln!("[api-client-reborn-mcp] MCP runner: Node.js runner or bin/mcp.js not found for workspace: {}", workspace);
+    eprintln!("[api-client-reborn-mcp] To run via npx: npx -y @api-client-reborn/mcp --workspace {}", workspace);
+    std::process::exit(1);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -117,6 +179,7 @@ pub fn run() {
             cancel_request,
             export_spooled_stream,
             parse_curl_preview,
+            get_mcp_config_info,
             get_workspace_path,
             set_workspace_path,
             scan_workspace,

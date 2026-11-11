@@ -3,12 +3,17 @@
   "private": true,
   "version": "0.7.0",
   "type": "module",
+  "bin": {
+    "api-client-mcp": "./bin/mcp.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check",
-    "test:frontend": "node --test --experimental-strip-types tests/utils.test.ts tests/scripts.test.ts tests/postman-importer.test.ts tests/collection-exporter.test.ts tests/grpcurl-importer.test.ts tests/variable-tooltip.test.ts tests/shortcuts.test.ts tests/stream-resilience.test.ts tests/tab-sync.test.ts tests/history.test.ts tests/workspace-context-menu.test.ts",
+    "mcp": "node --experimental-strip-types bin/mcp.js",
+    "test:mcp": "node --test --experimental-strip-types tests/mcp.test.ts",
+    "test:frontend": "node --test --experimental-strip-types tests/utils.test.ts tests/scripts.test.ts tests/postman-importer.test.ts tests/collection-exporter.test.ts tests/grpcurl-importer.test.ts tests/variable-tooltip.test.ts tests/shortcuts.test.ts tests/stream-resilience.test.ts tests/tab-sync.test.ts tests/history.test.ts tests/workspace-context-menu.test.ts tests/mcp.test.ts",
     "test:backend": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test": "npm run check && npm run test:frontend && npm run test:backend && npm run build",
     "tauri": "tauri"

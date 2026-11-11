@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    api_client_reborn_lib::run();
+    api_client_reborn_lib::run_cli_or_app();
 }

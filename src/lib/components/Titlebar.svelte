@@ -14,6 +14,7 @@
     Monitor,
     Check,
     Keyboard,
+    Bot,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
@@ -133,6 +134,16 @@
 
   <!-- Right: Theme Switcher & Variables Action -->
   <div class="flex items-center space-x-2">
+    <!-- MCP AI Integration Button -->
+    <button
+      onclick={() => (workspaceState.isMcpModalOpen = true)}
+      title="AI & MCP Server Configuration"
+      class="flex items-center gap-1.5 px-2 py-1 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors text-xs font-medium"
+    >
+      <Bot size={13} class="text-emerald-500" />
+      <span class="text-[11px] font-medium hidden sm:inline">MCP</span>
+    </button>
+
     <!-- Keyboard Shortcuts Button -->
     <button
       onclick={() => shortcutsState.toggleCheatSheet()}

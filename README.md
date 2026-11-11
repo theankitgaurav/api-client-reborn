@@ -105,6 +105,11 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 - Export collections or folders into a standalone, portable POSIX bash script.
 - HTTP requests use cURL; collections with gRPC requests also require `grpcurl`. No Node.js, Python, or proprietary CLI runner is needed.
 
+### 🤖 Model Context Protocol (MCP) Server for AI Coding Agents
+- Built-in, zero-dependency MCP server over stdio for AI coding assistants (**Claude Desktop**, **Cursor**, **Antigravity**, **VS Code Copilot**, **Zed**).
+- Exposes tools to discover (`list_requests`), inspect (`get_request`), execute with secret injection (`execute_request`, `execute_quick_curl`), and save requests (`save_request`).
+- See [**docs/MCP_GUIDE.md**](docs/MCP_GUIDE.md) for quick client setup configurations.
+
 ### ⌨️ Browser & Vim-Class Keyboard Shortcuts
 - Full keyboard control: create requests (`Cmd+N`), switch tabs (`Cmd+1..9`, `Ctrl+Tab`), send/cancel (`Cmd+Enter`), focus URL bar (`Cmd+L`), search requests (`Cmd+F`), beautify JSON (`Cmd+Opt+B`), and open the shortcut cheat sheet (`?` or `Cmd+/`).
 

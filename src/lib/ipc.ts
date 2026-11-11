@@ -955,3 +955,19 @@ export async function exportSpooledStream(
   return 0;
 }
 
+export interface McpConfigInfo {
+  workspace_path: string;
+  executable_path: string;
+}
+
+export async function getMcpConfigInfo(): Promise<McpConfigInfo> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_mcp_config_info');
+  }
+  return {
+    workspace_path: typeof window !== 'undefined' ? (window as any).__MOCK_WORKSPACE__ || '~/.api-client-reborn' : '~/.api-client-reborn',
+    executable_path: '/Applications/API Client Reborn.app/Contents/MacOS/api-client-reborn',
+  };
+}
+

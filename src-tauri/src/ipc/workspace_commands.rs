@@ -75,6 +75,29 @@ pub fn get_workspace_path() -> Result<String> {
     Ok(path.to_string_lossy().to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpConfigInfo {
+    pub workspace_path: String,
+    pub executable_path: String,
+}
+
+#[tauri::command]
+pub fn get_mcp_config_info() -> Result<McpConfigInfo> {
+    let workspace_path = if app_data_dir().join("settings.json").exists() {
+        selected_workspace_dir()
+    } else {
+        initialize_default_workspace()?
+    };
+    let executable_path = std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "api-client-reborn".to_string());
+
+    Ok(McpConfigInfo {
+        workspace_path: workspace_path.to_string_lossy().to_string(),
+        executable_path,
+    })
+}
+
 #[tauri::command]
 pub fn set_workspace_path(workspace_path: String) -> Result<String> {
     Ok(set_selected_workspace_dir(&PathBuf::from(workspace_path))?.to_string_lossy().to_string())
