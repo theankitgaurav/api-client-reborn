@@ -38,6 +38,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "category": "DeveloperTool",
     "shortDescription": "A lightweight native API client for macOS, Windows, and Linux",
     "longDescription": "A lightweight, high-performance native API testing client and cURL playground built with Tauri and Svelte.",

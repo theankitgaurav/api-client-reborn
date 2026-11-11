@@ -71,6 +71,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'API Client Reborn ${{ github.ref_name }}'
           releaseBody: 'Automated release build for macOS, Windows, and Linux.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
