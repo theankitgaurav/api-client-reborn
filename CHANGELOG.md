@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1] — 2026-11-11
+
+### Fixed
+
+- Bound Ubuntu package installation retries and network timeouts in the release workflow so temporary mirror or DNS failures cannot stall release jobs indefinitely.
+
 ## [0.10.0] — 2026-11-11
 
 ### Added
