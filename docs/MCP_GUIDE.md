@@ -2,20 +2,39 @@
 
 The **API Client Reborn MCP Server** exposes your local, Git-versioned API collections and environments to modern AI coding assistants (Claude Desktop, Cursor, Antigravity, VS Code Copilot, Zed).
 
+The installed desktop application includes the MCP runtime. Users do not need Node.js, `npx`, a repository checkout, or any source files in the workspace.
+
 AI agents can automatically:
 1. **Discover & inspect** `.curl`, `.grpcurl`, and `.grpc` requests in your repository.
 2. **Execute requests** against local or remote environments (`development`, `staging`, `production`).
 3. **Run test assertions** headlessly (`pm.test()`, `pm.expect()`) and inspect status codes, headers, and responses.
-4. **Safely resolve secrets** from `.apiclient/.secrets.json` (secrets are injected into outgoing requests, but masked in prompts).
+4. **Safely resolve secrets** from `.apiclient/.secrets.env` (legacy `.secrets.json` files are also read for compatibility; secrets are injected into outgoing requests, but masked in prompts).
 5. **Create & update requests** directly as `.curl` files when writing new API routes in your code.
 
 ---
 
 ## 🚀 Quick Setup
 
-The MCP server runs over standard input/output (`stdio`) using Node.js 18+. No extra installation or dependencies are required.
+The installed MCP server runs over standard input/output (`stdio`) from the native application binary. No extra installation or runtime dependencies are required.
 
-### 1. Claude Desktop
+### 1. Installed application (recommended)
+
+Configure your MCP client to launch the installed application binary. The workspace path should point to the directory containing your requests and environments.
+
+```json
+{
+  "mcpServers": {
+    "api-client-reborn": {
+      "command": "/Applications/API Client Reborn.app/Contents/MacOS/api_client_reborn",
+      "args": ["mcp", "--workspace", "/absolute/path/to/your/api-workspace"]
+    }
+  }
+}
+```
+
+On Windows and Linux, use the installed `api-client-reborn` executable path for that platform.
+
+### 2. Claude Desktop
 
 Add the server to your Claude Desktop configuration file:
 
@@ -27,10 +46,9 @@ Add the server to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "node",
+      "command": "api-client-reborn",
       "args": [
-        "--experimental-strip-types",
-        "/absolute/path/to/api-client-reborn/bin/mcp.js",
+        "mcp",
         "--workspace",
         "/absolute/path/to/your/api-workspace"
       ]
@@ -41,7 +59,7 @@ Add the server to your Claude Desktop configuration file:
 
 ---
 
-### 2. Cursor
+### 3. Cursor
 
 Add the server to `.cursor/mcp.json` in your repository root:
 
@@ -49,10 +67,9 @@ Add the server to `.cursor/mcp.json` in your repository root:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "node",
+      "command": "api-client-reborn",
       "args": [
-        "--experimental-strip-types",
-        "${workspaceFolder}/bin/mcp.js",
+        "mcp",
         "--workspace",
         "${workspaceFolder}"
       ]
@@ -63,7 +80,7 @@ Add the server to `.cursor/mcp.json` in your repository root:
 
 ---
 
-### 3. Antigravity / Gemini CLI
+### 4. Antigravity / Gemini CLI
 
 Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 
@@ -71,10 +88,9 @@ Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "node",
+      "command": "api-client-reborn",
       "args": [
-        "--experimental-strip-types",
-        "/absolute/path/to/api-client-reborn/bin/mcp.js",
+        "mcp",
         "--workspace",
         "/absolute/path/to/your/api-workspace"
       ]
@@ -101,7 +117,7 @@ Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 ## 🔒 Secret Isolation & Security
 
 API Client Reborn adheres to a strict zero-leakage security model:
-1. **Secrets in `.secrets.json`**: Sensitive API keys and tokens are stored in `.apiclient/.secrets.json` (guaranteed to be Git-ignored).
+1. **Secrets in `.secrets.env`**: Sensitive API keys and tokens are stored in `.apiclient/.secrets.env` (guaranteed to be Git-ignored).
 2. **Prompt Protection**: The `list_environments` tool masks all secrets with `***`.
 3. **Execution-Time Injection**: Secrets are resolved only inside `execute_request` when dispatching network calls, ensuring credentials never leak into prompt context windows.
 4. **Path Traversal Defense**: All file paths are strictly bounded inside the designated workspace root; traversal attempts escaping the workspace are blocked.
@@ -129,7 +145,9 @@ The agent will:
 
 ---
 
-## 🧪 Testing the MCP Server
+## 🧪 Developing and testing the MCP Server
+
+The following Node.js command is for repository development only. It is not used by installed application builds:
 
 You can test the MCP server manually or via the automated test suite:
 

@@ -3,6 +3,7 @@ pub mod env;
 pub mod error;
 pub mod fs;
 pub mod ipc;
+pub mod mcp;
 pub mod parser;
 
 use engine::cancel::CancellationManager;
@@ -124,45 +125,7 @@ pub fn run_mcp_cli(args: &[String]) {
         }
     }
 
-    let ws_path = std::path::PathBuf::from(&workspace);
-    let current_exe = std::env::current_exe().ok();
-
-    // Check candidate locations for bin/mcp.js
-    let candidates = [
-        ws_path.join("bin").join("mcp.js"),
-        ws_path.join("api-client-reborn").join("bin").join("mcp.js"),
-        current_exe
-            .as_ref()
-            .and_then(|p| p.parent())
-            .and_then(|p| p.parent())
-            .and_then(|p| p.parent())
-            .map(|p| p.join("bin").join("mcp.js"))
-            .unwrap_or_default(),
-    ];
-
-    let mut script_path = None;
-    for cand in &candidates {
-        if cand.exists() {
-            script_path = Some(cand.clone());
-            break;
-        }
-    }
-
-    if let Some(script) = script_path {
-        let status = std::process::Command::new("node")
-            .arg("--experimental-strip-types")
-            .arg(script)
-            .args(args)
-            .status();
-
-        if let Ok(exit_status) = status {
-            std::process::exit(exit_status.code().unwrap_or(0));
-        }
-    }
-
-    eprintln!("[api-client-reborn-mcp] MCP runner: Node.js runner or bin/mcp.js not found for workspace: {}", workspace);
-    eprintln!("[api-client-reborn-mcp] To run via npx: npx -y @api-client-reborn/mcp --workspace {}", workspace);
-    std::process::exit(1);
+    mcp::run_stdio(&workspace);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

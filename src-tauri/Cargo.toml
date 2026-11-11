@@ -48,3 +48,4 @@ chrono = { version = "0.4", features = ["serde"] }
 regex = "1.10"
 rand = "0.8"
 dirs = "5.0"
+rquickjs = "0.14"

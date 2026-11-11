@@ -285,3 +285,133 @@ pub async fn execute_http_request(
 
     Ok(())
 }
+
+/// A complete HTTP response for callers such as MCP that need a single structured result rather
+/// than streamed UI events.
+#[derive(Debug, Clone)]
+pub struct CollectedHttpResponse {
+    pub status: u16,
+    pub status_text: String,
+    pub headers: Vec<HeaderPair>,
+    pub body: String,
+    pub duration_ms: u64,
+}
+
+/// Executes a parsed request using the same transport configuration as the desktop request path,
+/// collecting the response for non-UI callers.
+pub async fn execute_http_request_collect(
+    parsed: ParsedCurlRequest,
+) -> Result<CollectedHttpResponse> {
+    let start_time = Instant::now();
+    let mut client_builder = reqwest::Client::builder();
+
+    if parsed.insecure {
+        client_builder = client_builder.danger_accept_invalid_certs(true);
+    }
+    client_builder = if parsed.follow_redirects {
+        client_builder.redirect(Policy::limited(10))
+    } else {
+        client_builder.redirect(Policy::none())
+    };
+    if let Some(timeout_ms) = parsed.timeout_ms {
+        client_builder = client_builder.timeout(Duration::from_millis(timeout_ms));
+    }
+    let client = client_builder
+        .build()
+        .map_err(|e| AppError::NetworkError(format!("Failed to build HTTP client: {}", e)))?;
+
+    let method = match parsed.method {
+        HttpMethod::GET => reqwest::Method::GET,
+        HttpMethod::POST => reqwest::Method::POST,
+        HttpMethod::PUT => reqwest::Method::PUT,
+        HttpMethod::DELETE => reqwest::Method::DELETE,
+        HttpMethod::PATCH => reqwest::Method::PATCH,
+        HttpMethod::HEAD => reqwest::Method::HEAD,
+        HttpMethod::OPTIONS => reqwest::Method::OPTIONS,
+        HttpMethod::CUSTOM(value) => reqwest::Method::from_bytes(value.as_bytes())
+            .map_err(|e| AppError::NetworkError(format!("Invalid HTTP method: {}", e)))?,
+    };
+    let mut request = client.request(method, parsed.url);
+
+    let mut headers = HeaderMap::new();
+    for HeaderPair { key, value } in parsed.headers {
+        if let (Ok(header_name), Ok(header_value)) = (
+            HeaderName::from_str(&key),
+            HeaderValue::from_str(&value),
+        ) {
+            headers.insert(header_name, header_value);
+        }
+    }
+    if !parsed.form_fields.is_empty() {
+        headers.remove(reqwest::header::CONTENT_TYPE);
+    }
+    request = request.headers(headers);
+
+    if let Some(BasicAuth { username, password }) = parsed.basic_auth {
+        request = request.basic_auth(username, password);
+    }
+
+    if !parsed.form_fields.is_empty() {
+        let mut form = reqwest::multipart::Form::new();
+        for field in parsed.form_fields {
+            if let Some(file_path) = field.file_path {
+                let metadata = tokio::fs::metadata(&file_path)
+                    .await
+                    .map_err(|e| AppError::FsError(format!("Could not access upload file '{}': {}", file_path, e)))?;
+                if !metadata.is_file() {
+                    return Err(AppError::FsError(format!("Upload path is not a file: '{}'", file_path)));
+                }
+                let file = tokio::fs::File::open(&file_path)
+                    .await
+                    .map_err(|e| AppError::FsError(format!("Could not open upload file '{}': {}", file_path, e)))?;
+                let file_name = Path::new(&file_path)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("upload.bin")
+                    .to_string();
+                form = form.part(
+                    field.name,
+                    reqwest::multipart::Part::stream_with_length(
+                        reqwest::Body::wrap_stream(tokio_util::io::ReaderStream::new(file)),
+                        metadata.len(),
+                    )
+                    .file_name(file_name)
+                    .mime_str("application/octet-stream")
+                    .map_err(|e| AppError::NetworkError(format!("Invalid upload MIME type: {}", e)))?,
+                );
+            } else {
+                form = form.text(field.name, field.value);
+            }
+        }
+        request = request.multipart(form);
+    } else if let Some(body) = parsed.body {
+        request = request.body(body);
+    }
+
+    let response = request
+        .send()
+        .await
+        .map_err(|e| AppError::NetworkError(e.to_string()))?;
+    let status = response.status().as_u16();
+    let status_text = response.status().canonical_reason().unwrap_or("").to_string();
+    let headers = response
+        .headers()
+        .iter()
+        .map(|(key, value)| HeaderPair {
+            key: key.to_string(),
+            value: value.to_str().unwrap_or("").to_string(),
+        })
+        .collect();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+    Ok(CollectedHttpResponse {
+        status,
+        status_text,
+        headers,
+        body,
+        duration_ms: start_time.elapsed().as_millis() as u64,
+    })
+}
