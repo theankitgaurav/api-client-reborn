@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2] — 2026-11-11
+
+### Fixed
+
+- Enable `createUpdaterArtifacts` in `tauri.conf.json` so Tauri v2 generates Minisign `.sig` signature archives across all platforms.
+- Set `releaseDraft: false` in GitHub release workflow to publish releases and update manifest (`latest.json`) immediately.
+
 ## [0.10.1] — 2026-11-11
 
 ### Fixed
