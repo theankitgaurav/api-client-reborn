@@ -8,14 +8,14 @@ pub mod parser;
 use engine::cancel::CancellationManager;
 use tauri::menu::Menu;
 #[cfg(target_os = "macos")]
-use tauri::menu::{AboutMetadata, PredefinedMenuItem, Submenu};
+use tauri::menu::{AboutMetadata, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Runtime};
 use ipc::{
     append_request_history, cancel_request, clear_request_history, create_collection_folder,
     create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
     execute_grpc_request, discover_grpc_services, export_spooled_stream, get_mcp_config_info, get_request_history, get_workspace_environments, get_workspace_path,
     get_collection_variables, get_collection_variables_for_editor, get_workspace_secrets, get_workspace_variables, import_collection_bundle, parse_curl_preview,
-    read_request_file, rename_workspace_item, save_collection_variables, save_request_file, save_workspace_secrets,
+    read_request_file, relaunch_app, rename_workspace_item, save_collection_variables, save_request_file, save_workspace_secrets,
     save_workspace_environment, save_workspace_variables, scan_workspace, set_workspace_path,
 };
 
@@ -30,6 +30,9 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             credits: Some("Built with ❤️ for developers who love speed, simplicity, and open protocols.".into()),
             ..Default::default()
         };
+        let check_updates_item =
+            MenuItem::with_id(app, "check_updates", "Check for Updates…", true, None::<&str>)?;
+
         let window_menu = Submenu::with_items(
             app,
             "Window",
@@ -52,6 +55,7 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
                     true,
                     &[
                         &PredefinedMenuItem::about(app, None, Some(about_metadata))?,
+                        &check_updates_item,
                         &PredefinedMenuItem::separator(app)?,
                         &PredefinedMenuItem::services(app, None)?,
                         &PredefinedMenuItem::separator(app)?,
@@ -165,9 +169,16 @@ pub fn run_mcp_cli(args: &[String]) {
 pub fn run() {
     tauri::Builder::default()
         .menu(|app| build_app_menu(app))
+        .on_menu_event(|app, event| {
+            if event.id() == "check_updates" {
+                use tauri::Emitter;
+                let _ = app.emit("check-for-updates", ());
+            }
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(CancellationManager::new())
         .invoke_handler(tauri::generate_handler![
             execute_request,
@@ -200,6 +211,7 @@ pub fn run() {
             get_workspace_variables,
             save_workspace_variables,
             save_workspace_environment,
+            relaunch_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

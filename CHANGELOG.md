@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0] — 2026-11-11
+
+### Added
+
+- In-app software update capability powered by the official Tauri v2 Updater (`tauri-plugin-updater` and `@tauri-apps/plugin-updater`).
+- Cryptographic Ed25519 signature verification using Minisign keys to ensure authenticity and integrity of all release archives.
+- Automated update manifest (`latest.json`) generation and distribution via GitHub Releases workflow.
+- Native macOS application menu item ("Check for Updates…") wired to frontend event bus.
+- Full-featured Software Update modal with release notes preview, live downloading progress bar with downloaded byte metrics, and single-click restart.
+- Subtle, non-blocking Titlebar update notification badge when new releases are detected in the background.
+- Clean application relaunch command (`relaunch_app`) to seamlessly swap and apply updates.
+
 ## [0.9.0] — 2026-11-11
 
 ### Added

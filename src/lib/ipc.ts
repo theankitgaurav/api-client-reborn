@@ -977,3 +977,11 @@ export async function getMcpConfigInfo(): Promise<McpConfigInfo> {
   };
 }
 
+export async function relaunchApp(): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('relaunch_app');
+  }
+  console.log('[Dev Mock] Application restart triggered');
+}
+

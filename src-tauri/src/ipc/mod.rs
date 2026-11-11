@@ -3,6 +3,7 @@ pub mod grpc_commands;
 pub mod history_commands;
 pub mod request_commands;
 pub mod types;
+pub mod update_commands;
 pub mod workspace_commands;
 
 pub use env_commands::*;
@@ -10,4 +11,5 @@ pub use grpc_commands::*;
 pub use history_commands::*;
 pub use request_commands::*;
 pub use types::*;
+pub use update_commands::*;
 pub use workspace_commands::*;

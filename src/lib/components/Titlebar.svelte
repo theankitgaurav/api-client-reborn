@@ -5,6 +5,7 @@
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { historyState } from '$lib/state/history.svelte';
+  import { updaterState } from '$lib/state/updater.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
   import {
     Layers,
@@ -15,6 +16,8 @@
     Check,
     Keyboard,
     Bot,
+    Download,
+    RefreshCw,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
@@ -80,10 +83,15 @@
 >
   <!-- App name at the extreme left, offset past macOS traffic lights -->
   <div class="flex items-center space-x-2 pl-[76px]">
-    <span class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5">
+    <button
+      type="button"
+      onclick={() => updaterState.checkForUpdates({ manual: true })}
+      title="API Client Reborn v{updaterState.currentVersion} • Check for updates"
+      class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+    >
       <Layers size={14} class="text-blue-500" />
       API Client Reborn
-    </span>
+    </button>
     <div class="relative" data-workspace-picker>
       <button
         type="button"
@@ -134,6 +142,18 @@
 
   <!-- Right: Theme Switcher & Variables Action -->
   <div class="flex items-center space-x-2">
+    <!-- Update Available Badge -->
+    {#if updaterState.hasUpdateNotification}
+      <button
+        onclick={() => updaterState.openModal()}
+        title="Update v{updaterState.availableVersion} is available! Click to view details and install."
+        class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 text-xs font-medium transition-all"
+      >
+        <Download size={13} class="animate-bounce" />
+        <span class="text-[11px] font-semibold">Update v{updaterState.availableVersion}</span>
+      </button>
+    {/if}
+
     <!-- MCP AI Integration Button -->
     <button
       onclick={() => (workspaceState.isMcpModalOpen = true)}

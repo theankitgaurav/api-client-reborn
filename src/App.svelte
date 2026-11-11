@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import Titlebar from '$lib/components/Titlebar.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
@@ -11,11 +12,18 @@
   import ExportModal from '$lib/components/ExportModal.svelte';
   import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
   import McpModal from '$lib/components/McpModal.svelte';
+  import UpdateModal from '$lib/components/UpdateModal.svelte';
   import { executeShortcut, type ShortcutContext } from '$lib/utils/shortcuts';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
+  import { updaterState } from '$lib/state/updater.svelte';
+
+  onMount(() => {
+    updaterState.init();
+    return () => updaterState.destroy();
+  });
 
   const shortcutContext: ShortcutContext = {
     createNewRequest: () => workspaceState.createNewRequest(),
@@ -55,6 +63,10 @@
       envState.isVariablesModalOpen = !envState.isVariablesModalOpen;
     },
     closeActiveModal: () => {
+      if (updaterState.isModalOpen && updaterState.status !== 'downloading') {
+        updaterState.closeModal();
+        return true;
+      }
       if (shortcutsState.isCheatSheetOpen) {
         shortcutsState.closeCheatSheet();
         return true;
@@ -137,4 +149,7 @@
 
   <!-- AI & Model Context Protocol (MCP) Modal -->
   <McpModal />
+
+  <!-- In-App Software Update Modal -->
+  <UpdateModal />
 </main>

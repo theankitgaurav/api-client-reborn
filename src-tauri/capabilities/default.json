@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default permissions for the API Client Reborn window.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-save"]
+  "permissions": ["core:default", "dialog:allow-open", "dialog:allow-save", "updater:default"]
 }

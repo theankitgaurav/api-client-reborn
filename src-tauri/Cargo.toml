@@ -1,6 +1,6 @@
 [package]
 name = "api_client_reborn"
-version = "0.9.0"
+version = "0.10.0"
 description = "A lightweight native API client for macOS, Windows, and Linux"
 authors = ["API Client Authors"]
 license = "MIT"
@@ -16,6 +16,7 @@ tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
 tauri = { version = "2.0.0", features = [] }
+tauri-plugin-updater = "2"
 tauri-plugin-shell = "2.6.0"
 tauri-plugin-fs = "2.0.0"
 tauri-plugin-dialog = "2.0.0"
