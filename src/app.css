@@ -115,14 +115,13 @@ textarea:focus-visible,
 }
 
 .ui-resize-handle {
-  @apply relative z-10 block w-1.5 shrink-0 cursor-col-resize appearance-none border-0 p-0;
+  @apply relative z-10 block cursor-col-resize touch-none select-none;
   background: var(--border);
   transition: background 150ms ease;
 }
 .ui-resize-handle:hover,
 .ui-resize-handle.is-dragging { background: var(--accent); }
-.ui-resize-handle::-webkit-slider-thumb { appearance: none; width: 100%; height: 100%; cursor: col-resize; background: transparent; }
-.ui-resize-handle::-moz-range-thumb { width: 100%; height: 100%; cursor: col-resize; border: 0; background: transparent; }
+.ui-resize-handle:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 .ui-menu-surface {
   @apply rounded-lg border p-1 shadow-2xl;
@@ -143,3 +142,4 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25
 .badge-delete { @apply bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30; }
 .badge-patch { @apply bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30; }
 .badge-grpc { @apply bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30; }
+.badge-request { @apply bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30; }

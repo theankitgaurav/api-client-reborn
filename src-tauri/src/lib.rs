@@ -14,7 +14,7 @@ use tauri::{AppHandle, Runtime};
 use ipc::{
     append_request_history, cancel_request, clear_request_history, create_collection_folder,
     create_request_file, delete_workspace_item, duplicate_request_file, execute_request,
-    execute_grpc_request, discover_grpc_services, export_spooled_stream, get_mcp_config_info, get_request_history, get_workspace_environments, get_workspace_path,
+    execute_grpc_request, discover_grpc_services, export_spooled_stream, get_mcp_config_info, get_request_history, get_workspace_environments, get_workspace_history, get_workspace_path,
     get_collection_variables, get_collection_variables_for_editor, get_workspace_secrets, get_workspace_variables, import_collection_bundle, parse_curl_preview,
     read_request_file, relaunch_app, rename_workspace_item, save_collection_variables, save_request_file, save_workspace_secrets,
     save_workspace_environment, save_workspace_variables, scan_workspace, set_workspace_path,
@@ -169,6 +169,7 @@ pub fn run() {
             parse_curl_preview,
             get_mcp_config_info,
             get_workspace_path,
+            get_workspace_history,
             set_workspace_path,
             scan_workspace,
             read_request_file,

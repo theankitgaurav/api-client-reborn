@@ -8,6 +8,8 @@
   import { updaterState } from '$lib/state/updater.svelte';
   import { uiState } from '$lib/state/ui.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
+  import { getWorkspaceHistory } from '$lib/ipc';
+  import { buildWorkspaceOptions } from '$lib/utils/workspace-history';
   import {
     Layers,
     FolderOpen,
@@ -23,14 +25,21 @@
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
+  let effectiveThemeIsDark = $derived(themeState.isDark());
   let isThemeMenuOpen = $state(false);
   let isWorkspaceMenuOpen = $state(false);
   let isSwitchingWorkspace = $state(false);
+  let isLoadingWorkspaceHistory = $state(false);
   let workspaceMenuError = $state('');
+  let defaultWorkspacePath = $state('');
+  let recentWorkspacePaths = $state<string[]>([]);
 
-  let workspaceName = $derived(
-    workspaceState.workspacePath.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).at(-1) || 'Workspace',
-  );
+  let workspaceName = $derived(getWorkspaceName(workspaceState.workspacePath));
+  let workspaceOptions = $derived(buildWorkspaceOptions(defaultWorkspacePath, recentWorkspacePaths));
+
+  function getWorkspaceName(path: string): string {
+    return path.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).at(-1) || 'Workspace';
+  }
 
   function closeThemeMenuOutside(event: MouseEvent) {
     const target = event.target;
@@ -44,12 +53,35 @@
     isThemeMenuOpen = false;
   }
 
-  async function chooseWorkspace() {
-    workspaceMenuError = '';
+  async function refreshWorkspaceHistory() {
+    isLoadingWorkspaceHistory = true;
     try {
-      const selected = await open({ directory: true, multiple: false, title: 'Choose workspace folder' });
-      if (typeof selected !== 'string') return;
+      const history = await getWorkspaceHistory();
+      defaultWorkspacePath = history.default_workspace_path;
+      recentWorkspacePaths = history.recent_workspace_paths;
+    } finally {
+      isLoadingWorkspaceHistory = false;
+    }
+  }
 
+  async function toggleWorkspaceMenu() {
+    isWorkspaceMenuOpen = !isWorkspaceMenuOpen;
+    workspaceMenuError = '';
+    if (!isWorkspaceMenuOpen) return;
+    try {
+      await refreshWorkspaceHistory();
+    } catch (e) {
+      workspaceMenuError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function switchToWorkspace(selected: string) {
+    workspaceMenuError = '';
+    if (selected === workspaceState.workspacePath) {
+      isWorkspaceMenuOpen = false;
+      return;
+    }
+    try {
       isSwitchingWorkspace = true;
       let dirtyHandled = false;
       if (workspaceState.isDirty) {
@@ -67,12 +99,23 @@
       if (changed) {
         await envState.refresh();
         await historyState.load(workspaceState.workspacePath);
+        await refreshWorkspaceHistory();
         isWorkspaceMenuOpen = false;
       }
     } catch (e) {
       workspaceMenuError = e instanceof Error ? e.message : String(e);
     } finally {
       isSwitchingWorkspace = false;
+    }
+  }
+
+  async function chooseWorkspace() {
+    workspaceMenuError = '';
+    try {
+      const selected = await open({ directory: true, multiple: false, title: 'Choose workspace folder' });
+      if (typeof selected === 'string') await switchToWorkspace(selected);
+    } catch (e) {
+      workspaceMenuError = e instanceof Error ? e.message : String(e);
     }
   }
 </script>
@@ -97,7 +140,7 @@
     <div class="relative" data-workspace-picker>
       <button
         type="button"
-        onclick={() => { isWorkspaceMenuOpen = !isWorkspaceMenuOpen; workspaceMenuError = ''; }}
+        onclick={toggleWorkspaceMenu}
         title="Current workspace: {workspaceState.workspacePath}"
         aria-label="Workspace: {workspaceName}. Choose workspace"
         aria-haspopup="menu"
@@ -113,11 +156,38 @@
         <div
           role="menu"
           aria-label="Workspace options"
-          class="absolute left-0 top-full z-[100] mt-2 w-72 rounded-md border border-neutral-200 bg-white p-2 text-neutral-800 shadow-xl dark:border-[#383838] dark:bg-[#252526] dark:text-neutral-200"
+          class="absolute left-0 top-full z-[100] mt-2 w-80 rounded-md border border-neutral-200 bg-white p-2 text-neutral-800 shadow-xl dark:border-[#383838] dark:bg-[#252526] dark:text-neutral-200"
         >
           <div class="border-b border-neutral-100 px-2 pb-2 dark:border-neutral-700">
             <div class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Current workspace</div>
             <div class="mt-1 break-all text-xs text-neutral-700 dark:text-neutral-200">{workspaceState.workspacePath}</div>
+          </div>
+          <div class="max-h-56 overflow-y-auto border-b border-neutral-100 py-1 dark:border-neutral-700">
+            {#if isLoadingWorkspaceHistory}
+              <p class="px-2 py-2 text-xs text-neutral-500">Loading workspaces…</p>
+            {:else}
+              {#each workspaceOptions as path, index}
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={isSwitchingWorkspace}
+                  title={path}
+                  aria-label="Switch to {getWorkspaceName(path)}{index === 0 ? ', default workspace' : ''}"
+                  onclick={() => switchToWorkspace(path)}
+                  class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50"
+                >
+                  <FolderOpen size={14} class="shrink-0 text-blue-600 dark:text-blue-400" />
+                  <span class="flex min-w-0 flex-1 flex-col">
+                    <span class="truncate text-xs">{getWorkspaceName(path)}</span>
+                    <span class="truncate text-[10px] text-neutral-500">{path}</span>
+                  </span>
+                  {#if index === 0}
+                    <span class="shrink-0 rounded bg-blue-500/10 px-1 py-0.5 text-[9px] text-blue-600 dark:text-blue-400">Default</span>
+                  {/if}
+                  {#if path === workspaceState.workspacePath}<Check size={13} class="shrink-0" />{/if}
+                </button>
+              {/each}
+            {/if}
           </div>
           {#if workspaceState.workspaceError || workspaceMenuError}
             <p role="alert" class="px-2 pt-2 text-xs text-red-600 dark:text-red-400">{workspaceMenuError || workspaceState.workspaceError}</p>
@@ -135,11 +205,6 @@
         </div>
       {/if}
     </div>
-    {#if workspaceState.isDirty}
-      <span class="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-medium">
-        Unsaved
-      </span>
-    {/if}
   </div>
 
   <!-- Right: Theme Switcher & Variables Action -->
@@ -191,18 +256,16 @@
       <button
         type="button"
         onclick={() => (isThemeMenuOpen = !isThemeMenuOpen)}
-        title="Theme: {themeState.mode}"
-        aria-label="Choose theme. Current theme: {themeState.mode}"
+        title="Theme: {themeState.mode} ({effectiveThemeIsDark ? 'dark' : 'light'} appearance)"
+        aria-label="Choose theme. Current mode: {themeState.mode}; effective theme: {effectiveThemeIsDark ? 'dark' : 'light'}"
         aria-haspopup="menu"
         aria-expanded={isThemeMenuOpen}
         class="p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors"
       >
-        {#if themeState.mode === 'system'}
-          <Monitor size={14} class="text-blue-600 dark:text-blue-400" />
-        {:else if themeState.mode === 'light'}
-          <Sun size={14} class="text-amber-500 dark:text-amber-400" />
-        {:else}
+        {#if effectiveThemeIsDark}
           <Moon size={14} class="text-neutral-600 dark:text-neutral-300" />
+        {:else}
+          <Sun size={14} class="text-amber-500 dark:text-amber-400" />
         {/if}
       </button>
 
@@ -252,15 +315,15 @@
     <!-- Variables Button -->
     <button
       onclick={() => (envState.isVariablesModalOpen = true)}
-      title="Configure {envState.activeEnvName} variables & secrets ({isMac ? '⌘E' : 'Ctrl+E'})"
+      title={`Configure environment variables & secrets for ${envState.activeEnvName} (${isMac ? '⌘E' : 'Ctrl+E'})`}
+      aria-label={`Configure environment variables and secrets for ${envState.activeEnvName}`}
       class="flex items-center gap-1 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
     >
       <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
       <span
-        class="max-w-24 truncate text-[11px] font-medium text-neutral-600 dark:text-neutral-300"
-        title={`Active environment: ${envState.activeEnvName}`}
+        class="text-[11px] font-medium text-neutral-600 dark:text-neutral-300"
       >
-        {envState.activeEnvName}
+        Env vars
       </span>
       {#if envState.variables.length > 0}
         <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">

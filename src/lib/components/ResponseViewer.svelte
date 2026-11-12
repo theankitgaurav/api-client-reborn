@@ -83,10 +83,10 @@
   }
 </script>
 
-<div class="flex h-full flex-1 flex-col overflow-hidden bg-[var(--surface)] text-xs">
+<div class="contents">
   <!-- Response Top Metric Bar -->
-  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
-    <div class="flex items-center space-x-3">
+  <div class="col-start-3 row-start-2 flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
+    <div class="flex min-w-0 shrink items-center gap-2 overflow-hidden whitespace-nowrap">
       {#if responseState.status}
         <span class="px-2 py-0.5 rounded font-mono font-bold text-xs {getStatusBadge(responseState.status)}">
           {responseState.status} {responseState.statusText}
@@ -96,7 +96,7 @@
           Sending...
         </span>
       {:else}
-        <span class="text-neutral-500 text-xs">No response yet</span>
+        <span class="truncate text-xs text-neutral-500" title="No response yet">No response yet</span>
       {/if}
 
       {#if responseState.isStreaming && responseState.isExecuting}
@@ -122,38 +122,38 @@
     </div>
 
     <!-- Tab Selector -->
-    <div class="flex items-center space-x-1 rounded border border-[var(--border)] bg-[var(--surface)] p-0.5">
+    <div class="flex min-w-0 shrink-0 items-center gap-1 overflow-x-auto">
       <button
         onclick={() => (responseState.activeTab = 'body')}
-        class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'body'
-          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+        class="shrink-0 border-b-2 px-2.5 py-2 text-[11px] font-medium transition-colors {responseState.activeTab === 'body'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         Body
       </button>
       <button
         onclick={() => (responseState.activeTab = 'headers')}
-        class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'headers'
-          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+        class="shrink-0 border-b-2 px-2.5 py-2 text-[11px] font-medium transition-colors {responseState.activeTab === 'headers'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         Headers ({responseState.headers.length})
       </button>
       {#if responseState.isStreaming}
         <button
           onclick={() => (responseState.activeTab = 'stream')}
-          class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'stream'
-            ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-            : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+          class="shrink-0 border-b-2 px-2.5 py-2 text-[11px] font-medium transition-colors {responseState.activeTab === 'stream'
+            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+            : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
         >
           Stream ({responseState.streamMessages.length})
         </button>
       {/if}
       <button
         onclick={() => (responseState.activeTab = 'tests')}
-        class="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'tests'
-          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+        class="flex shrink-0 items-center gap-1 border-b-2 px-2.5 py-2 text-[11px] font-medium transition-colors {responseState.activeTab === 'tests'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         <span>Tests</span>
         {#if responseState.testResults.length > 0}
@@ -170,30 +170,31 @@
       </button>
       <button
         onclick={() => (responseState.activeTab = 'raw')}
-        class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'raw'
-          ? 'bg-white dark:bg-[#2f2f2f] text-neutral-900 dark:text-white shadow-sm'
-          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'}"
+        class="shrink-0 border-b-2 px-2.5 py-2 text-[11px] font-medium transition-colors {responseState.activeTab === 'raw'
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+          : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
       >
         Raw
       </button>
     </div>
   </div>
 
-  <!-- Error Alert if present -->
-  {#if responseState.error}
-    <div class="p-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800/40 flex items-start gap-2 text-rose-700 dark:text-rose-300">
-      <AlertTriangle size={15} class="shrink-0 mt-0.5" />
-      <div>
-        <p class="font-semibold text-xs">Request Failed</p>
-        <p class="text-[11px] font-mono mt-0.5">{responseState.error}</p>
+  <div class="col-start-3 row-start-3 flex min-h-0 flex-col overflow-hidden">
+    <!-- Error Alert if present -->
+    {#if responseState.error}
+      <div class="flex items-start gap-2 border-b border-rose-200 bg-rose-50 p-3 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300">
+        <AlertTriangle size={15} class="mt-0.5 shrink-0" />
+        <div>
+          <p class="text-xs font-semibold">Request Failed</p>
+          <p class="mt-0.5 font-mono text-[11px]">{responseState.error}</p>
+        </div>
       </div>
-    </div>
-  {/if}
+    {/if}
 
-  <!-- Tab Content -->
-  <div class="relative flex-1 overflow-hidden bg-[var(--surface)]">
-    {#if responseState.activeTab === 'body'}
-      <div class="h-full flex flex-col">
+    <!-- Tab Content -->
+    <div class="relative min-h-0 flex-1 overflow-hidden bg-[var(--surface)]">
+      {#if responseState.activeTab === 'body'}
+        <div class="h-full flex flex-col">
         {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}
           <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/40 text-[11px] text-amber-800 dark:text-amber-200">
             <span>
@@ -230,10 +231,10 @@
             {/if}
           </button>
         </div>
-        <pre class="flex-1 p-3 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-neutral-800 dark:text-neutral-200 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response body'}</pre>
-      </div>
-    {:else if responseState.activeTab === 'headers'}
-      <div class="h-full overflow-y-auto p-3">
+        <pre class="flex-1 whitespace-pre-wrap break-words p-3 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-neutral-800 dark:text-neutral-200 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response body'}</pre>
+        </div>
+      {:else if responseState.activeTab === 'headers'}
+        <div class="h-full overflow-y-auto p-3">
         <table class="w-full text-left font-mono text-[11px]">
           <thead>
             <tr class="text-neutral-500 border-b border-[#e5e5e5] dark:border-[#333]">
@@ -253,11 +254,11 @@
         {#if responseState.headers.length === 0}
           <div class="text-center py-8 text-neutral-400 dark:text-neutral-500">No response headers</div>
         {/if}
-      </div>
-    {:else if responseState.activeTab === 'stream'}
-      <StreamLog />
-    {:else if responseState.activeTab === 'tests'}
-      <div class="h-full flex flex-col p-4 overflow-y-auto space-y-4">
+        </div>
+      {:else if responseState.activeTab === 'stream'}
+        <StreamLog />
+      {:else if responseState.activeTab === 'tests'}
+        <div class="h-full flex flex-col p-4 overflow-y-auto space-y-4">
         {#if responseState.testResults.length === 0}
           <div class="text-center py-10 text-neutral-400 dark:text-neutral-500 text-xs">
             No test assertions executed yet.<br />
@@ -309,9 +310,10 @@
             </div>
           </div>
         {/if}
-      </div>
-    {:else if responseState.activeTab === 'raw'}
-      <pre class="h-full p-3 m-0 font-mono text-[12px] overflow-auto text-neutral-800 dark:text-neutral-300 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response'}</pre>
-    {/if}
+        </div>
+      {:else if responseState.activeTab === 'raw'}
+        <pre class="h-full whitespace-pre-wrap break-words p-3 m-0 font-mono text-[12px] overflow-auto text-neutral-800 dark:text-neutral-300 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response'}</pre>
+      {/if}
+    </div>
   </div>
 </div>

@@ -85,13 +85,6 @@ export class WorkspaceState {
       // flight. Never let an older scan put a stale item back in the pane.
       if (refreshRequestId !== this.refreshRequestId) return;
       this.tree = scannedTree;
-      // Auto-open first request if no tabs exist
-      if (this.tabs.length === 0 && this.tree.length > 0) {
-        const first = this.findFirstRequest(this.tree);
-        if (first) {
-          await this.openRequest(first.path, false);
-        }
-      }
     } catch (e) {
       this.workspaceError = e instanceof Error ? e.message : String(e);
       console.error('Failed to load workspace:', e);
@@ -117,23 +110,7 @@ export class WorkspaceState {
     this.tabs = [];
     this.activeTabId = null;
     this.targetNewRequestFolder = path;
-    if (this.tree.length > 0) {
-      const first = this.findFirstRequest(this.tree);
-      if (first) await this.openRequest(first.path, false);
-    }
-    if (this.tabs.length === 0) this.createNewRequest();
     return true;
-  }
-
-  findFirstRequest(items: WorkspaceFileItem[]): WorkspaceFileItem | null {
-    for (const item of items) {
-      if (!item.is_dir) return item;
-      if (item.children) {
-        const found = this.findFirstRequest(item.children);
-        if (found) return found;
-      }
-    }
-    return null;
   }
 
   private inferMethod(content: string, _path?: string): string {
@@ -317,7 +294,7 @@ export class WorkspaceState {
         const nextIdx = Math.min(idx, this.tabs.length - 1);
         this.activeTabId = this.tabs[nextIdx].id;
       } else {
-        this.createNewRequest();
+        this.activeTabId = null;
       }
     }
   }
@@ -429,9 +406,6 @@ export class WorkspaceState {
           this.tabs = remainingTabs;
           if (closedIds.has(this.activeTabId || '')) {
             this.activeTabId = this.tabs.length > 0 ? this.tabs[0].id : null;
-            if (!this.activeTabId) {
-              this.createNewRequest();
-            }
           }
         }
       } else {

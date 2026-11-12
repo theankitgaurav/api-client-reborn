@@ -30,6 +30,22 @@ export async function setWorkspacePath(workspacePath: string): Promise<string> {
   return workspacePath;
 }
 
+export interface WorkspaceHistory {
+  default_workspace_path: string;
+  recent_workspace_paths: string[];
+}
+
+export async function getWorkspaceHistory(): Promise<WorkspaceHistory> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('get_workspace_history');
+  }
+  return {
+    default_workspace_path: '~/.api-client-reborn/workspace',
+    recent_workspace_paths: [],
+  };
+}
+
 let mockRequestHistory: RequestHistoryEntry[] = [];
 
 export async function getRequestHistory(workspacePath: string): Promise<RequestHistoryEntry[]> {
