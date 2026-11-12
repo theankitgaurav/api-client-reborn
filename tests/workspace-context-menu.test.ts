@@ -11,7 +11,7 @@ import {
   normalizeFolderPath,
   type TabItem,
 } from '../src/lib/utils/workspace-sync.ts';
-import { generateCollectionShellScript } from '../src/lib/utils/collection-exporter.ts';
+import { getCollectionArchivePath } from '../src/lib/utils/collection-exporter.ts';
 import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
 import type { WorkspaceFileItem, SidecarMetadata } from '../src/lib/types.ts';
 
@@ -150,35 +150,24 @@ class SimulatedWorkspace {
     return targetPath;
   }
 
-  // --- Operation 3: Export Collection (.sh) ---
+  // --- Operation 3: Export Collection (.zip) ---
   openExportModal(folder?: WorkspaceFileItem) {
     this.exportTargetFolder = folder ?? null;
     this.isExportModalOpen = true;
   }
 
-  generateExportScript(envVars: Record<string, string> = {}): string {
+  generateExportFiles(): { path: string; content: string }[] {
     const targetFolder = this.exportTargetFolder;
-    const collected: {
-      path: string;
-      name: string;
-      method: string;
-      command: string;
-    }[] = [];
+    const collected: { path: string; content: string }[] = [];
+    const rootPath = targetFolder?.path || '.';
 
     const traverse = (item: WorkspaceFileItem) => {
       if (item.is_dir && item.children) {
         for (const child of item.children) traverse(child);
-      } else if (!item.is_dir) {
-        // Prefer unsaved dirty content from tabs if open
-        const openTab = this.tabs.find((t) => t.filePath === item.path);
-        const rawContent = openTab && openTab.isDirty
-          ? openTab.rawContent
-          : this.files.get(item.path)?.content || '';
+      } else if (!item.is_dir && /\.(?:curl|grpcurl|grpc)$/i.test(item.path)) {
         collected.push({
-          path: item.path,
-          name: item.display_name || item.name,
-          method: item.method || 'GET',
-          command: rawContent,
+          path: getCollectionArchivePath(item.path, rootPath),
+          content: this.files.get(item.path)?.content || '',
         });
       }
     };
@@ -189,8 +178,7 @@ class SimulatedWorkspace {
       for (const root of this.tree) traverse(root);
     }
 
-    const colName = targetFolder?.display_name || targetFolder?.name || 'Workspace Collection';
-    return generateCollectionShellScript(colName, collected, envVars);
+    return collected;
   }
 
   // --- Operation 4: Rename Folder ---
@@ -627,97 +615,64 @@ test('F2 New Subfolder (Tier 2): supports Unicode and emoji in folder names', ()
 });
 
 // ============================================================================
-// FEATURE 3: Export Collection (.sh) — Tiers 1 & 2 (10 tests)
+// FEATURE 3: Export Collection (.zip) — Tiers 1 & 2
 // ============================================================================
 
-test('F3 Export Collection (Tier 1): flattens requests in folder into executable bash script', () => {
+test('F3 Export Collection: exports saved request files with relative names and contents', () => {
   const ws = new SimulatedWorkspace();
   ws.addFileToDisk('col/req1.curl', '# @name Req 1\ncurl https://api.com/1');
   ws.addFileToDisk('col/req2.curl', '# @name Req 2\ncurl https://api.com/2');
   ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('#!/usr/bin/env bash'));
-  assert.ok(script.includes('curl https://api.com/1'));
-  assert.ok(script.includes('curl https://api.com/2'));
+  assert.deepEqual(ws.generateExportFiles(), [
+    { path: 'req1.curl', content: '# @name Req 1\ncurl https://api.com/1' },
+    { path: 'req2.curl', content: '# @name Req 2\ncurl https://api.com/2' },
+  ]);
 });
 
-test('F3 Export Collection (Tier 1): substitutes active environment variables', () => {
+test('F3 Export Collection: does not modify saved contents using active variables or dirty tabs', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/req.curl', 'curl "{{baseUrl}}/users" -H "Auth: Bearer {{token}}"');
-  ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript({ baseUrl: 'https://prod.api.com', token: 'secret123' });
-  assert.ok(script.includes('https://prod.api.com/users'));
-  assert.ok(script.includes('Bearer secret123'));
-});
-
-test('F3 Export Collection (Tier 1): handles post requests in collection', () => {
-  const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/rpc.curl', 'curl -X POST -d \'{"id":1}\' https://api.example.com/items');
-  ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('-X POST'));
-});
-
-test('F3 Export Collection (Tier 1): uses in-memory unsaved content from dirty open tabs', () => {
-  const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/req.curl', 'curl https://stale-disk.com');
+  ws.addFileToDisk('col/req.curl', 'curl "{{baseUrl}}/users"');
   ws.openInNewTab('col/req.curl');
-  ws.tabs[0].rawContent = 'curl https://fresh-memory.com';
+  ws.tabs[0].rawContent = 'curl https://unsaved.example';
   ws.tabs[0].isDirty = true;
-
   ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('https://fresh-memory.com'));
-  assert.ok(!script.includes('https://stale-disk.com'));
+  assert.deepEqual(ws.generateExportFiles(), [
+    { path: 'req.curl', content: 'curl "{{baseUrl}}/users"' },
+  ]);
 });
 
-test('F3 Export Collection (Tier 1): includes HTTP status code validation in exported script', () => {
+test('F3 Export Collection: preserves gRPC extensions and nested request hierarchy', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/req.curl', '# @name Check\ncurl https://api.com');
+  ws.addFileToDisk('col/a/b/request.grpcurl', 'grpcurl -d \'{"id":1}\' api.example.com svc.Method');
   ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('HTTP_STATUS') || script.includes('status') || script.includes('PASSED'));
+  assert.deepEqual(ws.generateExportFiles(), [
+    { path: 'a/b/request.grpcurl', content: 'grpcurl -d \'{"id":1}\' api.example.com svc.Method' },
+  ]);
 });
 
-test('F3 Export Collection (Tier 2): handles empty collection without syntax errors', () => {
+test('F3 Export Collection: returns no files for an empty collection', () => {
   const ws = new SimulatedWorkspace();
   ws.openExportModal({ name: 'empty', path: 'empty', is_dir: true, children: [] });
-  const script = ws.generateExportScript();
-  assert.ok(script.startsWith('#!/usr/bin/env bash'));
+  assert.deepEqual(ws.generateExportFiles(), []);
 });
 
-test('F3 Export Collection (Tier 2): properly escapes double quotes and special characters in payload', () => {
+test('F3 Export Collection: preserves multiline command bytes without shell escaping', () => {
   const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/escape.curl', 'curl -X POST "https://api.com" -d \'{"key":"value with \\"quotes\\""}\'');
+  const content = 'curl -X POST "https://api.com" \\\n  -H "Accept: application/json" \\\n  -d \'{"id": 1}\'';
+  ws.addFileToDisk('col/multi.curl', content);
   ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('quotes'));
+  assert.deepEqual(ws.generateExportFiles(), [{ path: 'multi.curl', content }]);
 });
 
-test('F3 Export Collection (Tier 2): preserves multiline curl continuations cleanly', () => {
-  const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/multi.curl', 'curl -X POST "https://api.com" \\\n  -H "Accept: application/json" \\\n  -d \'{"id": 1}\'');
-  ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('-H "Accept: application/json"'));
-});
-
-test('F3 Export Collection (Tier 2): handles deep nested collections recursively', () => {
-  const ws = new SimulatedWorkspace();
-  ws.addFileToDisk('col/a/b/c/nested.curl', 'curl https://deep.com');
-  ws.openExportModal(ws.tree.find((i) => i.name === 'col'));
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('https://deep.com'));
-});
-
-test('F3 Export Collection (Tier 2): exports entire workspace when target folder is root/omitted', () => {
+test('F3 Export Collection: exports entire workspace with collection folders intact', () => {
   const ws = new SimulatedWorkspace();
   ws.addFileToDisk('root1.curl', 'curl https://root1.com');
   ws.addFileToDisk('folder/sub.curl', 'curl https://sub.com');
   ws.openExportModal(undefined);
-  const script = ws.generateExportScript();
-  assert.ok(script.includes('https://root1.com'));
-  assert.ok(script.includes('https://sub.com'));
+  assert.deepEqual(ws.generateExportFiles(), [
+    { path: 'root1.curl', content: 'curl https://root1.com' },
+    { path: 'folder/sub.curl', content: 'curl https://sub.com' },
+  ]);
 });
 
 // ============================================================================
@@ -1678,15 +1633,16 @@ test('Tier 3 Combination 5: Delete Folder with dirty tabs, then create New Reque
   assert.ok(ws.files.has('cache/fresh.curl'));
 });
 
-test('Tier 3 Combination 6: Rename Folder then Export Collection (.sh) ensuring updated paths and vars', () => {
+test('Tier 3 Combination 6: Rename Folder then Export Collection with updated paths', () => {
   const ws = new SimulatedWorkspace();
   ws.addFileToDisk('old_dir/req.curl', 'curl "{{host}}/data"');
   ws.renameFolder('old_dir', 'new_dir');
 
   const folder = ws.tree.find((i) => i.name === 'new_dir');
   ws.openExportModal(folder);
-  const script = ws.generateExportScript({ host: 'https://production.com' });
-  assert.ok(script.includes('https://production.com/data'));
+  assert.deepEqual(ws.generateExportFiles(), [
+    { path: 'req.curl', content: 'curl "{{host}}/data"' },
+  ]);
 });
 
 test('Tier 3 Combination 7: Open in New Tab, edit to make dirty, Open in Current Tab another file', () => {
@@ -1779,12 +1735,12 @@ test('Tier 4 Scenario 1: Deep Nested API Lifecycle (Folder creation, request cre
   assert.equal(ws.tabs[0].filePath, 'services/auth/v2/login.curl');
   assert.equal(ws.tabs[1].filePath, 'services/auth/v2/login_negative.curl');
 
-  // 5. Export to shell script
+  // 5. Export saved request files
   const folder = ws.tree.find((i) => i.name === 'services')?.children?.find((i) => i.name === 'auth');
   ws.openExportModal(folder);
-  const script = ws.generateExportScript({ baseUrl: 'https://auth.company.com' });
-  assert.ok(script.includes('https://auth.company.com/login'));
-  assert.ok(script.includes('#!/usr/bin/env bash'));
+  const files = ws.generateExportFiles();
+  assert.ok(files.some((file) => file.path === 'v2/login.curl'));
+  assert.ok(files.some((file) => file.path === 'v2/login_negative.curl'));
 });
 
 test('Tier 4 Scenario 2: Multi-Tab State Machine (Mixed pinned, preview, dirty, switching and replacing)', () => {
