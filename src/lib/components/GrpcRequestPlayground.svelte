@@ -134,6 +134,13 @@
     if (responseState.isExecuting) await responseState.cancel();
     else await responseState.runCurrentRequest();
   }
+
+  function handleRequestTypeSelection(event: Event) {
+    const method = (event.target as HTMLSelectElement).value;
+    if (method !== 'gRPC') {
+      workspaceState.switchRequestType('http', method);
+    }
+  }
 </script>
 
 <div class="contents text-xs">
@@ -164,7 +171,21 @@
 
     <div class="border-b border-[var(--border)] bg-[var(--surface)] p-3">
       <div class="flex items-center gap-2">
-        <span class="font-mono font-bold text-violet-600 dark:text-violet-400 px-2">gRPC</span>
+        <select
+          aria-label="Request type"
+          value="gRPC"
+          onchange={handleRequestTypeSelection}
+          class="ui-select ui-select-control px-2.5 py-1.5 font-mono text-xs cursor-pointer text-violet-600 dark:text-violet-400 font-bold"
+        >
+          <option value="GET" class="text-blue-500 font-bold">GET</option>
+          <option value="POST" class="text-emerald-500 font-bold">POST</option>
+          <option value="PUT" class="text-amber-500 font-bold">PUT</option>
+          <option value="DELETE" class="text-rose-500 font-bold">DELETE</option>
+          <option value="PATCH" class="text-purple-500 font-bold">PATCH</option>
+          <option value="HEAD" class="text-neutral-400 font-bold">HEAD</option>
+          <option value="OPTIONS" class="text-neutral-400 font-bold">OPTIONS</option>
+          <option value="gRPC" class="text-violet-600 font-bold">gRPC</option>
+        </select>
         <input
           aria-label="gRPC endpoint"
           bind:value={config.endpoint}

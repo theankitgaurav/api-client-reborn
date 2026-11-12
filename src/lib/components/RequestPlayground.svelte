@@ -84,6 +84,17 @@
     }
   }
 
+  function handleRequestMethodChange(event: Event) {
+    const method = (event.target as HTMLSelectElement).value;
+    if (method === 'gRPC') {
+      workspaceState.switchRequestType('grpc');
+      return;
+    }
+
+    model.method = method;
+    syncToWorkspace();
+  }
+
   function syncScriptsToWorkspace() {
     const tab = workspaceState.activeTab;
     if (!tab) return;
@@ -246,6 +257,8 @@
         return 'text-rose-500 font-bold';
       case 'PATCH':
         return 'text-purple-500 font-bold';
+      case 'GRPC':
+        return 'text-violet-600 dark:text-violet-400 font-bold';
       default:
         return 'text-neutral-400 font-bold';
     }
@@ -414,8 +427,8 @@
     <!-- Method Selector -->
     <div class="relative shrink-0">
       <select
-        bind:value={model.method}
-        onchange={syncToWorkspace}
+        value={model.method}
+        onchange={handleRequestMethodChange}
         class="ui-select ui-select-control px-2.5 py-1.5 font-mono text-xs cursor-pointer {getMethodColor(model.method)}"
       >
         <option value="GET" class="text-blue-500 font-bold">GET</option>
@@ -425,6 +438,7 @@
         <option value="PATCH" class="text-purple-500 font-bold">PATCH</option>
         <option value="HEAD" class="text-neutral-400 font-bold">HEAD</option>
         <option value="OPTIONS" class="text-neutral-400 font-bold">OPTIONS</option>
+        <option value="gRPC" class="text-violet-600 font-bold">gRPC</option>
       </select>
     </div>
 
