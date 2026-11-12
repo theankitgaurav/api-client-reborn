@@ -2,37 +2,43 @@
 
 The **API Client Reborn MCP Server** exposes your local, Git-versioned API collections and environments to modern AI coding assistants (Claude Desktop, Cursor, Antigravity, VS Code Copilot, Zed).
 
-The installed desktop application includes the MCP runtime. Users do not need Node.js, `npx`, a repository checkout, or any source files in the workspace.
+The MCP server is implemented natively in Rust inside the `api_client_reborn` binary. Users do not need Node.js, `npx`, a repository checkout, or any external runtimes in the workspace.
 
 AI agents can automatically:
 1. **Discover & inspect** `.curl`, `.grpcurl`, and `.grpc` requests in your repository.
-2. **Execute requests** against local or remote environments (`development`, `staging`, `production`).
-3. **Run test assertions** headlessly (`pm.test()`, `pm.expect()`) and inspect status codes, headers, and responses.
-4. **Safely resolve secrets** from `.apiclient/.secrets.env` (legacy `.secrets.json` files are also read for compatibility; secrets are injected into outgoing requests, but masked in prompts).
-5. **Create & update requests** directly as `.curl` files when writing new API routes in your code.
+2. **Execute HTTP requests** (`execute_request`, `execute_quick_curl`) against local or remote environments (`development`, `staging`, `production`).
+3. **Execute gRPC requests** (`execute_grpc_request`) supporting reflection, protobuf files, metadata, TLS, unary calls, and client/server streaming.
+4. **Run test assertions** headlessly (`pm.test()`, `pm.expect()`) and inspect status codes, headers, and responses.
+5. **Safely resolve secrets** from canonical `.apiclient/.secrets.env` (secrets are injected into outgoing requests, but masked in metadata and prompt listings).
+6. **Create & update requests** directly as `.curl`, `.grpcurl`, or `.grpc` files when writing new API routes in your code.
 
 ---
 
 ## 🚀 Quick Setup
 
-The installed MCP server runs over standard input/output (`stdio`) from the native application binary. No extra installation or runtime dependencies are required.
+The MCP server runs over standard input/output (`stdio`) from the native application binary:
 
-### 1. Installed application (recommended)
+```bash
+api_client_reborn mcp --workspace /path/to/your/workspace
+```
 
-Configure your MCP client to launch the installed application binary. The workspace path should point to the directory containing your requests and environments.
+### 1. Installed Application Configuration
+
+Configure your MCP client to launch the native binary. The workspace path should point to the directory containing your requests and environments.
 
 ```json
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "/Applications/API Client Reborn.app/Contents/MacOS/api_client_reborn",
+      "command": "api_client_reborn",
       "args": ["mcp", "--workspace", "/absolute/path/to/your/api-workspace"]
     }
   }
 }
 ```
 
-On Windows and Linux, use the installed `api-client-reborn` executable path for that platform.
+On macOS, the installed app binary is located at:
+`/Applications/API Client Reborn.app/Contents/MacOS/api_client_reborn`
 
 ### 2. Claude Desktop
 
@@ -46,7 +52,7 @@ Add the server to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "api-client-reborn",
+      "command": "api_client_reborn",
       "args": [
         "mcp",
         "--workspace",
@@ -67,7 +73,7 @@ Add the server to `.cursor/mcp.json` in your repository root:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "api-client-reborn",
+      "command": "api_client_reborn",
       "args": [
         "mcp",
         "--workspace",
@@ -88,7 +94,7 @@ Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 {
   "mcpServers": {
     "api-client-reborn": {
-      "command": "api-client-reborn",
+      "command": "api_client_reborn",
       "args": [
         "mcp",
         "--workspace",
@@ -103,58 +109,44 @@ Configure in your workspace `.gemini/settings.json` or Antigravity MCP settings:
 
 ## 🛠️ Available MCP Tools
 
-| Tool Name | Parameters | Description |
+| Tool Name | Annotations | Description |
 | :--- | :--- | :--- |
-| `list_requests` | `folder?: string` | Lists all `.curl`, `.grpcurl`, and `.grpc` requests with their method, name, description, and relative path. |
-| `get_request` | `path: string` | Reads and parses a request file, returning method, url, headers, body, sidecar tests, and raw file content. |
-| `execute_request` | `path: string`, `environment?: string`, `variables?: Record<string, string>` | Executes a saved `.curl` request with environment resolution and secret injection; runs test assertions and returns status, headers, body, duration, and test results. |
-| `execute_quick_curl` | `curl_command: string`, `environment?: string`, `variables?: Record<string, string>` | Executes an ad-hoc raw cURL command against an environment without saving it to disk. |
-| `save_request` | `path: string`, `content: string`, `name?: string`, `description?: string`, `sidecar?: object` | Creates or updates a `.curl`, `.grpcurl`, or `.grpc` request file and companion sidecar metadata on disk. |
-| `list_environments` | none | Lists all available environment configurations (`environments/*.env.json`) with secrets safely masked. |
+| `list_requests` | `readOnly` | Lists all `.curl`, `.grpcurl`, and `.grpc` requests with their method, name, description, and relative path. |
+| `get_request` | `readOnly` | Reads and parses a `.curl`, `.grpcurl`, or `.grpc` request file, returning method, url, headers, body, sidecar tests, and raw file content. |
+| `execute_request` | `openWorldHint` | Executes a saved `.curl` HTTP request with environment resolution and secret injection; runs test assertions and returns status, headers, body, duration, and test results. |
+| `execute_grpc_request` | `openWorldHint` | Executes a saved `.grpcurl` or `.grpc` request with protobuf reflection or local proto file, metadata, TLS, and sidecar assertions. |
+| `execute_quick_curl` | `openWorldHint` | Executes an ad-hoc raw cURL command against an environment without saving it to disk. |
+| `save_request` | `destructive` | Creates or updates a `.curl`, `.grpcurl`, or `.grpc` request file and companion sidecar metadata on disk. |
+| `list_environments` | `readOnly` | Lists all available environment configurations (`environments/*.env.json`) with secrets safely masked. |
 
 ---
 
-## 🔒 Secret Isolation & Security
+## 🔒 Canonical Secrets & Variable Precedence
 
-API Client Reborn adheres to a strict zero-leakage security model:
-1. **Secrets in `.secrets.env`**: Sensitive API keys and tokens are stored in `.apiclient/.secrets.env` (guaranteed to be Git-ignored).
-2. **Prompt Protection**: The `list_environments` tool masks all secrets with `***`.
-3. **Execution-Time Injection**: Secrets are resolved only inside `execute_request` when dispatching network calls, ensuring credentials never leak into prompt context windows.
-4. **Path Traversal Defense**: All file paths are strictly bounded inside the designated workspace root; traversal attempts escaping the workspace are blocked.
+Variable precedence resolves from lowest to highest:
+1. `environments/default.env.json` (or legacy `workspace.env.json` fallback).
+2. Selected environment, explicitly supplied or from the request's `@env` directive (`environments/{env}.env.json`).
+3. Nearest collection `collection_variables.json`.
+4. `.apiclient/.secrets.env`.
+5. Per-call `variables`.
 
----
+Dynamic built-ins (`$uuid`, `$isoTimestamp`, `$timestamp`, `$randomInt(min, max)`) remain reserved and take precedence during interpolation.
 
-## 💡 Example Agent Prompts
-
-Once configured, you can prompt your AI assistant directly:
-
-### 1. Discovering & Running APIs
-> *"What authentication requests exist in our API collection? Run the login request using the development environment and tell me if the tests pass."*
-
-The agent will:
-1. Call `list_requests({ folder: "auth" })`.
-2. Call `execute_request({ path: "auth/login.curl", environment: "development" })`.
-3. Inspect the returned status code (`200 OK`) and Postman assertion results (`Status is 200: passed`).
-
-### 2. Implementing & Saving New Endpoints
-> *"I just added a new `POST /v1/webhooks` endpoint in `src/routes/webhooks.ts`. Create a new request in `collections/webhooks/create_webhook.curl` with sample headers and an assertion that verifies a 201 response."*
-
-The agent will:
-1. Call `save_request` with the `.curl` content and sidecar assertion script.
-2. The new request will immediately appear in your Git status and in the API Client Reborn desktop app.
+MCP uses `.apiclient/.secrets.env` as the canonical secret store (parsing `KEY=VALUE` pairs with comment and quote support). Legacy JSON secret stores are ignored by MCP. Secret values are injected only during execution; environment listings and metadata expose masked values (`***`) only.
 
 ---
 
-## 🧪 Developing and testing the MCP Server
+## ⚡ Bounded Execution & Cancellation
 
-The following Node.js command is for repository development only. It is not used by installed application builds:
+- **Server Max Response Limit**: Configured via `--max-response-bytes` (default: 4 MiB). Requests exceeding the limit immediately fail with an explicit response-size error.
+- **Concurrent Request Handling & Cancellation**: The stdio server handles requests concurrently and tracks active requests. Sending a `notifications/cancelled` notification aborts active HTTP, gRPC, and QuickJS execution.
 
-You can test the MCP server manually or via the automated test suite:
+---
+
+## 🧪 Testing the Native MCP Binary
+
+Run the native Rust backend test suite:
 
 ```bash
-# Run MCP test suite
-npm run test:mcp
-
-# Launch interactive CLI
-node --experimental-strip-types bin/mcp.js --workspace .
+cargo test --manifest-path src-tauri/Cargo.toml
 ```

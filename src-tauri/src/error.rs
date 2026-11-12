@@ -1,6 +1,6 @@
 use serde::{Serialize, Serializer};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum AppError {
     #[error("Lexer error: {0}")]
     LexerError(String),
@@ -8,11 +8,20 @@ pub enum AppError {
     #[error("cURL parser error: {0}")]
     CurlParserError(String),
 
+    #[error("gRPC parser error: {0}")]
+    GrpcParserError(String),
+
     #[error("Network error: {0}")]
     NetworkError(String),
 
     #[error("Request cancelled")]
     Cancelled,
+
+    #[error("Response size limit exceeded: {0}")]
+    ResponseLimitExceeded(String),
+
+    #[error("Request timed out: {0}")]
+    Timeout(String),
 
     #[error("Environment resolution error: {0}")]
     EnvError(String),

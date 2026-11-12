@@ -1,16 +1,15 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { getMcpConfigInfo, type McpConfigInfo } from '$lib/ipc';
-  import { X, Copy, Check, Bot, Terminal, Layers, FileCode } from '$lib/components/icons';
+  import { X, Copy, Check, Bot } from '$lib/components/icons';
 
-  let activeClient = $state<'cursor' | 'claude' | 'antigravity' | 'npx'>('cursor');
-  let installMode = $state<'binary' | 'npx' | 'node'>('binary');
+  let activeClient = $state<'cursor' | 'claude' | 'antigravity' | 'generic'>('cursor');
   let copied = $state(false);
   let copyTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let configInfo = $state<McpConfigInfo>({
     workspace_path: workspaceState.workspacePath || '~/.api-client-reborn',
-    executable_path: '/Applications/API Client Reborn.app/Contents/MacOS/api-client-reborn',
+    executable_path: 'api_client_reborn',
   });
 
   $effect(() => {
@@ -29,122 +28,15 @@
         : '${workspaceFolder}'
   );
 
-  let binaryPath = $derived(configInfo.executable_path || 'api-client-reborn');
+  let binaryPath = $derived(configInfo.executable_path || 'api_client_reborn');
 
   let generatedConfigJson = $derived.by(() => {
-    if (activeClient === 'cursor') {
-      if (installMode === 'binary') {
-        return JSON.stringify(
-          {
-            mcpServers: {
-              'api-client-reborn': {
-                command: binaryPath,
-                args: ['mcp', '--workspace', detectedWorkspace],
-              },
-            },
-          },
-          null,
-          2
-        );
-      }
-      if (installMode === 'npx') {
-        return JSON.stringify(
-          {
-            mcpServers: {
-              'api-client-reborn': {
-                command: 'npx',
-                args: ['-y', '@api-client-reborn/mcp', '--workspace', detectedWorkspace],
-              },
-            },
-          },
-          null,
-          2
-        );
-      }
-      return JSON.stringify(
-        {
-          mcpServers: {
-            'api-client-reborn': {
-              command: 'node',
-              args: ['--experimental-strip-types', `${detectedWorkspace}/bin/mcp.js`, '--workspace', detectedWorkspace],
-            },
-          },
-        },
-        null,
-        2
-      );
-    }
-
-    if (activeClient === 'claude') {
-      if (installMode === 'binary') {
-        return JSON.stringify(
-          {
-            mcpServers: {
-              'api-client-reborn': {
-                command: binaryPath,
-                args: ['mcp', '--workspace', detectedWorkspace],
-              },
-            },
-          },
-          null,
-          2
-        );
-      }
-      if (installMode === 'npx') {
-        return JSON.stringify(
-          {
-            mcpServers: {
-              'api-client-reborn': {
-                command: 'npx',
-                args: ['-y', '@api-client-reborn/mcp', '--workspace', detectedWorkspace],
-              },
-            },
-          },
-          null,
-          2
-        );
-      }
-      return JSON.stringify(
-        {
-          mcpServers: {
-            'api-client-reborn': {
-              command: 'node',
-              args: ['--experimental-strip-types', `${detectedWorkspace}/bin/mcp.js`, '--workspace', detectedWorkspace],
-            },
-          },
-        },
-        null,
-        2
-      );
-    }
-
-    if (activeClient === 'antigravity') {
-      return JSON.stringify(
-        {
-          mcpServers: {
-            'api-client-reborn': {
-              command: installMode === 'binary' ? binaryPath : installMode === 'npx' ? 'npx' : 'node',
-              args:
-                installMode === 'binary'
-                  ? ['mcp', '--workspace', detectedWorkspace]
-                  : installMode === 'npx'
-                    ? ['-y', '@api-client-reborn/mcp', '--workspace', detectedWorkspace]
-                    : ['--experimental-strip-types', `${detectedWorkspace}/bin/mcp.js`, '--workspace', detectedWorkspace],
-            },
-          },
-        },
-        null,
-        2
-      );
-    }
-
-    // Default / NPX
     return JSON.stringify(
       {
         mcpServers: {
           'api-client-reborn': {
-            command: 'npx',
-            args: ['-y', '@api-client-reborn/mcp', '--workspace', detectedWorkspace],
+            command: binaryPath,
+            args: ['mcp', '--workspace', detectedWorkspace],
           },
         },
       },
@@ -256,56 +148,27 @@
               Antigravity
             </button>
             <button
-              onclick={() => (activeClient = 'npx')}
-              class="py-1.5 px-2 rounded-md font-medium text-xs transition-colors flex items-center justify-center gap-1.5 {activeClient === 'npx'
+              onclick={() => (activeClient = 'generic')}
+              class="py-1.5 px-2 rounded-md font-medium text-xs transition-colors flex items-center justify-center gap-1.5 {activeClient === 'generic'
                 ? 'bg-white dark:bg-[#333] text-neutral-900 dark:text-white shadow-sm font-semibold'
                 : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}"
             >
-              NPX CLI
+              Generic MCP
             </button>
           </div>
         </div>
 
-        <!-- Mode Toggle (Binary vs NPX vs Node) -->
+        <!-- Binary Runner Info -->
         <div class="flex items-center justify-between bg-neutral-50 dark:bg-[#252526] p-2.5 rounded-lg border border-neutral-200/80 dark:border-[#333]">
           <div>
-            <div class="text-[11px] font-semibold text-neutral-800 dark:text-neutral-200">Execution Launcher</div>
+            <div class="text-[11px] font-semibold text-neutral-800 dark:text-neutral-200">Native Rust Binary Server</div>
             <div class="text-[10px] text-neutral-500 dark:text-neutral-400">
-              {#if installMode === 'binary'}
-                Uses the detected native desktop binary (No Node.js required)
-              {:else if installMode === 'npx'}
-                Zero-install runner via npm / npx (Portable across machines)
-              {:else}
-                Direct script runner from repository source
-              {/if}
+              Runs directly via the native desktop binary with zero Node.js dependencies.
             </div>
           </div>
-          <div class="flex items-center space-x-1 bg-white dark:bg-[#181818] p-0.5 rounded border border-neutral-200 dark:border-[#383838]">
-            <button
-              onclick={() => (installMode = 'binary')}
-              class="px-2 py-1 rounded text-[10px] font-medium transition-colors {installMode === 'binary'
-                ? 'bg-emerald-500 text-white shadow-sm'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}"
-            >
-              Native App
-            </button>
-            <button
-              onclick={() => (installMode = 'npx')}
-              class="px-2 py-1 rounded text-[10px] font-medium transition-colors {installMode === 'npx'
-                ? 'bg-emerald-500 text-white shadow-sm'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}"
-            >
-              npx
-            </button>
-            <button
-              onclick={() => (installMode = 'node')}
-              class="px-2 py-1 rounded text-[10px] font-medium transition-colors {installMode === 'node'
-                ? 'bg-emerald-500 text-white shadow-sm'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}"
-            >
-              Node
-            </button>
-          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            stdio
+          </span>
         </div>
 
         <!-- Configuration Code Preview -->
@@ -341,12 +204,12 @@
         <!-- Exposed Capabilities Grid -->
         <div class="pt-2 border-t border-neutral-100 dark:border-[#2a2a2a]">
           <span class="block text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-2">
-            6 Exposed AI Tools
+            Exposed AI Tools
           </span>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
             <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
               <span class="font-mono font-bold text-blue-600 dark:text-blue-400">list_requests</span>
-              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Discovers all .curl and .grpc endpoints in workspace.</p>
+              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Discovers all .curl, .grpcurl, and .grpc endpoints in workspace.</p>
             </div>
             <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
               <span class="font-mono font-bold text-blue-600 dark:text-blue-400">get_request</span>
@@ -354,11 +217,19 @@
             </div>
             <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
               <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">execute_request</span>
-              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Runs saved requests with resolved environment secrets.</p>
+              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Runs HTTP requests with environment variables & secrets.</p>
+            </div>
+            <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
+              <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">execute_grpc_request</span>
+              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Runs gRPC unary and streaming requests with protobuf reflection.</p>
+            </div>
+            <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
+              <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">execute_quick_curl</span>
+              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Executes ad-hoc cURL commands against active environments.</p>
             </div>
             <div class="p-2 rounded bg-neutral-50 dark:bg-[#252526]/60 border border-neutral-200/60 dark:border-[#333]">
               <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">save_request</span>
-              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Writes newly generated endpoints directly to disk.</p>
+              <p class="text-neutral-500 dark:text-neutral-400 text-[10px] mt-0.5">Writes newly generated requests and sidecars to disk.</p>
             </div>
           </div>
         </div>
@@ -367,7 +238,7 @@
       <!-- Footer -->
       <div class="px-5 py-3 border-t border-neutral-200 dark:border-[#2d2d2d] bg-neutral-50/50 dark:bg-[#252526] flex items-center justify-between">
         <span class="text-[11px] text-neutral-500 dark:text-neutral-400">
-          Secrets in <code class="font-mono text-[10px]">.secrets.json</code> are isolated and masked from AI prompts.
+          Secrets in <code class="font-mono text-[10px]">.apiclient/.secrets.env</code> are isolated and masked from AI prompts.
         </span>
         <button
           onclick={closeModal}

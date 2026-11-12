@@ -298,9 +298,11 @@ pub struct CollectedHttpResponse {
 }
 
 /// Executes a parsed request using the same transport configuration as the desktop request path,
-/// collecting the response for non-UI callers.
+/// collecting the response for non-UI callers with cancellation and maximum response size bounds.
 pub async fn execute_http_request_collect(
     parsed: ParsedCurlRequest,
+    cancel_token: CancellationToken,
+    max_response_bytes: usize,
 ) -> Result<CollectedHttpResponse> {
     let start_time = Instant::now();
     let mut client_builder = reqwest::Client::builder();
@@ -388,10 +390,19 @@ pub async fn execute_http_request_collect(
         request = request.body(body);
     }
 
-    let response = request
-        .send()
-        .await
-        .map_err(|e| AppError::NetworkError(e.to_string()))?;
+    let response_result = tokio::select! {
+        _ = cancel_token.cancelled() => return Err(AppError::Cancelled),
+        res = request.send() => res,
+    };
+
+    let response = response_result.map_err(|e| {
+        if e.is_timeout() {
+            AppError::Timeout(e.to_string())
+        } else {
+            AppError::NetworkError(e.to_string())
+        }
+    })?;
+
     let status = response.status().as_u16();
     let status_text = response.status().canonical_reason().unwrap_or("").to_string();
     let headers = response
@@ -402,10 +413,43 @@ pub async fn execute_http_request_collect(
             value: value.to_str().unwrap_or("").to_string(),
         })
         .collect();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+    // Enforce size limits via Content-Length if available
+    if let Some(content_length) = response.content_length() {
+        if content_length as usize > max_response_bytes {
+            return Err(AppError::ResponseLimitExceeded(format!(
+                "Content-Length {} bytes exceeds maximum allowed {} bytes.",
+                content_length, max_response_bytes
+            )));
+        }
+    }
+
+    // Stream and incrementally count response body bytes
+    let mut stream = response.bytes_stream();
+    let mut body_bytes = Vec::new();
+    loop {
+        let chunk_opt = tokio::select! {
+            _ = cancel_token.cancelled() => return Err(AppError::Cancelled),
+            item = stream.next() => item,
+        };
+        let Some(chunk_res) = chunk_opt else { break };
+        let chunk = chunk_res.map_err(|e| {
+            if e.is_timeout() {
+                AppError::Timeout(e.to_string())
+            } else {
+                AppError::NetworkError(e.to_string())
+            }
+        })?;
+        if body_bytes.len() + chunk.len() > max_response_bytes {
+            return Err(AppError::ResponseLimitExceeded(format!(
+                "Response size exceeded maximum allowed limit of {} bytes.",
+                max_response_bytes
+            )));
+        }
+        body_bytes.extend_from_slice(&chunk);
+    }
+
+    let body = String::from_utf8_lossy(&body_bytes).to_string();
 
     Ok(CollectedHttpResponse {
         status,

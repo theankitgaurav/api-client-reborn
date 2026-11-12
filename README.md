@@ -107,7 +107,7 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ### 🤖 Model Context Protocol (MCP) Server for AI Coding Agents
 - Built-in, zero-dependency MCP server over stdio for AI coding assistants (**Claude Desktop**, **Cursor**, **Antigravity**, **VS Code Copilot**, **Zed**).
-- Exposes tools to discover (`list_requests`), inspect (`get_request`), execute with secret injection (`execute_request`, `execute_quick_curl`), and save requests (`save_request`).
+- Exposes tools to discover (`list_requests`), inspect (`get_request`), execute HTTP (`execute_request`, `execute_quick_curl`) and gRPC (`execute_grpc_request`), and save requests (`save_request`).
 - See [**docs/MCP_GUIDE.md**](docs/MCP_GUIDE.md) for quick client setup configurations.
 
 ### ⌨️ Browser & Vim-Class Keyboard Shortcuts

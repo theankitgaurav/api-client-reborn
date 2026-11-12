@@ -1,3 +1,4 @@
+use crate::engine::http::CollectedHttpResponse;
 use crate::engine::spooler::StreamSpooler;
 use crate::error::{AppError, Result};
 use crate::ipc::types::ResponseChunk;
@@ -532,6 +533,167 @@ pub async fn execute_grpc_request(
         }
     }
 }
+
+pub async fn execute_grpc_request_collect(
+    mut config: GrpcRequestConfig,
+    cancel: CancellationToken,
+    max_response_bytes: usize,
+    workspace_root: Option<&Path>,
+) -> Result<CollectedHttpResponse> {
+    let start = Instant::now();
+    let conn = tokio::select! {
+        _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        result = connect(&config) => result?,
+    };
+    let pool = tokio::select! {
+        _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        result = load_pool(&config, conn.clone(), workspace_root) => result?,
+    };
+    let method = find_method(&pool, &config.service, &config.method)?;
+    let raw_json = std::mem::take(&mut config.request_json);
+    let json: Value = serde_json::from_str(&raw_json)
+        .map_err(|e| AppError::InternalError(format!("Request body must be valid JSON: {e}")))?;
+    drop(raw_json);
+    let request_values = if method.is_client_streaming() {
+        match json {
+            Value::Array(values) => values,
+            _ => return Err(AppError::InternalError("Client-streaming RPCs require a JSON array of request messages".into())),
+        }
+    } else {
+        if json.is_array() {
+            return Err(AppError::InternalError("Unary and server-streaming RPCs require one JSON object".into()));
+        }
+        vec![json]
+    };
+    let mut unary_request_bytes = None;
+    let mut client_request_stream = None;
+    if method.is_client_streaming() {
+        for value in &request_values {
+            let _ = json_to_message(method.input(), value)?;
+        }
+        let input = method.input();
+        let (tx, rx) = mpsc::channel(8);
+        tokio::spawn(async move {
+            for value in request_values {
+                let message = json_to_message(input.clone(), &value)
+                    .expect("client-stream messages were validated before starting the RPC");
+                let mut bytes = Vec::with_capacity(message.encoded_len());
+                message.encode(&mut bytes)
+                    .expect("validated protobuf messages should encode successfully");
+                if tx.send(Bytes::from(bytes)).await.is_err() {
+                    break;
+                }
+            }
+        });
+        client_request_stream = Some(ReceiverStream::new(rx));
+    } else {
+        let message = json_to_message(method.input(), &request_values[0])?;
+        let mut bytes = Vec::with_capacity(message.encoded_len());
+        message.encode(&mut bytes).map_err(|e| AppError::InternalError(e.to_string()))?;
+        unary_request_bytes = Some(Bytes::from(bytes));
+    }
+    let path: tonic::codegen::http::uri::PathAndQuery = format!("/{}/{}", config.service, config.method)
+        .parse().map_err(|e| AppError::InternalError(format!("Invalid RPC method path: {e}")))?;
+    let mut client = tonic::client::Grpc::new(conn);
+    tokio::select! {
+        _ = cancel.cancelled() => return Err(AppError::Cancelled),
+        result = client.ready() => result.map_err(|e| AppError::NetworkError(format!("gRPC channel is not ready: {e}")))?,
+    }
+
+    if !method.is_server_streaming() {
+        let response = if method.is_client_streaming() {
+            let mut request = Request::new(client_request_stream.take().expect("client stream prepared"));
+            apply_metadata(&mut request, &config.metadata)?;
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                result = client.client_streaming(request, path, RawProtoCodec) => result,
+            }
+            .map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?
+        } else {
+            let mut request = Request::new(unary_request_bytes.take().expect("unary request prepared"));
+            apply_metadata(&mut request, &config.metadata)?;
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                result = client.unary(request, path, RawProtoCodec) => result,
+            }
+            .map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?
+        };
+        let metadata = response.metadata().clone();
+        let bytes = response.into_inner();
+        if bytes.len() > max_response_bytes {
+            return Err(AppError::ResponseLimitExceeded(format!(
+                "gRPC response size {} bytes exceeds maximum allowed {} bytes.",
+                bytes.len(), max_response_bytes
+            )));
+        }
+        let body = message_to_json(method.output(), &bytes)?;
+        if body.len() > max_response_bytes {
+            return Err(AppError::ResponseLimitExceeded(format!(
+                "gRPC formatted response size {} bytes exceeds maximum allowed {} bytes.",
+                body.len(), max_response_bytes
+            )));
+        }
+        Ok(CollectedHttpResponse {
+            status: 200,
+            status_text: "OK".into(),
+            headers: metadata_to_headers(&metadata),
+            body,
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
+    } else {
+        let stream = if method.is_client_streaming() {
+            let mut request = Request::new(client_request_stream.take().expect("client stream prepared"));
+            apply_metadata(&mut request, &config.metadata)?;
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                res = client.streaming(request, path, RawProtoCodec) => res,
+            }
+        } else {
+            let mut req = Request::new(unary_request_bytes.take().expect("unary request prepared"));
+            apply_metadata(&mut req, &config.metadata)?;
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                res = client.server_streaming(req, path, RawProtoCodec) => res,
+            }
+        }.map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?;
+
+        let metadata = stream.metadata().clone();
+        let mut stream = stream.into_inner();
+        let mut total_bytes = 0usize;
+        let mut messages = Vec::new();
+        loop {
+            let item = tokio::select! {
+                _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                result = stream.message() => result.map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?,
+            };
+            let Some(bytes) = item else { break };
+            total_bytes += bytes.len();
+            if total_bytes > max_response_bytes {
+                return Err(AppError::ResponseLimitExceeded(format!(
+                    "gRPC response stream exceeded maximum allowed size of {} bytes.",
+                    max_response_bytes
+                )));
+            }
+            let body_item = message_to_compact_json(method.output(), &bytes)?;
+            if total_bytes + body_item.len() > max_response_bytes {
+                return Err(AppError::ResponseLimitExceeded(format!(
+                    "gRPC formatted response stream exceeded maximum allowed size of {} bytes.",
+                    max_response_bytes
+                )));
+            }
+            messages.push(body_item);
+        }
+        let body = messages.join("\n");
+        Ok(CollectedHttpResponse {
+            status: 200,
+            status_text: "OK".into(),
+            headers: metadata_to_headers(&metadata),
+            body,
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+}
+
 
 pub async fn discover_grpc_services(config: GrpcRequestConfig, workspace_root: Option<&Path>) -> Result<Vec<GrpcServiceInfo>> {
     let pool = if let Some(proto) = config.proto_file.as_deref().filter(|p| !p.trim().is_empty()) {

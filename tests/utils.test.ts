@@ -123,3 +123,14 @@ test('Roundtrip fidelity on example curl files', async () => {
   }
 });
 
+test('IPC: getMcpConfigInfo returns workspace and executable path', async () => {
+  const { getMcpConfigInfo } = await import('../src/lib/ipc.ts');
+  const info = await getMcpConfigInfo();
+  assert.ok(info);
+  assert.ok(typeof info.workspace_path === 'string');
+  assert.ok(typeof info.executable_path === 'string');
+  assert.ok(info.workspace_path.length > 0);
+  assert.ok(info.executable_path.length > 0);
+});
+
+

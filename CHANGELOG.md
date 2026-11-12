@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0] — 2026-11-12
+
+### Added
+
+- **Native Rust MCP Consolidation**: The compiled Rust binary (`api_client_reborn mcp --workspace <path>`) is now the sole supported MCP implementation. Removed legacy TypeScript MCP runtime, `bin/mcp.js`, and associated npm scripts.
+- **Dedicated gRPC Execution (`execute_grpc_request`)**: Support for executing saved `.grpcurl` and `.grpc` requests using server reflection or local proto files, supporting unary, server-streaming, and client-streaming calls (via piped JSON `printf` syntax).
+- **Rust grpcurl Parser**: Native command line parsing for grpcurl flags (`-plaintext`, `-insecure`, `-cacert`, `-proto`, `-import-path`, `-H`, `-d`), directive comments, and legacy JSON configs.
+- **Canonical Workspace Path Validation**: Hardened workspace path validator strictly enforcing canonical root boundaries, rejecting absolute paths, traversal (`..`), NUL bytes, symlink escapes, and invalid request file extensions.
+- **5-Tier Variable Precedence & Canonical `.secrets.env`**: Strict 5-tier resolution across default/selected environments, collection variables, `.secrets.env` (with comments/quotes/last-definition semantics), and per-call overrides, with metadata-only redaction.
+- **Bounded Cancellable Execution**: Server-level `--max-response-bytes` limit (default 4 MiB) enforced across HTTP bodies, gRPC unary, and streamed payloads; standard JSON-RPC cancellation routing across concurrent requests, QuickJS scripts, and network streams.
+- **Rich Tool Schemas & Annotations**: Complete nested JSON schemas with `additionalProperties: false`, string-map `variables`, and tool capability annotations (`readOnly`, `destructive`, `openWorldHint`).
+
 ## [0.10.2] — 2026-11-11
 
 ### Fixed

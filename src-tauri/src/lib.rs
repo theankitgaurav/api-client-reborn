@@ -115,17 +115,31 @@ pub fn run_cli_or_app() {
 
 pub fn run_mcp_cli(args: &[String]) {
     let mut workspace = ".".to_string();
+    let mut max_response_bytes = mcp::DEFAULT_MAX_RESPONSE_BYTES;
     let mut i = 0;
     while i < args.len() {
         if (args[i] == "--workspace" || args[i] == "-w") && i + 1 < args.len() {
             workspace = args[i + 1].clone();
             i += 2;
+        } else if let Some(stripped) = args[i].strip_prefix("--workspace=") {
+            workspace = stripped.to_string();
+            i += 1;
+        } else if (args[i] == "--max-response-bytes" || args[i] == "-m") && i + 1 < args.len() {
+            if let Ok(bytes) = args[i + 1].parse::<usize>() {
+                max_response_bytes = bytes;
+            }
+            i += 2;
+        } else if let Some(stripped) = args[i].strip_prefix("--max-response-bytes=") {
+            if let Ok(bytes) = stripped.parse::<usize>() {
+                max_response_bytes = bytes;
+            }
+            i += 1;
         } else {
             i += 1;
         }
     }
 
-    mcp::run_stdio(&workspace);
+    mcp::run_stdio(&workspace, max_response_bytes);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
