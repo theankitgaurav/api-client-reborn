@@ -415,7 +415,7 @@
       <select
         bind:value={model.method}
         onchange={syncToWorkspace}
-        class="bg-[#f0f0f2] dark:bg-[#2a2a2c] border border-[#d2d2d7] dark:border-[#3a3a3c] rounded px-2.5 py-1.5 font-mono text-xs cursor-pointer outline-none {getMethodColor(model.method)}"
+        class="ui-select px-2.5 py-1.5 font-mono text-xs cursor-pointer {getMethodColor(model.method)}"
       >
         <option value="GET" class="text-blue-500 font-bold">GET</option>
         <option value="POST" class="text-emerald-500 font-bold">POST</option>
@@ -856,7 +856,7 @@
             id="auth-type-select"
             bind:value={model.authType}
             onchange={syncToWorkspace}
-            class="bg-[#f0f0f2] dark:bg-[#252526] border border-[#d2d2d7] dark:border-[#383838] rounded px-2.5 py-1 text-xs text-neutral-800 dark:text-neutral-200 outline-none"
+            class="ui-select px-2.5 py-1 text-xs"
           >
             <option value="none">No Auth</option>
             <option value="bearer">Bearer Token</option>

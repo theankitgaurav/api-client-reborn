@@ -157,7 +157,7 @@
             aria-label="Active environment"
             value={envState.activeEnvName}
             onchange={(event) => envState.selectEnvironment(event.currentTarget.value)}
-            class="max-w-40 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#383838] rounded px-2 py-1 text-[11px] text-neutral-700 dark:text-neutral-200"
+            class="ui-select max-w-40 px-2 py-1 text-[11px]"
           >
             {#each envState.environments as environment}
               <option value={environment.name}>{environment.name}</option>
@@ -309,7 +309,7 @@
           <select
             bind:value={newScope}
             onchange={() => { if (newScope === 'workspace') newIsSecret = true; }}
-            class="col-span-2 bg-white dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2 py-1 text-neutral-800 dark:text-neutral-200"
+            class="ui-select col-span-2 px-2 py-1"
           >
             <option value="environment">Selected environment</option>
             <option value="workspace">Workspace secret</option>

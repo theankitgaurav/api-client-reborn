@@ -80,6 +80,16 @@ textarea:focus-visible,
 .ui-button-danger { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .ui-button-danger:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); }
 
+.ui-select {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.375rem;
+  background-color: var(--surface);
+  color: var(--text-strong);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+.ui-select:hover { border-color: var(--text-subtle); }
+.ui-select:focus-visible { border-color: var(--focus); }
+
 .ui-icon-button {
   @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors duration-150;
 }
