@@ -11,7 +11,7 @@
   let services = $state<GrpcServiceInfo[]>([]);
   let isDiscovering = $state(false);
   let discoverError = $state('');
-  let selectedSection = $state<'message' | 'metadata' | 'connection'>('message');
+  let selectedSection = $state<'message' | 'metadata' | 'connection'>('connection');
   let copied = $state(false);
 
   let serviceNames = $derived(services.map((service) => service.name));
@@ -24,7 +24,7 @@
       config = parseGrpcRequest(tab.rawContent);
       services = [];
       discoverError = '';
-      selectedSection = 'message';
+      selectedSection = 'connection';
     }
   });
 
@@ -136,113 +136,63 @@
   }
 </script>
 
-<div class="flex h-full flex-1 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-xs">
-  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
-    <input
-      aria-label="Request name"
-      bind:value={config.name}
-      oninput={sync}
-      placeholder="gRPC Request Name"
-      class="bg-transparent font-semibold text-neutral-800 dark:text-neutral-200 outline-none text-xs w-64 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 px-1.5 py-0.5 rounded"
-    />
-    <div class="flex items-center gap-2">
-      <button
-        onclick={copyGrpcurl}
-        title="Copy as grpcurl"
-        class="flex items-center gap-1 px-2 py-1 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030]"
-      >
-        {#if copied}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>grpcurl</span>{/if}
-      </button>
-      {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
-        <button onclick={() => workspaceState.saveActiveFile()} class="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded shadow-sm">
-          <Save size={12} /><span>Save</span>
-        </button>
-      {/if}
-    </div>
-  </div>
-
-  <div class="space-y-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
-    <div class="flex items-center gap-2">
-      <span class="font-mono font-bold text-violet-600 dark:text-violet-400 px-2">gRPC</span>
+<div class="contents text-xs">
+  <div class="col-span-3 row-start-1 flex min-w-0 flex-col overflow-hidden">
+    <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
       <input
-        aria-label="gRPC endpoint"
-        bind:value={config.endpoint}
+        aria-label="Request name"
+        bind:value={config.name}
         oninput={sync}
-        placeholder="http://127.0.0.1:50051"
-        class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs outline-none focus:border-blue-500"
+        placeholder="gRPC Request Name"
+        class="bg-transparent font-semibold text-neutral-800 dark:text-neutral-200 outline-none text-xs w-64 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 px-1.5 py-0.5 rounded"
       />
-      <button
-        onclick={loadServices}
-        disabled={isDiscovering || (!config.use_reflection && !config.proto_file)}
-        title="Discover services and methods"
-        class="flex items-center gap-1 px-2 py-1.5 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-700 dark:text-neutral-300 disabled:opacity-40"
-      >
-        <RefreshCw size={12} class={isDiscovering ? 'animate-spin' : ''} />
-        <span>{isDiscovering ? 'Discovering' : 'Discover'}</span>
-      </button>
-      <button
-        onclick={handleSend}
-        class="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-semibold text-white shadow-sm {responseState.isExecuting ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-500'}"
-      >
-        {#if responseState.isExecuting}<Square size={13} fill="currentColor" /><span>Cancel</span>{:else}<Play size={13} fill="currentColor" /><span>Send</span>{/if}
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          onclick={copyGrpcurl}
+          title="Copy as grpcurl"
+          class="flex items-center gap-1 px-2 py-1 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030]"
+        >
+          {#if copied}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>grpcurl</span>{/if}
+        </button>
+        {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
+          <button onclick={() => workspaceState.saveActiveFile()} class="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded shadow-sm">
+            <Save size={12} /><span>Save</span>
+          </button>
+        {/if}
+      </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-2">
-      <div class="min-w-0 space-y-1">
-        <label for="grpc-service-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Service</label>
-        {#if serviceNames.length}
-          <select
-            id="grpc-service-control"
-            value={config.service}
-            onchange={(event) => chooseService((event.target as HTMLSelectElement).value)}
-            class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
-          >
-            <option value="">Select a service</option>
-            {#each serviceNames as service}<option value={service}>{service}</option>{/each}
-          </select>
-        {:else}
-          <input
-            id="grpc-service-control"
-            bind:value={config.service}
-            oninput={sync}
-            placeholder="package.Service"
-            class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
-          />
-        {/if}
-      </div>
-      <div class="min-w-0 space-y-1">
-        <label for="grpc-method-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Method</label>
-        {#if methods.length}
-          <select
-            id="grpc-method-control"
-            value={config.method}
-            onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
-            class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
-          >
-            <option value="">Select a method</option>
-            {#each methods as method}<option value={method.name}>{method.name}{method.client_streaming || method.server_streaming ? ' (stream)' : ''}</option>{/each}
-          </select>
-        {:else}
-          <input
-            id="grpc-method-control"
-            bind:value={config.method}
-            oninput={sync}
-            placeholder="Method name"
-            class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
-          />
-        {/if}
+    <div class="border-b border-[var(--border)] bg-[var(--surface)] p-3">
+      <div class="flex items-center gap-2">
+        <span class="font-mono font-bold text-violet-600 dark:text-violet-400 px-2">gRPC</span>
+        <input
+          aria-label="gRPC endpoint"
+          bind:value={config.endpoint}
+          oninput={sync}
+          placeholder="http://127.0.0.1:50051"
+          class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs outline-none focus:border-blue-500"
+        />
+        <button
+          onclick={loadServices}
+          disabled={isDiscovering || (!config.use_reflection && !config.proto_file)}
+          title="Discover services and methods"
+          class="flex items-center gap-1 px-2 py-1.5 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-700 dark:text-neutral-300 disabled:opacity-40"
+        >
+          <RefreshCw size={12} class={isDiscovering ? 'animate-spin' : ''} />
+          <span>{isDiscovering ? 'Discovering' : 'Discover'}</span>
+        </button>
+        <button
+          onclick={handleSend}
+          class="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-semibold text-white shadow-sm {responseState.isExecuting ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-500'}"
+        >
+          {#if responseState.isExecuting}<Square size={13} fill="currentColor" /><span>Cancel</span>{:else}<Play size={13} fill="currentColor" /><span>Send</span>{/if}
+        </button>
       </div>
     </div>
-    {#if !serviceNames.length}<p class="text-[10px] text-neutral-500">Enter service and method names, or discover available options from the server.</p>{/if}
-    {#if selectedMethod}
-      <p class="text-[10px] text-neutral-500 font-mono">{selectedMethod.input_type} → {selectedMethod.output_type}{#if selectedMethod.client_streaming} · client stream{/if}{#if selectedMethod.server_streaming} · server stream{/if}</p>
-    {/if}
-    {#if discoverError}<p class="text-[11px] text-rose-600 dark:text-rose-400">{discoverError}</p>{/if}
   </div>
 
-  <div class="flex gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
-    {#each [{ key: 'message', label: 'Message' }, { key: 'metadata', label: 'Metadata' }, { key: 'connection', label: 'Connection' }] as section}
+  <div class="col-start-1 row-start-2 flex gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
+    {#each [{ key: 'connection', label: 'Connection' }, { key: 'message', label: 'Message' }, { key: 'metadata', label: 'Metadata' }] as section}
       <button
         onclick={() => (selectedSection = section.key as typeof selectedSection)}
         class="px-3 py-2 border-b-2 {selectedSection === section.key ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-neutral-500'}"
@@ -250,7 +200,7 @@
     {/each}
   </div>
 
-  <div class="flex min-h-0 flex-1 overflow-y-auto bg-[var(--surface)] p-3">
+  <div class="col-start-1 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)] p-3">
     {#if selectedSection === 'message'}
       <div class="h-full flex flex-col gap-2">
         <div class="flex justify-between text-[11px] text-neutral-500">
@@ -268,38 +218,117 @@
         ></textarea>
       </div>
     {:else if selectedSection === 'metadata'}
-      <div class="space-y-2">
-        <div class="flex justify-between items-center"><h3 class="font-semibold text-neutral-700 dark:text-neutral-300">Request metadata</h3><button onclick={addMetadata} class="flex items-center gap-1 px-2 py-1 rounded hover:bg-neutral-200 dark:hover:bg-[#303030]"><Plus size={12} /> Add</button></div>
-        {#each config.metadata as entry, index}
-          <div class="flex gap-2 items-center">
-            <input aria-label="Metadata key" value={entry.key} oninput={(event) => updateMetadata(index, 'key', (event.target as HTMLInputElement).value)} placeholder="key" class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
-            <input aria-label="Metadata value" value={entry.value} oninput={(event) => updateMetadata(index, 'value', (event.target as HTMLInputElement).value)} placeholder="value" class="flex-1 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
-            <button aria-label="Remove metadata" onclick={() => removeMetadata(index)} class="p-1 text-neutral-400 hover:text-rose-500"><Trash2 size={13} /></button>
-          </div>
-        {/each}
-        {#if !config.metadata.length}<p class="text-neutral-500 py-4 text-center">No metadata headers</p>{/if}
+      <div class="w-full">
+        <div class="mb-2 flex items-center justify-between">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Request Metadata</div>
+          <button onclick={addMetadata} class="flex items-center gap-1 text-[11px] text-blue-600 hover:underline dark:text-blue-400">
+            <Plus size={13} />
+            <span>Add Metadata</span>
+          </button>
+        </div>
+        <table class="w-full text-left font-mono text-xs">
+          <thead>
+            <tr class="border-b border-[#e5e5e5] text-neutral-400 dark:border-[#2d2d2d]">
+              <th class="pb-1.5 font-medium">Key</th>
+              <th class="pb-1.5 font-medium">Value</th>
+              <th class="w-8 pb-1.5"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#efeff2] dark:divide-[#252525]">
+            {#each config.metadata as entry, index}
+              <tr class="group hover:bg-neutral-50 dark:hover:bg-[#202020]">
+                <td class="py-1 pr-2">
+                  <input aria-label="Metadata key" value={entry.key} oninput={(event) => updateMetadata(index, 'key', (event.target as HTMLInputElement).value)} placeholder="Key" class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200" />
+                </td>
+                <td class="py-1 pr-2">
+                  <input aria-label="Metadata value" value={entry.value} oninput={(event) => updateMetadata(index, 'value', (event.target as HTMLInputElement).value)} placeholder="Value" class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200" />
+                </td>
+                <td class="py-1 text-center">
+                  <button aria-label="Remove metadata" onclick={() => removeMetadata(index)} class="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-rose-500 transition-opacity"><Trash2 size={13} /></button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        {#if !config.metadata.length}
+          <div class="py-8 text-center text-neutral-400 dark:text-neutral-500">No request metadata</div>
+        {/if}
       </div>
     {:else}
-      <div class="max-w-xl space-y-4">
-        <div class="space-y-2">
-          <label class="flex items-center gap-2 text-neutral-700 dark:text-neutral-300"><input type="checkbox" bind:checked={config.use_reflection} onchange={sync} class="accent-blue-600" />Use server reflection</label>
-          <label class="block text-[11px] text-neutral-500" for="grpc-proto-file">Proto file path</label>
-          <div class="flex gap-2">
-            <input id="grpc-proto-file" value={config.proto_file || ''} oninput={(event) => { config.proto_file = (event.target as HTMLInputElement).value || null; sync(); }} placeholder="/path/to/service.proto (overrides reflection)" class="flex-1 min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
-            <button onclick={chooseProtoFile} class="px-2 py-1.5 rounded border border-neutral-300 dark:border-[#3a3a3c] hover:bg-neutral-100 dark:hover:bg-[#303030]">Browse</button>
+      <div class="w-full space-y-4">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="min-w-0 space-y-1">
+            <label for="grpc-service-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Service</label>
+            {#if serviceNames.length}
+              <select
+                id="grpc-service-control"
+                value={config.service}
+                onchange={(event) => chooseService((event.target as HTMLSelectElement).value)}
+                class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
+              >
+                <option value="">Select a service</option>
+                {#each serviceNames as service}<option value={service}>{service}</option>{/each}
+              </select>
+            {:else}
+              <input
+                id="grpc-service-control"
+                bind:value={config.service}
+                oninput={sync}
+                placeholder="package.Service"
+                class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
+              />
+            {/if}
+          </div>
+          <div class="min-w-0 space-y-1">
+            <label for="grpc-method-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Method</label>
+            {#if methods.length}
+              <select
+                id="grpc-method-control"
+                value={config.method}
+                onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
+                class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
+              >
+                <option value="">Select a method</option>
+                {#each methods as method}<option value={method.name}>{method.name}{method.client_streaming || method.server_streaming ? ' (stream)' : ''}</option>{/each}
+              </select>
+            {:else}
+              <input
+                id="grpc-method-control"
+                bind:value={config.method}
+                oninput={sync}
+                placeholder="Method name"
+                class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
+              />
+            {/if}
           </div>
         </div>
-        <div class="border-t border-neutral-200 dark:border-[#333] pt-3 space-y-2">
-          <label class="flex items-center gap-2 text-neutral-700 dark:text-neutral-300"><input type="checkbox" checked={config.tls_enabled} onchange={(event) => setTlsEnabled((event.target as HTMLInputElement).checked)} class="accent-blue-600" />Use TLS</label>
-          {#if config.tls_enabled}
-            <label class="flex items-center gap-2 text-amber-700 dark:text-amber-400"><input type="checkbox" bind:checked={config.tls_insecure} onchange={sync} class="accent-amber-600" />Skip server certificate validation</label>
-            <label class="block text-[11px] text-neutral-500" for="grpc-ca-file">Custom CA certificate path (optional)</label>
-            <input id="grpc-ca-file" bind:value={config.tls_ca_file} oninput={sync} placeholder="/path/to/ca.pem" class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
-          {/if}
-        </div>
-        <div class="border-t border-neutral-200 dark:border-[#333] pt-3">
-          <label class="block text-[11px] text-neutral-500 mb-1" for="grpc-timeout">Timeout (ms)</label>
-          <input id="grpc-timeout" type="number" min="1" max="3600000" bind:value={config.timeout_ms} oninput={sync} class="w-40 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
+        {#if !serviceNames.length}<p class="text-[10px] text-neutral-500">Enter service and method names, or discover available options from the server.</p>{/if}
+        {#if selectedMethod}
+          <p class="text-[10px] text-neutral-500 font-mono">{selectedMethod.input_type} → {selectedMethod.output_type}{#if selectedMethod.client_streaming} · client stream{/if}{#if selectedMethod.server_streaming} · server stream{/if}</p>
+        {/if}
+        {#if discoverError}<p class="text-[11px] text-rose-600 dark:text-rose-400">{discoverError}</p>{/if}
+
+        <div class="max-w-xl space-y-4">
+          <div class="space-y-2">
+            <label class="flex items-center gap-2 text-neutral-700 dark:text-neutral-300"><input type="checkbox" bind:checked={config.use_reflection} onchange={sync} class="accent-blue-600" />Use server reflection</label>
+            <label class="block text-[11px] text-neutral-500" for="grpc-proto-file">Proto file path</label>
+            <div class="flex gap-2">
+              <input id="grpc-proto-file" value={config.proto_file || ''} oninput={(event) => { config.proto_file = (event.target as HTMLInputElement).value || null; sync(); }} placeholder="/path/to/service.proto (overrides reflection)" class="flex-1 min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
+              <button onclick={chooseProtoFile} class="px-2 py-1.5 rounded border border-neutral-300 dark:border-[#3a3a3c] hover:bg-neutral-100 dark:hover:bg-[#303030]">Browse</button>
+            </div>
+          </div>
+          <div class="border-t border-neutral-200 dark:border-[#333] pt-3 space-y-2">
+            <label class="flex items-center gap-2 text-neutral-700 dark:text-neutral-300"><input type="checkbox" checked={config.tls_enabled} onchange={(event) => setTlsEnabled((event.target as HTMLInputElement).checked)} class="accent-blue-600" />Use TLS</label>
+            {#if config.tls_enabled}
+              <label class="flex items-center gap-2 text-amber-700 dark:text-amber-400"><input type="checkbox" bind:checked={config.tls_insecure} onchange={sync} class="accent-amber-600" />Skip server certificate validation</label>
+              <label class="block text-[11px] text-neutral-500" for="grpc-ca-file">Custom CA certificate path (optional)</label>
+              <input id="grpc-ca-file" bind:value={config.tls_ca_file} oninput={sync} placeholder="/path/to/ca.pem" class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
+            {/if}
+          </div>
+          <div class="border-t border-neutral-200 dark:border-[#333] pt-3">
+            <label class="block text-[11px] text-neutral-500 mb-1" for="grpc-timeout">Timeout (ms)</label>
+            <input id="grpc-timeout" type="number" min="1" max="3600000" bind:value={config.timeout_ms} oninput={sync} class="w-40 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono outline-none" />
+          </div>
         </div>
       </div>
     {/if}
