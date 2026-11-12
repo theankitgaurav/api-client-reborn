@@ -40,6 +40,7 @@ jobs:
         id: release-notes
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
         run: |
           version="${RELEASE_TAG#v}"
           notes="$(awk -v heading="## [$version]" '
