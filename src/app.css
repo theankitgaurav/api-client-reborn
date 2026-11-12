@@ -89,6 +89,7 @@ textarea:focus-visible,
 }
 .ui-select:hover { border-color: var(--text-subtle); }
 .ui-select:focus-visible { border-color: var(--focus); }
+.ui-select-control { height: 30px; }
 
 .ui-icon-button {
   @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors duration-150;
