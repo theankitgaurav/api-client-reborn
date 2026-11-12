@@ -174,11 +174,11 @@
       <button
         onclick={loadServices}
         disabled={isDiscovering || (!config.use_reflection && !config.proto_file)}
-        title="Load services and methods"
+        title="Discover services and methods"
         class="flex items-center gap-1 px-2 py-1.5 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-700 dark:text-neutral-300 disabled:opacity-40"
       >
         <RefreshCw size={12} class={isDiscovering ? 'animate-spin' : ''} />
-        <span>{isDiscovering ? 'Loading' : 'Load'}</span>
+        <span>{isDiscovering ? 'Discovering' : 'Discover'}</span>
       </button>
       <button
         onclick={handleSend}
@@ -188,32 +188,53 @@
       </button>
     </div>
 
-    <div class="flex items-center gap-2">
-      <select
-        aria-label="gRPC service"
-        value={config.service}
-        onchange={(event) => chooseService((event.target as HTMLSelectElement).value)}
-        class="ui-select ui-select-control flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
-      >
-        <option value="">{serviceNames.length ? 'Select service' : 'Load services or enter service name'}</option>
-        {#each serviceNames as service}<option value={service}>{service}</option>{/each}
-      </select>
-      {#if !serviceNames.length}
-        <input aria-label="gRPC service name" bind:value={config.service} oninput={sync} placeholder="package.Service" class="flex-1 min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none" />
-      {/if}
-      <select
-        aria-label="gRPC method"
-        value={config.method}
-        onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
-        class="ui-select ui-select-control flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
-      >
-        <option value="">{methods.length ? 'Select method' : 'Method name'}</option>
-        {#each methods as method}<option value={method.name}>{method.name}{method.client_streaming || method.server_streaming ? ' (stream)' : ''}</option>{/each}
-      </select>
-      {#if !methods.length}
-        <input aria-label="gRPC method name" bind:value={config.method} oninput={sync} placeholder="Method" class="flex-1 min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none" />
-      {/if}
+    <div class="grid grid-cols-2 gap-2">
+      <div class="min-w-0 space-y-1">
+        <label for="grpc-service-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Service</label>
+        {#if serviceNames.length}
+          <select
+            id="grpc-service-control"
+            value={config.service}
+            onchange={(event) => chooseService((event.target as HTMLSelectElement).value)}
+            class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
+          >
+            <option value="">Select a service</option>
+            {#each serviceNames as service}<option value={service}>{service}</option>{/each}
+          </select>
+        {:else}
+          <input
+            id="grpc-service-control"
+            bind:value={config.service}
+            oninput={sync}
+            placeholder="package.Service"
+            class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
+          />
+        {/if}
+      </div>
+      <div class="min-w-0 space-y-1">
+        <label for="grpc-method-control" class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Method</label>
+        {#if methods.length}
+          <select
+            id="grpc-method-control"
+            value={config.method}
+            onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
+            class="ui-select ui-select-control w-full min-w-0 px-2 py-1.5 font-mono text-xs"
+          >
+            <option value="">Select a method</option>
+            {#each methods as method}<option value={method.name}>{method.name}{method.client_streaming || method.server_streaming ? ' (stream)' : ''}</option>{/each}
+          </select>
+        {:else}
+          <input
+            id="grpc-method-control"
+            bind:value={config.method}
+            oninput={sync}
+            placeholder="Method name"
+            class="w-full min-w-0 bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-2 py-1.5 font-mono text-xs outline-none"
+          />
+        {/if}
+      </div>
     </div>
+    {#if !serviceNames.length}<p class="text-[10px] text-neutral-500">Enter service and method names, or discover available options from the server.</p>{/if}
     {#if selectedMethod}
       <p class="text-[10px] text-neutral-500 font-mono">{selectedMethod.input_type} → {selectedMethod.output_type}{#if selectedMethod.client_streaming} · client stream{/if}{#if selectedMethod.server_streaming} · server stream{/if}</p>
     {/if}
