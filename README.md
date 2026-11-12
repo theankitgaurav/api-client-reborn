@@ -334,6 +334,8 @@ Press <kbd>?</kbd> or <kbd>⌘</kbd> + <kbd>/</kbd> anywhere in the application 
 | **Focus URL Input** | <kbd>⌘</kbd> + <kbd>L</kbd> | <kbd>Ctrl</kbd> + <kbd>L</kbd> |
 | **Filter Requests** | <kbd>⌘</kbd> + <kbd>F</kbd> / <kbd>⌘</kbd> + <kbd>P</kbd> | <kbd>Ctrl</kbd> + <kbd>F</kbd> / <kbd>Ctrl</kbd> + <kbd>P</kbd> |
 | **Variables & Secrets** | <kbd>⌘</kbd> + <kbd>E</kbd> | <kbd>Ctrl</kbd> + <kbd>E</kbd> |
+| **Command Palette** | <kbd>⌘</kbd> + <kbd>K</kbd> | <kbd>Ctrl</kbd> + <kbd>K</kbd> |
+| **Toggle Workspace Sidebar** | <kbd>⌘</kbd> + <kbd>\\</kbd> | <kbd>Ctrl</kbd> + <kbd>\\</kbd> |
 | **Close Modal / Dismiss** | <kbd>Esc</kbd> | <kbd>Esc</kbd> |
 | **Keyboard Cheatsheet** | <kbd>⌘</kbd> + <kbd>/</kbd> or <kbd>?</kbd> | <kbd>Ctrl</kbd> + <kbd>/</kbd> or <kbd>?</kbd> |
 

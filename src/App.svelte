@@ -13,12 +13,15 @@
   import ShortcutsModal from '$lib/components/ShortcutsModal.svelte';
   import McpModal from '$lib/components/McpModal.svelte';
   import UpdateModal from '$lib/components/UpdateModal.svelte';
+  import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
+  import ResizableSplit from '$lib/components/ui/ResizableSplit.svelte';
   import { executeShortcut, type ShortcutContext } from '$lib/utils/shortcuts';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { updaterState } from '$lib/state/updater.svelte';
+  import { uiState } from '$lib/state/ui.svelte';
 
   onMount(() => {
     updaterState.init();
@@ -59,6 +62,8 @@
         el.select();
       }
     },
+    toggleCommandPalette: () => uiState.toggleCommandPalette(),
+    toggleSidebar: () => uiState.toggleSidebar(),
     toggleVariablesModal: () => {
       envState.isVariablesModalOpen = !envState.isVariablesModalOpen;
     },
@@ -103,7 +108,7 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<main class="h-screen w-screen flex flex-col bg-[#f5f5f7] dark:bg-[#181818] text-[#1d1d1f] dark:text-[#cccccc] overflow-hidden">
+<main class="flex h-screen w-screen flex-col overflow-hidden bg-[var(--bg)] text-[var(--text)]">
   <!-- macOS Top Navigation & Traffic Lights -->
   <Titlebar />
 
@@ -113,22 +118,23 @@
     <Sidebar />
 
     <!-- Content Area: Full-width TabBar on top, parallel Request & Response panes below -->
-    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <!-- Request tabs spanning full width to the right -->
       <TabBar />
 
       <!-- Parallel Split View below TabBar -->
-      <div class="flex-1 flex min-h-0 overflow-hidden">
-        <!-- Request Editor Pane -->
-        {#if workspaceState.activeTab?.requestType === 'grpc'}
-          <GrpcRequestPlayground />
-        {:else}
-          <RequestPlayground />
-        {/if}
-
-        <!-- Response Viewer Pane -->
-        <ResponseViewer />
-      </div>
+      <ResizableSplit>
+        {#snippet request()}
+          {#if workspaceState.activeTab?.requestType === 'grpc'}
+            <GrpcRequestPlayground />
+          {:else}
+            <RequestPlayground />
+          {/if}
+        {/snippet}
+        {#snippet response()}
+          <ResponseViewer />
+        {/snippet}
+      </ResizableSplit>
     </div>
   </div>
 
@@ -152,4 +158,5 @@
 
   <!-- In-App Software Update Modal -->
   <UpdateModal />
+  <CommandPalette />
 </main>

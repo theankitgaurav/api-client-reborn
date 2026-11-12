@@ -110,6 +110,22 @@ export const SHORTCUT_DEFINITIONS: ShortcutItem[] = [
     winKeys: ['Ctrl', 'F'],
   },
   {
+    id: 'command-palette',
+    category: 'Navigation',
+    label: 'Command Palette',
+    description: 'Search commands, requests, tabs, and workspace navigation',
+    macKeys: ['⌘', 'K'],
+    winKeys: ['Ctrl', 'K'],
+  },
+  {
+    id: 'toggle-sidebar',
+    category: 'Navigation',
+    label: 'Toggle Workspace Sidebar',
+    description: 'Collapse or restore the workspace navigation rail',
+    macKeys: ['⌘', '\\'],
+    winKeys: ['Ctrl', '\\'],
+  },
+  {
     id: 'open-variables',
     category: 'Navigation',
     label: 'Variables & Secrets',
@@ -150,6 +166,8 @@ export type ShortcutActionType =
   | 'beautify-json'
   | 'focus-url'
   | 'focus-filter'
+  | 'command-palette'
+  | 'toggle-sidebar'
   | 'toggle-variables'
   | 'close-modal'
   | 'toggle-cheat-sheet';
@@ -182,6 +200,8 @@ export interface ShortcutContext {
   beautifyJson?: () => void;
   focusUrlInput?: () => void;
   focusFilterInput?: () => void;
+  toggleCommandPalette?: () => void;
+  toggleSidebar?: () => void;
   toggleVariablesModal: () => void;
   closeActiveModal: () => boolean;
   toggleCheatSheet: () => void;
@@ -259,6 +279,14 @@ export function resolveShortcut(e: KeyboardEventLike): ResolvedShortcut | null {
     (e.key === 'f' || e.key === 'F' || e.key === 'p' || e.key === 'P')
   ) {
     return { type: 'focus-filter' };
+  }
+
+  if (isMod && !e.shiftKey && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+    return { type: 'command-palette' };
+  }
+
+  if (isMod && !e.shiftKey && !e.altKey && e.key === '\\') {
+    return { type: 'toggle-sidebar' };
   }
 
   // 9. Variables & Secrets: Cmd+E / Ctrl+E
@@ -356,6 +384,14 @@ export function executeShortcut(e: KeyboardEventLike, context: ShortcutContext):
     case 'focus-filter':
       e.preventDefault?.();
       context.focusFilterInput?.();
+      return true;
+    case 'command-palette':
+      e.preventDefault?.();
+      context.toggleCommandPalette?.();
+      return true;
+    case 'toggle-sidebar':
+      e.preventDefault?.();
+      context.toggleSidebar?.();
       return true;
     case 'toggle-variables':
       e.preventDefault?.();

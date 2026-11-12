@@ -6,6 +6,7 @@
   import { responseState } from '$lib/state/response.svelte';
   import { historyState } from '$lib/state/history.svelte';
   import { updaterState } from '$lib/state/updater.svelte';
+  import { uiState } from '$lib/state/ui.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
   import {
     Layers,
@@ -18,6 +19,7 @@
     Bot,
     Download,
     RefreshCw,
+    Search,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
@@ -79,15 +81,15 @@
 
 <header
   data-tauri-drag-region
-  class="h-10 bg-[#f0f0f3] dark:bg-[#1e1e1e] border-b border-[#d8d8dc] dark:border-[#2d2d2d] flex items-center justify-between select-none px-3 transition-colors"
+  class="flex h-10 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 select-none transition-colors"
 >
   <!-- App name at the extreme left, offset past macOS traffic lights -->
-  <div class="flex items-center space-x-2 pl-[76px]">
+    <div class="flex items-center gap-2 pl-[76px]">
     <button
       type="button"
       onclick={() => updaterState.checkForUpdates({ manual: true })}
       title="API Client Reborn v{updaterState.currentVersion} • Check for updates"
-      class="text-xs font-semibold text-neutral-700 dark:text-neutral-400 tracking-wide flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+      class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-[var(--text)] transition-colors hover:text-[var(--accent)]"
     >
       <Layers size={14} class="text-blue-500" />
       API Client Reborn
@@ -141,7 +143,18 @@
   </div>
 
   <!-- Right: Theme Switcher & Variables Action -->
-  <div class="flex items-center space-x-2">
+  <div class="flex items-center gap-1.5">
+    <button
+      type="button"
+      onclick={() => uiState.openCommandPalette()}
+      title="Command palette ({isMac ? '⌘K' : 'Ctrl+K'})"
+      class="hidden items-center gap-2 rounded-md border px-2 py-1 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] sm:flex"
+      style="border-color: var(--border)"
+    >
+      <Search size={12} />
+      <span>Search</span>
+      <kbd class="rounded border px-1 font-mono text-[10px]" style="border-color: var(--border)">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+    </button>
     <!-- Update Available Badge -->
     {#if updaterState.hasUpdateNotification}
       <button

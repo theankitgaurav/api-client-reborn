@@ -375,9 +375,9 @@
 
 <svelte:window onkeydown={handleWindowKeyDown} onkeyup={handleWindowKeyUp} />
 
-<div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
+<div class="flex h-full flex-1 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-xs">
   <!-- Top Request Metadata & Toolbar -->
-  <div class="px-3 py-2 bg-[#f9f9fb] dark:bg-[#252526] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
+  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
     <div class="flex items-center gap-2 flex-1 mr-2">
       <input
         type="text"
@@ -409,7 +409,7 @@
   </div>
 
   <!-- Primary Postman Request Bar (Method + URL + Send) -->
-  <div class="p-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center gap-2">
+  <div class="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
     <!-- Method Selector -->
     <div class="relative">
       <select
@@ -462,7 +462,7 @@
   </div>
 
   <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts | Raw) -->
-  <div class="px-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center gap-1 select-none">
+  <div class="flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
     <button
       onclick={() => (activeTab = 'params')}
       class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'params'
@@ -526,7 +526,7 @@
   </div>
 
   <!-- Tab Content Body -->
-  <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#1a1a1a]">
+  <div class="flex flex-1 flex-col overflow-hidden bg-[var(--surface)]">
     <!-- 1. PARAMS TAB -->
     {#if activeTab === 'params'}
       <div class="flex-1 overflow-y-auto p-3">

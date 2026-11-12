@@ -83,9 +83,9 @@
   }
 </script>
 
-<div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] overflow-hidden text-xs">
+<div class="flex h-full flex-1 flex-col overflow-hidden bg-[var(--surface)] text-xs">
   <!-- Response Top Metric Bar -->
-  <div class="px-3 py-2 bg-[#f9f9fb] dark:bg-[#252526] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
+  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
     <div class="flex items-center space-x-3">
       {#if responseState.status}
         <span class="px-2 py-0.5 rounded font-mono font-bold text-xs {getStatusBadge(responseState.status)}">
@@ -122,7 +122,7 @@
     </div>
 
     <!-- Tab Selector -->
-    <div class="flex items-center space-x-1 bg-[#f0f0f2] dark:bg-[#1c1c1c] p-0.5 rounded border border-[#d2d2d7] dark:border-[#333]">
+    <div class="flex items-center space-x-1 rounded border border-[var(--border)] bg-[var(--surface)] p-0.5">
       <button
         onclick={() => (responseState.activeTab = 'body')}
         class="px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors {responseState.activeTab === 'body'
@@ -191,7 +191,7 @@
   {/if}
 
   <!-- Tab Content -->
-  <div class="flex-1 relative overflow-hidden bg-white dark:bg-[#181818]">
+  <div class="relative flex-1 overflow-hidden bg-[var(--surface)]">
     {#if responseState.activeTab === 'body'}
       <div class="h-full flex flex-col">
         {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}

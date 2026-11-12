@@ -46,7 +46,7 @@
 
 <svelte:window onclick={closeContextMenu} />
 
-<div class="h-9 bg-[#f0f0f3] dark:bg-[#181818] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center select-none overflow-x-auto text-xs shrink-0">
+<div class="flex h-9 shrink-0 items-center overflow-x-auto border-b border-[var(--border)] bg-[var(--surface-muted)] text-xs select-none">
   <div class="flex items-center h-full">
     {#each workspaceState.tabs as tab (tab.id)}
       {@const isActive = tab.id === workspaceState.activeTabId}
@@ -58,9 +58,9 @@
         ondblclick={() => workspaceState.pinTab(tab.id)}
         oncontextmenu={(e) => handleContextMenu(e, tab.id)}
         onkeydown={(e) => e.key === 'Enter' && (workspaceState.activeTabId = tab.id)}
-        class="group relative flex items-center gap-1.5 h-full px-3 border-r border-[#e5e5e5] dark:border-[#2d2d2d] cursor-pointer transition-colors max-w-[200px] {isActive
-          ? 'bg-white dark:bg-[#1e1e1e] text-neutral-900 dark:text-white font-medium border-t-2 border-t-blue-500 -mt-px'
-          : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200/50 dark:hover:bg-[#222222]'}"
+        class="group relative flex h-full max-w-[200px] cursor-pointer items-center gap-1.5 border-r border-[var(--border)] px-3 transition-colors {isActive
+          ? 'border-t-2 border-t-[var(--accent)] bg-[var(--surface)] font-medium text-[var(--text-strong)] -mt-px'
+          : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'}"
       >
         <!-- Method Badge -->
         <span class="text-[9px] font-mono font-bold px-1 py-0.2 rounded leading-tight {getBadgeClass(tab.method)}">

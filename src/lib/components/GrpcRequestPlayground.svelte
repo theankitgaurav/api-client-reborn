@@ -136,8 +136,8 @@
   }
 </script>
 
-<div class="flex-1 flex flex-col h-full bg-white dark:bg-[#1e1e1e] border-r border-[#e5e5e5] dark:border-[#2d2d2d] overflow-hidden text-xs">
-  <div class="px-3 py-2 bg-[#f9f9fb] dark:bg-[#252526] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
+<div class="flex h-full flex-1 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-xs">
+  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
     <input
       aria-label="Request name"
       bind:value={config.name}
@@ -161,7 +161,7 @@
     </div>
   </div>
 
-  <div class="p-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] space-y-2">
+  <div class="space-y-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
     <div class="flex items-center gap-2">
       <span class="font-mono font-bold text-violet-600 dark:text-violet-400 px-2">gRPC</span>
       <input
@@ -220,7 +220,7 @@
     {#if discoverError}<p class="text-[11px] text-rose-600 dark:text-rose-400">{discoverError}</p>{/if}
   </div>
 
-  <div class="px-3 bg-white dark:bg-[#1e1e1e] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex gap-1">
+  <div class="flex gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
     {#each [{ key: 'message', label: 'Message' }, { key: 'metadata', label: 'Metadata' }, { key: 'connection', label: 'Connection' }] as section}
       <button
         onclick={() => (selectedSection = section.key as typeof selectedSection)}
@@ -229,7 +229,7 @@
     {/each}
   </div>
 
-  <div class="flex-1 min-h-0 overflow-y-auto p-3 bg-white dark:bg-[#1a1a1a]">
+  <div class="flex min-h-0 flex-1 overflow-y-auto bg-[var(--surface)] p-3">
     {#if selectedSection === 'message'}
       <div class="h-full flex flex-col gap-2">
         <div class="flex justify-between text-[11px] text-neutral-500">

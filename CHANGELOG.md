@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0] — 2026-11-12
+
+### Added
+
+- **Linear-inspired developer-tool UI**: introduced semantic light/dark design tokens, compact controls, denser hierarchy, and consistent panel styling across the application.
+- **Collapsible workspace rail**: added a persisted sidebar icon rail for collections, search, and history navigation.
+- **Resizable request/response workspace**: added persisted mouse and keyboard pane resizing with an accessible split control.
+- **Command palette**: added `Cmd/Ctrl+K` search across actions, requests, tabs, history, and environments.
+- **Keyboard navigation refinements**: added command-palette and sidebar shortcuts while preserving existing request, tab, and editor shortcuts.
+
+### Changed
+
+- Reworked the titlebar, request tabs, HTTP/gRPC editors, response viewer, and primary workspace shell around reusable UI primitives and semantic tokens.
+- Preserved all existing request execution, IPC, persistence, environment, streaming, and backend behavior.
+
 ## [0.11.0] — 2026-11-12
 
 ### Added

@@ -188,6 +188,18 @@ test('resolveShortcut: Navigation shortcuts (Cmd+L, Cmd+F, Cmd+P, Cmd+E)', () =>
   });
 });
 
+test('resolveShortcut: Command palette and sidebar controls', () => {
+  assert.deepEqual(resolveShortcut(createEvent({ metaKey: true, key: 'k' })), {
+    type: 'command-palette',
+  });
+  assert.deepEqual(resolveShortcut(createEvent({ ctrlKey: true, key: 'k' })), {
+    type: 'command-palette',
+  });
+  assert.deepEqual(resolveShortcut(createEvent({ metaKey: true, key: '\\' })), {
+    type: 'toggle-sidebar',
+  });
+});
+
 test('resolveShortcut: General and help shortcuts (Escape, Cmd+/, ?)', () => {
   assert.deepEqual(resolveShortcut(createEvent({ key: 'Escape' })), {
     type: 'close-modal',

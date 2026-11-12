@@ -3,6 +3,7 @@
   import { historyState } from '$lib/state/history.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
+  import { uiState } from '$lib/state/ui.svelte';
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
@@ -21,6 +22,7 @@
     Trash2,
     MoreVertical,
     Clock,
+    Layers,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
@@ -257,7 +259,16 @@
 
 <svelte:window onclick={handleWindowClick} />
 
-<aside class="w-64 bg-[#fbfbfd] dark:bg-[#181818] border-r border-[#d8d8dc] dark:border-[#2d2d2d] flex flex-col h-full select-none text-xs transition-colors">
+<aside class="{uiState.sidebarCollapsed ? 'w-14' : 'w-64'} flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs transition-[width] duration-200">
+  {#if uiState.sidebarCollapsed}
+    <div class="flex flex-col items-center gap-2 px-2 py-3">
+      <button type="button" class="ui-icon-button bg-[var(--surface)] text-[var(--accent)]" aria-label="Expand workspace sidebar" title="Expand workspace sidebar (⌘\\)" onclick={() => uiState.setSidebarCollapsed(false)}><Layers size={15} /></button>
+      <div class="my-1 h-px w-6 bg-[var(--border)]"></div>
+      <button type="button" class="ui-icon-button" aria-label="New request" title="New request" onclick={() => workspaceState.createNewRequest()}><Plus size={15} /></button>
+      <button type="button" class="ui-icon-button" aria-label="Search requests" title="Search requests" onclick={() => document.getElementById('sidebar-filter-input')?.focus()}><Search size={15} /></button>
+      <button type="button" class="ui-icon-button" aria-label="Show history" title="Show history" onclick={() => { uiState.setSidebarCollapsed(false); activeSidebarTab = 'history'; }}><Clock size={15} /></button>
+    </div>
+  {:else}
   <div class="pt-2">
     <div class="flex w-full">
       <button
@@ -481,6 +492,7 @@
   </div>
   {:else}
     <HistoryPanel />
+  {/if}
   {/if}
 </aside>
 

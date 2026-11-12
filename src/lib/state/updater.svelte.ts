@@ -29,7 +29,7 @@ export class UpdaterState {
   isModalOpen = $state(false);
   hasUpdateNotification = $state(false);
 
-  currentVersion = $state('0.11.0');
+  currentVersion = $state('0.12.0');
   availableVersion = $state<string | null>(null);
   releaseDate = $state<string | null>(null);
   releaseNotes = $state<string | null>(null);

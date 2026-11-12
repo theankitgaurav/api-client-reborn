@@ -5,6 +5,20 @@ export default {
   theme: {
     extend: {
       colors: {
+        ui: {
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          muted: 'var(--surface-muted)',
+          raised: 'var(--surface-raised)',
+          border: 'var(--border)',
+          'border-strong': 'var(--border-strong)',
+          text: 'var(--text)',
+          strong: 'var(--text-strong)',
+          mutedText: 'var(--text-muted)',
+          subtle: 'var(--text-subtle)',
+          accent: 'var(--accent)',
+          focus: 'var(--focus)',
+        },
         mac: {
           bg: '#1e1e1e',
           surface: '#252526',
