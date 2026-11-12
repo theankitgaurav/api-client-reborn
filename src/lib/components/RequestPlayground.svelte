@@ -393,7 +393,7 @@
         <button
           onclick={copyCurl}
           title="Copy as cURL"
-          class="flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-neutral-600 hover:bg-neutral-100 dark:border-[#3a3a3c] dark:text-neutral-300 dark:hover:bg-[#303030]"
+          class="flex items-center gap-1 rounded border border-neutral-300 px-2.5 py-[3px] text-xs text-neutral-600 hover:bg-neutral-100 dark:border-[#3a3a3c] dark:text-neutral-300 dark:hover:bg-[#303030]"
         >
           {#if copiedCurl}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>cURL</span>{/if}
         </button>

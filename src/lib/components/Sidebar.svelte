@@ -339,7 +339,7 @@
 
       <button
         onclick={() => workspaceState.refreshTree()}
-        title="Refresh Workspace"
+        title="Refresh workspace files"
         class="p-1 hover:bg-neutral-200/60 dark:hover:bg-[#252526] rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
       >
         <RefreshCw size={13} class={workspaceState.isLoading ? 'animate-spin' : ''} />

@@ -205,11 +205,6 @@
         </div>
       {/if}
     </div>
-    {#if workspaceState.isDirty}
-      <span class="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-medium">
-        Unsaved
-      </span>
-    {/if}
   </div>
 
   <!-- Right: Theme Switcher & Variables Action -->
