@@ -127,7 +127,7 @@
         <TabBar />
 
         <!-- Parallel Split View below TabBar -->
-        <ResizableSplit>
+        <ResizableSplit wideRequestToolbar={workspaceState.activeTab?.requestType !== 'grpc'}>
           {#snippet request()}
             {#if workspaceState.activeTab?.requestType === 'grpc'}
               <GrpcRequestPlayground />

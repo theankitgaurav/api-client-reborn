@@ -375,43 +375,44 @@
 
 <svelte:window onkeydown={handleWindowKeyDown} onkeyup={handleWindowKeyUp} />
 
-<div class="flex h-full flex-1 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-xs">
+<div class="contents">
   <!-- Top Request Metadata & Toolbar -->
-  <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
-    <div class="flex items-center gap-2 flex-1 mr-2">
-      <input
-        type="text"
-        bind:value={model.name}
-        oninput={syncToWorkspace}
-        placeholder="Request Name"
-        class="bg-transparent font-semibold text-neutral-800 dark:text-neutral-200 outline-none text-xs w-64 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 px-1.5 py-0.5 rounded transition-colors"
-      />
-    </div>
+  <div class="col-span-3 row-start-1 flex min-w-0 flex-col overflow-hidden">
+    <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
+      <div class="mr-2 flex min-w-0 flex-1 items-center gap-2">
+        <input
+          type="text"
+          bind:value={model.name}
+          oninput={syncToWorkspace}
+          placeholder="Request Name"
+          class="w-64 min-w-0 bg-transparent px-1.5 py-0.5 text-xs font-semibold text-neutral-800 outline-none transition-colors hover:bg-neutral-200/50 dark:text-neutral-200 dark:hover:bg-neutral-800/50"
+        />
+      </div>
 
-    <div class="flex items-center gap-2">
-      <button
-        onclick={copyCurl}
-        title="Copy as cURL"
-        class="flex items-center gap-1 px-2 py-1 rounded border border-neutral-300 dark:border-[#3a3a3c] text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030]"
-      >
-        {#if copiedCurl}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>cURL</span>{/if}
-      </button>
-      {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
+      <div class="flex shrink-0 items-center gap-2">
         <button
-          onclick={() => workspaceState.saveActiveFile()}
-          class="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded transition-colors shadow-sm"
+          onclick={copyCurl}
+          title="Copy as cURL"
+          class="flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-neutral-600 hover:bg-neutral-100 dark:border-[#3a3a3c] dark:text-neutral-300 dark:hover:bg-[#303030]"
         >
-          <Save size={12} />
-          <span>Save ({isMac ? '⌘S' : 'Ctrl+S'})</span>
+          {#if copiedCurl}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>cURL</span>{/if}
         </button>
-      {/if}
+        {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
+          <button
+            onclick={() => workspaceState.saveActiveFile()}
+            class="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white shadow-sm transition-colors hover:bg-blue-500"
+          >
+            <Save size={12} />
+            <span>Save ({isMac ? '⌘S' : 'Ctrl+S'})</span>
+          </button>
+        {/if}
+      </div>
     </div>
-  </div>
 
   <!-- Primary Postman Request Bar (Method + URL + Send) -->
-  <div class="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
+  <div class="flex min-w-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
     <!-- Method Selector -->
-    <div class="relative">
+    <div class="relative shrink-0">
       <select
         bind:value={model.method}
         onchange={syncToWorkspace}
@@ -428,7 +429,7 @@
     </div>
 
     <!-- URL Bar -->
-    <div class="flex-1 relative">
+    <div class="relative min-w-0 flex-1">
       <input
         id="request-url-input"
         type="text"
@@ -460,9 +461,10 @@
       {/if}
     </button>
   </div>
+  </div>
 
   <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts | Raw) -->
-  <div class="flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
+  <div class="col-start-1 row-start-2 flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
     <button
       onclick={() => (activeTab = 'params')}
       class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'params'
@@ -526,7 +528,7 @@
   </div>
 
   <!-- Tab Content Body -->
-  <div class="flex flex-1 flex-col overflow-hidden bg-[var(--surface)]">
+  <div class="col-start-1 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
     <!-- 1. PARAMS TAB -->
     {#if activeTab === 'params'}
       <div class="flex-1 overflow-y-auto p-3">
