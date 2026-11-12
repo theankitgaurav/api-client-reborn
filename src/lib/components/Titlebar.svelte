@@ -320,15 +320,15 @@
     <!-- Variables Button -->
     <button
       onclick={() => (envState.isVariablesModalOpen = true)}
-      title="Configure {envState.activeEnvName} variables & secrets ({isMac ? '⌘E' : 'Ctrl+E'})"
+      title={`Configure environment variables & secrets for ${envState.activeEnvName} (${isMac ? '⌘E' : 'Ctrl+E'})`}
+      aria-label={`Configure environment variables and secrets for ${envState.activeEnvName}`}
       class="flex items-center gap-1 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
     >
       <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
       <span
-        class="max-w-24 truncate text-[11px] font-medium text-neutral-600 dark:text-neutral-300"
-        title={`Active environment: ${envState.activeEnvName}`}
+        class="text-[11px] font-medium text-neutral-600 dark:text-neutral-300"
       >
-        {envState.activeEnvName}
+        Env vars
       </span>
       {#if envState.variables.length > 0}
         <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">
