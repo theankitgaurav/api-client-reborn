@@ -543,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_workspace() {
+    fn new_workspace_receives_examples_by_default() {
         let temp_dir =
             std::env::temp_dir().join(format!("test_api_client_ws_{}", uuid::Uuid::new_v4()));
         ensure_workspace_initialized(&temp_dir).unwrap();
@@ -567,6 +567,18 @@ mod tests {
         assert!(items
             .iter()
             .all(|i| i.name != "target" && i.name != "src" && i.name != "docs"));
+
+        ensure_workspace_initialized(&temp_dir).unwrap();
+        let initialized_again = scan_workspace_tree(&temp_dir).unwrap();
+        let examples_again = initialized_again
+            .iter()
+            .find(|i| i.name == "examples" && i.is_dir)
+            .expect("Expected Examples to remain in an initialized workspace");
+        assert_eq!(
+            count_requests(examples_again.children.as_deref().unwrap_or_default()),
+            22,
+            "Repeated initialization should not duplicate example requests"
+        );
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);
