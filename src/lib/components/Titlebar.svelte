@@ -25,6 +25,7 @@
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
+  let effectiveThemeIsDark = $derived(themeState.isDark());
   let isThemeMenuOpen = $state(false);
   let isWorkspaceMenuOpen = $state(false);
   let isSwitchingWorkspace = $state(false);
@@ -260,18 +261,16 @@
       <button
         type="button"
         onclick={() => (isThemeMenuOpen = !isThemeMenuOpen)}
-        title="Theme: {themeState.mode}"
-        aria-label="Choose theme. Current theme: {themeState.mode}"
+        title="Theme: {themeState.mode} ({effectiveThemeIsDark ? 'dark' : 'light'} appearance)"
+        aria-label="Choose theme. Current mode: {themeState.mode}; effective theme: {effectiveThemeIsDark ? 'dark' : 'light'}"
         aria-haspopup="menu"
         aria-expanded={isThemeMenuOpen}
         class="p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors"
       >
-        {#if themeState.mode === 'system'}
-          <Monitor size={14} class="text-blue-600 dark:text-blue-400" />
-        {:else if themeState.mode === 'light'}
-          <Sun size={14} class="text-amber-500 dark:text-amber-400" />
-        {:else}
+        {#if effectiveThemeIsDark}
           <Moon size={14} class="text-neutral-600 dark:text-neutral-300" />
+        {:else}
+          <Sun size={14} class="text-amber-500 dark:text-amber-400" />
         {/if}
       </button>
 
