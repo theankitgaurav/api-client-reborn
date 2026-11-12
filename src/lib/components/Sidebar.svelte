@@ -7,6 +7,8 @@
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
+  import { COLLECTION_EXPORT_LABEL } from '$lib/utils/collection-exporter';
+  import { createFolderFromName } from '$lib/utils/folder-creation';
   import { parseGrpcRequest, resolveGrpcVariables, toGrpcurl } from '$lib/utils/grpc';
   import type { WorkspaceFileItem } from '$lib/types';
   import {
@@ -33,6 +35,10 @@
   let hasInitializedFolderDefaults = false;
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
   let isDeletingItem = $state(false);
+  let isNewFolderDialogOpen = $state(false);
+  let newFolderName = $state('');
+  let newFolderError = $state('');
+  let isCreatingFolder = $state(false);
 
   let itemContextMenu = $state<{
     visible: boolean;
@@ -231,9 +237,28 @@
   }
 
   function handleCreateFolder() {
-    const name = prompt('Enter new collection / folder name:');
-    if (name && name.trim()) {
-      workspaceState.createFolder('.', name.trim());
+    newFolderName = '';
+    newFolderError = '';
+    isNewFolderDialogOpen = true;
+  }
+
+  async function submitNewFolder() {
+    if (isCreatingFolder) return;
+    newFolderError = '';
+    isCreatingFolder = true;
+    try {
+      const created = await createFolderFromName(newFolderName, (name) =>
+        workspaceState.createFolder('.', name)
+      );
+      if (!created) {
+        newFolderError = 'Enter a folder name.';
+        return;
+      }
+      isNewFolderDialogOpen = false;
+    } catch (error) {
+      newFolderError = error instanceof Error ? error.message : String(error);
+    } finally {
+      isCreatingFolder = false;
     }
   }
 </script>
@@ -516,7 +541,9 @@
           if (itemContextMenu) {
             const sub = prompt('Enter subfolder name:');
             if (sub && sub.trim()) {
-              workspaceState.createFolder(itemContextMenu.item.path, sub.trim());
+              void workspaceState.createFolder(itemContextMenu.item.path, sub.trim()).catch((error) => {
+                alert(`Failed to create folder: ${error instanceof Error ? error.message : String(error)}`);
+              });
             }
           }
           closeContextMenu();
@@ -534,7 +561,7 @@
           closeContextMenu();
         }}
       >
-        <span>Export Collection (.sh)</span>
+        <span>{COLLECTION_EXPORT_LABEL}</span>
       </button>
 
       <div class="h-px bg-neutral-200 dark:bg-[#383838] my-1"></div>
@@ -687,6 +714,68 @@
           {isDeletingItem ? 'Deleting…' : `Delete ${deletingFolder ? 'Folder' : 'Request'}`}
         </button>
       </div>
+    </div>
+  </div>
+{/if}
+
+{#if isNewFolderDialogOpen}
+  <div
+    class="fixed inset-0 z-[60] bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    role="presentation"
+    onclick={(event) => {
+      if (event.target === event.currentTarget && !isCreatingFolder) isNewFolderDialogOpen = false;
+    }}
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-folder-title"
+      class="w-full max-w-sm rounded-lg border border-neutral-200 dark:border-[#383838] bg-white dark:bg-[#202020] shadow-2xl text-xs overflow-hidden"
+    >
+      <form
+        onsubmit={(event) => {
+          event.preventDefault();
+          void submitNewFolder();
+        }}
+      >
+        <div class="px-4 py-3 border-b border-neutral-200 dark:border-[#383838]">
+          <h2 id="new-folder-title" class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            New Folder / Collection
+          </h2>
+        </div>
+        <div class="px-4 py-4">
+          <label for="new-folder-name" class="mb-1.5 block text-neutral-600 dark:text-neutral-300">
+            Folder name
+          </label>
+          <input
+            id="new-folder-name"
+            bind:value={newFolderName}
+            disabled={isCreatingFolder}
+            class="w-full rounded border border-neutral-300 dark:border-[#444] bg-white dark:bg-[#1a1a1a] px-2.5 py-2 text-neutral-900 dark:text-neutral-100 outline-none focus:border-blue-500"
+            placeholder="Enter a name"
+          />
+          {#if newFolderError}
+            <p role="alert" class="mt-2 text-rose-500">{newFolderError}</p>
+          {/if}
+        </div>
+        <div class="px-4 py-3 bg-neutral-50 dark:bg-[#252526] border-t border-neutral-200 dark:border-[#383838] flex justify-end gap-2">
+          <button
+            type="button"
+            disabled={isCreatingFolder}
+            onclick={() => (isNewFolderDialogOpen = false)}
+            class="px-3 py-1.5 rounded border border-neutral-300 dark:border-[#444] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-[#303030] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isCreatingFolder}
+            class="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium disabled:opacity-50"
+          >
+            {isCreatingFolder ? 'Creating…' : 'Create Folder'}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 {/if}

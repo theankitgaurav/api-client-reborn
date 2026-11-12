@@ -2,6 +2,8 @@
  * Returns a workspace-relative archive path, omitting the selected collection
  * folder itself when exporting just that collection.
  */
+export const COLLECTION_EXPORT_LABEL = 'Export Collection (.zip)';
+
 export function getCollectionArchivePath(filePath: string, rootPath: string): string {
   const file = filePath.replace(/\\/g, '/').replace(/\/+$/, '');
   const normalizedRoot = rootPath.replace(/\\/g, '/');
