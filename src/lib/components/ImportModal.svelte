@@ -2,14 +2,15 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
   import { importCollectionBundle } from '$lib/ipc';
-import {
-  parsePostmanCollection,
-  parsePostmanEnvironment,
-  type PostmanEnvironmentImport,
-  type PostmanImportResult,
-} from '$lib/utils/postman-importer';
+  import {
+    parsePostmanCollection,
+    parsePostmanEnvironment,
+    type PostmanEnvironmentImport,
+    type PostmanImportResult,
+  } from '$lib/utils/postman-importer';
   import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
   import { serializeGrpcRequest } from '$lib/utils/grpc';
+  import { prepareRequestCollectionImport, readRequestArchive } from '$lib/utils/request-archive';
   import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
 
   let rawInput = $state('');
@@ -31,34 +32,58 @@ import {
     importSuccess = false;
   }
 
+  async function processFile(file: File) {
+    fileName = file.name;
+    parseError = null;
+    parseResult = null;
+    environmentImport = null;
+    rawInput = '';
+    if (file.name.toLowerCase().endsWith('.zip')) {
+      try {
+        const files = await readRequestArchive(await file.arrayBuffer());
+        const collection = prepareRequestCollectionImport(
+          files,
+          file.name,
+          workspaceState.tree.map((item) => item.name)
+        );
+        parseResult = {
+          collectionName: collection.collectionName,
+          items: collection.files.map((file) => ({
+            relativePath: file.path,
+            content: file.content,
+            name: file.path.split('/').at(-1) || file.path,
+          })),
+          variables: [],
+          totalRequests: collection.files.length,
+          totalFolders: new Set(collection.files.map((file) => file.path.split('/').slice(1, -1).join('/')).filter(Boolean)).size,
+        };
+        environmentImport = null;
+      } catch (error) {
+        parseResult = null;
+        parseError = `Failed to read ZIP archive: ${error instanceof Error ? error.message : String(error)}`;
+      }
+      return;
+    }
+
+    try {
+      processInput(await file.text());
+    } catch (error) {
+      parseError = `Failed to read file: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
   function handleFileSelect(e: Event) {
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
-
-    fileName = file.name;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      rawInput = content;
-      processInput(content);
-    };
-    reader.readAsText(file);
+    void processFile(file);
   }
 
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-
-    fileName = file.name;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      rawInput = content;
-      processInput(content);
-    };
-    reader.readAsText(file);
+    void processFile(file);
   }
 
   function processInput(content: string) {
@@ -266,11 +291,11 @@ import {
               {fileName ? fileName : 'Choose a file or drag & drop it here'}
             </span>
             <span class="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              Supports Postman Collections, Postman environments, cURL and grpcurl files
+              Supports ZIP request archives, Postman files, cURL and grpcurl files
             </span>
             <input
               type="file"
-              accept=".json,.curl"
+              accept=".zip,.json,.curl,.grpcurl,.grpc"
               class="hidden"
               onchange={handleFileSelect}
             />
@@ -334,6 +359,11 @@ import {
                 {/if}
               </div>
             </div>
+            {#if fileName.toLowerCase().endsWith('.zip')}
+              <div class="px-3 py-2 text-[11px] text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-[#333]">
+                ZIP requests will be imported into a new collection. Existing workspace files will not be replaced.
+              </div>
+            {/if}
 
             <!-- Request List Preview (truncated to top 15) -->
             <div class="max-h-48 overflow-y-auto divide-y divide-neutral-200 dark:divide-[#2a2a2a] p-1">

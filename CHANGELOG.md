@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0] — 2026-11-13
+
+### Added
+
+- Export collections and the full workspace as ZIP archives containing the exact saved `.curl`, `.grpcurl`, and `.grpc` request files.
+- Import request ZIP archives as new collections while preserving nested folders and avoiding overwrites.
+
 ## [0.12.1] — 2026-11-12
 
 ### Improved
