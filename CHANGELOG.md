@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1] — 2026-11-12
+
+### Improved
+
+- Unified dropdown styling and control heights across HTTP and gRPC requests.
+- Simplified gRPC service and method selection with clear labels, single controls, and optional service discovery.
+
 ## [0.12.0] — 2026-11-12
 
 ### Added
