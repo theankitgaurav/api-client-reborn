@@ -30,7 +30,6 @@
   let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
   let activeSidebarTab = $state<'requests' | 'history'>('requests');
-  let showNewRequestMenu = $state(false);
   let collapsedFolderPaths = $state<string[]>([]);
   let hasInitializedFolderDefaults = false;
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
@@ -211,14 +210,6 @@
     itemContextMenu = null;
   }
 
-  function handleWindowClick(event: MouseEvent) {
-    closeContextMenu();
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest('[data-new-request-menu]')) {
-      showNewRequestMenu = false;
-    }
-  }
-
   function handleDeleteItem(item: WorkspaceFileItem) {
     closeContextMenu();
     pendingDeleteItem = item;
@@ -263,7 +254,7 @@
   }
 </script>
 
-<svelte:window onclick={handleWindowClick} />
+<svelte:window onclick={closeContextMenu} />
 
 <aside class="{uiState.sidebarCollapsed ? 'w-14' : 'w-64'} flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs transition-[width] duration-200">
   {#if uiState.sidebarCollapsed}
@@ -305,44 +296,14 @@
   <!-- Request actions -->
   <div class="px-2 py-2 border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
     <div class="flex items-center gap-1">
-      <div class="relative flex" data-new-request-menu>
-        <button
-          onclick={() => {
-            showNewRequestMenu = false;
-            workspaceState.createNewRequest();
-          }}
-          title="New REST Request ({isMac ? '⌘N' : 'Ctrl+N'})"
-          class="flex items-center gap-0.5 bg-blue-600 hover:bg-blue-500 text-white px-1.5 py-0.5 rounded-l text-[11px] font-medium transition-colors shadow-sm active:scale-95"
-        >
-          <Plus size={11} />
-          <span>New</span>
-        </button>
-        <button
-          type="button"
-          aria-label="More new request types"
-          aria-haspopup="menu"
-          aria-expanded={showNewRequestMenu}
-          onclick={() => (showNewRequestMenu = !showNewRequestMenu)}
-          class="bg-blue-600 hover:bg-blue-500 text-white px-1 rounded-r border-l border-blue-500 text-[11px]"
-        >
-          ▾
-        </button>
-        {#if showNewRequestMenu}
-          <div role="menu" class="absolute left-0 top-full z-30 mt-1 min-w-40 rounded border border-neutral-200 dark:border-[#3a3a3a] bg-white dark:bg-[#252526] p-1 shadow-lg">
-            <button
-              type="button"
-              role="menuitem"
-              onclick={() => {
-                showNewRequestMenu = false;
-                workspaceState.createNewGrpcRequest();
-              }}
-              class="w-full rounded px-2 py-1.5 text-left text-[11px] text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-[#303030]"
-            >
-              New gRPC Request
-            </button>
-          </div>
-        {/if}
-      </div>
+      <button
+        onclick={() => workspaceState.createNewRequest()}
+        title="New Request ({isMac ? '⌘N' : 'Ctrl+N'})"
+        class="flex items-center gap-0.5 bg-blue-600 hover:bg-blue-500 text-white px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors shadow-sm active:scale-95"
+      >
+        <Plus size={11} />
+        <span>New</span>
+      </button>
     </div>
 
     <div class="flex items-center gap-1">
@@ -523,16 +484,6 @@
         }}
       >
         <span>New Request Here</span>
-      </button>
-
-      <button
-        class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white transition-colors flex items-center justify-between"
-        onclick={() => {
-          if (itemContextMenu) workspaceState.createNewGrpcRequestInFolder(itemContextMenu.item.path);
-          closeContextMenu();
-        }}
-      >
-        <span>New gRPC Request Here</span>
       </button>
 
       <button

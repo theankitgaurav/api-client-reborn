@@ -25,6 +25,10 @@ import {
 
 export type { TabItem, TabResponseData };
 
+function createDefaultHttpRequestContent(name: string, method: string) {
+  return `# @name ${name}\n# @timeout 30000\n\ncurl -X ${method} "https://httpbin.org/get" \\\n  -H "Accept: application/json"`;
+}
+
 export class WorkspaceState {
   workspacePath = $state('.');
   tree = $state<WorkspaceFileItem[]>([]);
@@ -212,21 +216,48 @@ export class WorkspaceState {
     this.activeTabId = opened.activeTabId;
   }
 
-  createNewRequest() {
-    const defaultContent = `# @name Untitled Request\n# @timeout 30000\n\ncurl -X GET "https://httpbin.org/get" \\\n  -H "Accept: application/json"`;
+  createNewRequest(method = 'GET') {
     const newTab: TabItem = {
       id: crypto.randomUUID(),
       filePath: null,
       name: 'Untitled Request',
-      method: 'GET',
+      method,
       requestType: 'http',
-      rawContent: defaultContent,
+      rawContent: createDefaultHttpRequestContent('Untitled Request', method),
       isDirty: false,
       isPinned: true,
       sidecar: { tests: [] },
     };
     this.tabs.push(newTab);
     this.activeTabId = newTab.id;
+  }
+
+  switchRequestType(requestType: 'http' | 'grpc', method = 'GET') {
+    const tab = this.activeTab;
+    if (!tab || (tab.requestType || 'http') === requestType) return;
+
+    if (tab.filePath) {
+      if (requestType === 'grpc') {
+        this.createNewGrpcRequest();
+      } else {
+        this.createNewRequest(method);
+      }
+      return;
+    }
+
+    if (requestType === 'grpc') {
+      const config = createDefaultGrpcRequest(tab.name);
+      tab.rawContent = serializeGrpcRequest(config);
+      tab.method = 'gRPC';
+      tab.requestType = 'grpc';
+    } else {
+      tab.rawContent = createDefaultHttpRequestContent(tab.name, method);
+      tab.method = method;
+      tab.requestType = 'http';
+    }
+
+    tab.isDirty = true;
+    tab.isPinned = true;
   }
 
   createNewGrpcRequest() {
@@ -244,11 +275,6 @@ export class WorkspaceState {
     };
     this.tabs.push(newTab);
     this.activeTabId = newTab.id;
-  }
-
-  createNewGrpcRequestInFolder(folderPath: string) {
-    this.targetNewRequestFolder = folderPath;
-    this.createNewGrpcRequest();
   }
 
   closeActiveTab() {

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.3] — 2026-11-13
+
+### Added
+
+- Added gRPC to the request method selector, allowing unsaved drafts to switch between HTTP and gRPC while preserving saved requests by opening a new draft.
+
+### Improved
+
+- Simplified the sidebar New Request action; choose HTTP or gRPC from the request editor.
+
 ## [0.13.2] — 2026-11-13
 
 ### Fixed

@@ -59,7 +59,7 @@
         oncontextmenu={(e) => handleContextMenu(e, tab.id)}
         onkeydown={(e) => e.key === 'Enter' && (workspaceState.activeTabId = tab.id)}
         class="group relative flex h-full max-w-[200px] cursor-pointer items-center gap-1.5 border-r border-[var(--border)] px-3 transition-colors {isActive
-          ? 'border-t-2 border-t-[var(--accent)] bg-[var(--surface)] font-medium text-[var(--text-strong)] -mt-px'
+          ? 'border-t-2 border-t-[var(--accent)] bg-[var(--surface-muted)] font-medium text-[var(--text-strong)] -mt-px'
           : 'text-[var(--text-muted)] hover:bg-[var(--surface)]'}"
       >
         <!-- Method Badge -->

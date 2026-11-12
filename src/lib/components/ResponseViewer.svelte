@@ -85,7 +85,7 @@
 
 <div class="contents">
   <!-- Response Top Metric Bar -->
-  <div class="col-start-3 row-start-2 flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
+  <div class="col-start-3 row-start-2 flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2">
     <div class="flex min-w-0 shrink items-center gap-2 overflow-hidden whitespace-nowrap">
       {#if responseState.status}
         <span class="px-2 py-0.5 rounded font-mono font-bold text-xs {getStatusBadge(responseState.status)}">
