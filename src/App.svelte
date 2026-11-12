@@ -15,6 +15,7 @@
   import UpdateModal from '$lib/components/UpdateModal.svelte';
   import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
   import ResizableSplit from '$lib/components/ui/ResizableSplit.svelte';
+  import HomePage from '$lib/components/HomePage.svelte';
   import { executeShortcut, type ShortcutContext } from '$lib/utils/shortcuts';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { responseState } from '$lib/state/response.svelte';
@@ -119,22 +120,26 @@
 
     <!-- Content Area: Full-width TabBar on top, parallel Request & Response panes below -->
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <!-- Request tabs spanning full width to the right -->
-      <TabBar />
+      {#if workspaceState.tabs.length === 0}
+        <HomePage />
+      {:else}
+        <!-- Request tabs spanning full width to the right -->
+        <TabBar />
 
-      <!-- Parallel Split View below TabBar -->
-      <ResizableSplit>
-        {#snippet request()}
-          {#if workspaceState.activeTab?.requestType === 'grpc'}
-            <GrpcRequestPlayground />
-          {:else}
-            <RequestPlayground />
-          {/if}
-        {/snippet}
-        {#snippet response()}
-          <ResponseViewer />
-        {/snippet}
-      </ResizableSplit>
+        <!-- Parallel Split View below TabBar -->
+        <ResizableSplit>
+          {#snippet request()}
+            {#if workspaceState.activeTab?.requestType === 'grpc'}
+              <GrpcRequestPlayground />
+            {:else}
+              <RequestPlayground />
+            {/if}
+          {/snippet}
+          {#snippet response()}
+            <ResponseViewer />
+          {/snippet}
+        </ResizableSplit>
+      {/if}
     </div>
   </div>
 
