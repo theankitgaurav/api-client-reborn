@@ -108,7 +108,7 @@
             <select
               id="save-folder-select"
               bind:value={selectedFolder}
-              class="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200 outline-none cursor-pointer"
+              class="ui-select w-full px-2.5 py-1.5 text-xs cursor-pointer"
             >
               {#each folderOptions as opt}
                 <option value={opt.path}>{opt.label}</option>
