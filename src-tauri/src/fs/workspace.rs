@@ -172,6 +172,10 @@ pub fn app_data_dir() -> PathBuf {
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
+pub fn default_workspace_dir() -> PathBuf {
+    app_data_dir().join("workspace")
+}
+
 fn workspace_settings_path() -> PathBuf {
     app_data_dir().join("settings.json")
 }
@@ -209,9 +213,39 @@ pub fn set_selected_workspace_dir(path: &Path) -> Result<PathBuf> {
     }
     fs::create_dir_all(app_data_dir())
         .map_err(|e| AppError::FsError(format!("Cannot create app data folder: {e}")))?;
-    let payload = serde_json::json!({"workspace_path": canonical});
+    let settings_path = workspace_settings_path();
+    let mut payload = if settings_path.exists() {
+        let contents = fs::read_to_string(&settings_path)
+            .map_err(|e| AppError::FsError(format!("Cannot read workspace settings: {e}")))?;
+        serde_json::from_str::<serde_json::Value>(&contents)
+            .map_err(|e| AppError::FsError(format!("Cannot parse workspace settings: {e}")))?
+    } else {
+        serde_json::json!({})
+    };
+    if !payload.is_object() {
+        return Err(AppError::FsError(
+            "Workspace settings must contain a JSON object".into(),
+        ));
+    }
+
+    let canonical_string = canonical.to_string_lossy().to_string();
+    let mut recent = payload
+        .get("recent_workspace_paths")
+        .and_then(serde_json::Value::as_array)
+        .map(|paths| {
+            paths
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(str::to_string)
+                .filter(|recent_path| PathBuf::from(recent_path) != canonical)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    recent.insert(0, canonical_string.clone());
+    payload["workspace_path"] = serde_json::Value::String(canonical_string);
+    payload["recent_workspace_paths"] = serde_json::json!(recent);
     fs::write(
-        workspace_settings_path(),
+        settings_path,
         serde_json::to_vec_pretty(&payload).map_err(|e| AppError::InternalError(e.to_string()))?,
     )
     .map_err(|e| AppError::FsError(format!("Cannot save workspace settings: {e}")))?;
@@ -220,13 +254,35 @@ pub fn set_selected_workspace_dir(path: &Path) -> Result<PathBuf> {
 
 pub fn initialize_default_workspace() -> Result<PathBuf> {
     let app_dir = app_data_dir();
-    let workspace = app_dir.join("workspace");
+    let workspace = default_workspace_dir();
     fs::create_dir_all(&app_dir)
         .map_err(|e| AppError::FsError(format!("Cannot create app data folder: {e}")))?;
     migrate_legacy_workspace_contents(&app_dir, &workspace)?;
     ensure_workspace_initialized(&workspace)?;
     let _ = set_selected_workspace_dir(&workspace)?;
     Ok(workspace)
+}
+
+pub fn recent_workspace_dirs() -> Result<Vec<PathBuf>> {
+    let settings = workspace_settings_path();
+    if !settings.exists() {
+        return Ok(Vec::new());
+    }
+    let contents = fs::read_to_string(settings)
+        .map_err(|e| AppError::FsError(format!("Cannot read workspace settings: {e}")))?;
+    let value = serde_json::from_str::<serde_json::Value>(&contents)
+        .map_err(|e| AppError::FsError(format!("Cannot parse workspace settings: {e}")))?;
+    Ok(value
+        .get("recent_workspace_paths")
+        .and_then(serde_json::Value::as_array)
+        .map(|paths| {
+            paths
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(PathBuf::from)
+                .collect()
+        })
+        .unwrap_or_default())
 }
 
 fn migrate_legacy_workspace_contents(app_dir: &Path, workspace: &Path) -> Result<()> {

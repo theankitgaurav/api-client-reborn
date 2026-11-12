@@ -1,7 +1,11 @@
 use crate::error::{AppError, Result};
 use crate::env::secret_file::ensure_gitignore_has_secrets;
 use crate::fs::sidecar::{read_sidecar_meta, save_sidecar_meta};
-use crate::fs::workspace::{app_data_dir, initialize_default_workspace, resolve_workspace_root, scan_workspace_tree, selected_workspace_dir, set_selected_workspace_dir};
+use crate::fs::workspace::{
+    app_data_dir, default_workspace_dir, ensure_workspace_initialized, initialize_default_workspace,
+    recent_workspace_dirs, resolve_workspace_root, scan_workspace_tree, selected_workspace_dir,
+    set_selected_workspace_dir,
+};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::{
     compose_file_content, extract_comments_and_command, RequestMetadata, SidecarMetadata,
@@ -73,6 +77,57 @@ fn slugify(input: &str) -> String {
 pub fn get_workspace_path() -> Result<String> {
     let path = if app_data_dir().join("settings.json").exists() { selected_workspace_dir() } else { initialize_default_workspace()? };
     Ok(path.to_string_lossy().to_string())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceHistory {
+    pub default_workspace_path: String,
+    pub recent_workspace_paths: Vec<String>,
+}
+
+fn build_recent_workspace_paths(
+    default_workspace: &Path,
+    current_workspace: Option<&Path>,
+    recent_paths: &[PathBuf],
+) -> Vec<String> {
+    let mut paths = Vec::new();
+    for path in current_workspace.into_iter().chain(recent_paths.iter().map(PathBuf::as_path)) {
+        if !path.is_dir() {
+            continue;
+        }
+        let Ok(path) = path.canonicalize() else {
+            continue;
+        };
+        if path != default_workspace && !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+    paths
+        .into_iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect()
+}
+
+#[tauri::command]
+pub fn get_workspace_history() -> Result<WorkspaceHistory> {
+    let default_workspace = default_workspace_dir();
+    ensure_workspace_initialized(&default_workspace)?;
+    let default_workspace = default_workspace
+        .canonicalize()
+        .map_err(|e| AppError::FsError(format!("Cannot resolve default workspace: {e}")))?;
+
+    let current_workspace = selected_workspace_dir();
+    let current_workspace = current_workspace.is_dir().then_some(current_workspace.as_path());
+    let recent_workspace_paths = build_recent_workspace_paths(
+        &default_workspace,
+        current_workspace,
+        &recent_workspace_dirs()?,
+    );
+
+    Ok(WorkspaceHistory {
+        default_workspace_path: default_workspace.to_string_lossy().to_string(),
+        recent_workspace_paths,
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -706,6 +761,37 @@ pub fn save_collection_variables(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recent_workspace_paths_put_current_first_and_exclude_default_duplicates() {
+        let root = std::env::temp_dir().join(format!(
+            "workspace_history_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let default = root.join("default");
+        let current = root.join("current");
+        let older = root.join("older");
+        fs::create_dir_all(&default).unwrap();
+        fs::create_dir_all(&current).unwrap();
+        fs::create_dir_all(&older).unwrap();
+
+        let default = default.canonicalize().unwrap();
+        let current = current.canonicalize().unwrap();
+        let older = older.canonicalize().unwrap();
+        assert_eq!(
+            build_recent_workspace_paths(
+                &default,
+                Some(&current),
+                &[older.clone(), default.clone(), current.clone(), older.clone()],
+            ),
+            vec![
+                current.to_string_lossy().to_string(),
+                older.to_string_lossy().to_string(),
+            ]
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
 
     #[test]
     fn test_slugify() {
