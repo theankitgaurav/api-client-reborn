@@ -415,7 +415,7 @@
       <select
         bind:value={model.method}
         onchange={syncToWorkspace}
-        class="ui-select px-2.5 py-1.5 font-mono text-xs cursor-pointer {getMethodColor(model.method)}"
+        class="ui-select ui-select-control px-2.5 py-1.5 font-mono text-xs cursor-pointer {getMethodColor(model.method)}"
       >
         <option value="GET" class="text-blue-500 font-bold">GET</option>
         <option value="POST" class="text-emerald-500 font-bold">POST</option>

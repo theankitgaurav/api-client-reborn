@@ -193,7 +193,7 @@
         aria-label="gRPC service"
         value={config.service}
         onchange={(event) => chooseService((event.target as HTMLSelectElement).value)}
-        class="ui-select flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
+        class="ui-select ui-select-control flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
       >
         <option value="">{serviceNames.length ? 'Select service' : 'Load services or enter service name'}</option>
         {#each serviceNames as service}<option value={service}>{service}</option>{/each}
@@ -205,7 +205,7 @@
         aria-label="gRPC method"
         value={config.method}
         onchange={(event) => chooseMethod((event.target as HTMLSelectElement).value)}
-        class="ui-select flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
+        class="ui-select ui-select-control flex-1 min-w-0 px-2 py-1.5 font-mono text-xs"
       >
         <option value="">{methods.length ? 'Select method' : 'Method name'}</option>
         {#each methods as method}<option value={method.name}>{method.name}{method.client_streaming || method.server_streaming ? ' (stream)' : ''}</option>{/each}
