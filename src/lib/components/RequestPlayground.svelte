@@ -744,8 +744,9 @@
             onscroll={handleVarLeave}
             onblur={handleVarLeave}
             placeholder={model.bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Enter raw payload'}
+            wrap="soft"
             spellcheck="false"
-            class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+            class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
           ></textarea>
         {:else if model.bodyType === 'urlencoded' || model.bodyType === 'multipart'}
           <div class="flex-1 overflow-y-auto">
@@ -966,16 +967,18 @@
                 bind:value={preRequestScript}
                 oninput={syncScriptsToWorkspace}
                 placeholder={"// JavaScript to execute BEFORE sending the request\n// e.g. pm.environment.set(\"request_time\", Date.now());\n// Available: pm.environment, pm.variables, pm.request, console.log"}
+                wrap="soft"
                 spellcheck="false"
-                class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+                class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
               ></textarea>
             {:else}
               <textarea
                 bind:value={postResponseScript}
                 oninput={syncScriptsToWorkspace}
                 placeholder={"// JavaScript to execute AFTER response is received\n// e.g. pm.test(\"Status is 200\", function() {\n//   pm.response.to.have.status(200);\n// });\n// Available: pm.response, pm.environment, pm.test, pm.expect"}
+                wrap="soft"
                 spellcheck="false"
-                class="flex-1 w-full bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+                class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
               ></textarea>
             {/if}
           </div>

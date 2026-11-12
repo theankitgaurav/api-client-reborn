@@ -230,7 +230,7 @@
             {/if}
           </button>
         </div>
-        <pre class="flex-1 p-3 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-neutral-800 dark:text-neutral-200 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response body'}</pre>
+        <pre class="flex-1 whitespace-pre-wrap break-words p-3 m-0 font-mono text-[12px] leading-relaxed overflow-auto text-neutral-800 dark:text-neutral-200 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response body'}</pre>
       </div>
     {:else if responseState.activeTab === 'headers'}
       <div class="h-full overflow-y-auto p-3">
@@ -311,7 +311,7 @@
         {/if}
       </div>
     {:else if responseState.activeTab === 'raw'}
-      <pre class="h-full p-3 m-0 font-mono text-[12px] overflow-auto text-neutral-800 dark:text-neutral-300 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response'}</pre>
+      <pre class="h-full whitespace-pre-wrap break-words p-3 m-0 font-mono text-[12px] overflow-auto text-neutral-800 dark:text-neutral-300 select-text bg-white dark:bg-[#181818]">{responseState.bodyText || '// No response'}</pre>
     {/if}
   </div>
 </div>

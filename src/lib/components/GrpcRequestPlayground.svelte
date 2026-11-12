@@ -261,8 +261,9 @@
           id="grpc-request-json"
           bind:value={config.request_json}
           oninput={sync}
+          wrap="soft"
           spellcheck="false"
-          class="flex-1 min-h-48 resize-none bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded p-3 font-mono text-xs leading-relaxed outline-none focus:border-blue-500"
+          class="flex-1 min-h-48 resize-none whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded p-3 font-mono text-xs leading-relaxed outline-none focus:border-blue-500"
           placeholder={'{\n  "id": 1\n}'}
         ></textarea>
       </div>
