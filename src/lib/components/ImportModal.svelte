@@ -10,7 +10,7 @@ import {
 } from '$lib/utils/postman-importer';
   import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
   import { serializeGrpcRequest } from '$lib/utils/grpc';
-  import { X, Download, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
+  import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
 
   let rawInput = $state('');
   let fileName = $state('');
@@ -216,7 +216,7 @@ import {
       <!-- Header -->
       <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <Download size={16} class="text-blue-500" />
+          <Upload size={16} class="text-blue-500" />
           <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">
             Import Collection, Environment or Requests
           </h2>
@@ -261,7 +261,7 @@ import {
             ondrop={handleDrop}
             class="border-2 border-dashed border-neutral-300 dark:border-[#383838] hover:border-blue-500 dark:hover:border-blue-500 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-neutral-50 dark:bg-[#181818]"
           >
-            <Download size={28} class="text-neutral-400 dark:text-neutral-500 mb-2" />
+            <Upload size={28} class="text-neutral-400 dark:text-neutral-500 mb-2" />
             <span class="font-medium text-neutral-700 dark:text-neutral-200">
               {fileName ? fileName : 'Choose a file or drag & drop it here'}
             </span>
@@ -394,7 +394,7 @@ import {
             <Check size={13} />
             <span>Done</span>
           {:else}
-            <Download size={13} />
+            <Upload size={13} />
             <span>Import to Workspace</span>
           {/if}
         </button>

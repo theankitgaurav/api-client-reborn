@@ -15,7 +15,7 @@
     RefreshCw,
     Search,
     Plus,
-    Download,
+    Upload,
     FolderPlus,
     Copy,
     Check,
@@ -95,25 +95,6 @@
     if (examplesFolder) collapsedFolderPaths = [examplesFolder.path];
     hasInitializedFolderDefaults = true;
   });
-
-  function getBadgeClass(method?: string, kind?: string) {
-    if (kind === 'grpc') return 'badge-grpc';
-
-    switch (method?.toUpperCase()) {
-      case 'GET':
-        return 'badge-get';
-      case 'POST':
-        return 'badge-post';
-      case 'PUT':
-        return 'badge-put';
-      case 'DELETE':
-        return 'badge-delete';
-      case 'PATCH':
-        return 'badge-patch';
-      default:
-        return 'bg-neutral-800 text-neutral-400 border border-neutral-700';
-    }
-  }
 
   let copyNotification = $state<{ text: string; visible: boolean } | null>(null);
   let copyTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -353,7 +334,7 @@
         title="Import Collection or cURL"
         class="p-1 hover:bg-neutral-200/60 dark:hover:bg-[#252526] rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
       >
-        <Download size={13} />
+        <Upload size={13} />
       </button>
 
       <button
@@ -457,7 +438,7 @@
           >
             <div class="flex items-center gap-2 truncate flex-1 mr-1">
               <span
-                class="text-[9px] font-mono font-bold px-1 py-0.5 rounded leading-none {getBadgeClass(item.method, item.kind)}"
+                class="badge-request text-[9px] font-mono font-bold px-1 py-0.5 rounded leading-none"
               >
                 {item.kind === 'grpc' ? 'gRPC' : item.method || 'REQ'}
               </span>
