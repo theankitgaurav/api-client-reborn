@@ -15,7 +15,7 @@
     RefreshCw,
     Search,
     Plus,
-    Upload,
+    Download,
     FolderPlus,
     Copy,
     Check,
@@ -353,7 +353,7 @@
         title="Import Collection or cURL"
         class="p-1 hover:bg-neutral-200/60 dark:hover:bg-[#252526] rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
       >
-        <Upload size={13} />
+        <Download size={13} />
       </button>
 
       <button
