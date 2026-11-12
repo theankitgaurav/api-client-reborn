@@ -383,7 +383,7 @@ export class WorkspaceState {
       await this.refreshTree();
     } catch (e) {
       console.error('Failed to create folder:', e);
-      alert(`Failed to create folder: ${e instanceof Error ? e.message : String(e)}`);
+      throw e;
     }
   }
 

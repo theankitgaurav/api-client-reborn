@@ -1,7 +1,8 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { readRequestFile } from '$lib/ipc';
-  import { getCollectionArchivePath } from '$lib/utils/collection-exporter';
+  import { COLLECTION_EXPORT_LABEL, getCollectionArchivePath } from '$lib/utils/collection-exporter';
+  import { saveArchiveWithDialog } from '$lib/utils/archive-save';
   import { createRequestArchive, type RequestArchiveFile } from '$lib/utils/request-archive';
   import { X, Download, Folder, HardDrive } from '$lib/components/icons';
   import type { WorkspaceFileItem } from '$lib/types';
@@ -60,18 +61,42 @@
     }
   }
 
-  function handleDownload() {
+  async function handleDownload() {
     if (!archiveOutput) return;
-    const blob = new Blob([archiveOutput as BlobPart], { type: 'application/zip' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const slug = collectionTitle.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'collection';
-    a.download = `${slug}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = `${slug}.zip`;
+
+    try {
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        await saveArchiveWithDialog(
+          archiveOutput,
+          filename,
+          (defaultPath) =>
+            save({
+              defaultPath,
+              filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+            }),
+          async (path, contents) => {
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            await writeFile(path, contents);
+          }
+        );
+      } else {
+        const blob = new Blob([archiveOutput as BlobPart], { type: 'application/zip' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      exportError = '';
+    } catch (error) {
+      exportError = `Could not save ZIP: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 </script>
 
@@ -83,7 +108,7 @@
         <div class="flex items-center gap-2">
           <HardDrive size={16} class="text-blue-500" />
           <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">
-            Export Request Files (.zip)
+            {COLLECTION_EXPORT_LABEL}
           </h2>
         </div>
         <button

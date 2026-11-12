@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getCollectionArchivePath } from '../src/lib/utils/collection-exporter.ts';
+import { COLLECTION_EXPORT_LABEL, getCollectionArchivePath } from '../src/lib/utils/collection-exporter.ts';
+import { saveArchiveWithDialog } from '../src/lib/utils/archive-save.ts';
+import { createFolderFromName } from '../src/lib/utils/folder-creation.ts';
 import {
   createRequestArchive,
   prepareRequestCollectionImport,
@@ -16,6 +18,39 @@ test('getCollectionArchivePath preserves paths relative to an exported collectio
     getCollectionArchivePath('/workspace/services/users/list.curl', '/workspace'),
     'services/users/list.curl'
   );
+});
+
+test('collection export uses the ZIP label', () => {
+  assert.equal(COLLECTION_EXPORT_LABEL, 'Export Collection (.zip)');
+});
+
+test('archive save writes to the selected path and does nothing when cancelled', async () => {
+  const contents = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+  const writes: Array<{ path: string; contents: Uint8Array }> = [];
+  const writeFile = async (path: string, bytes: Uint8Array) => {
+    writes.push({ path, contents: bytes });
+  };
+
+  assert.equal(
+    await saveArchiveWithDialog(contents, 'collection.zip', async () => '/chosen/collection.zip', writeFile),
+    true
+  );
+  assert.deepEqual(writes, [{ path: '/chosen/collection.zip', contents }]);
+
+  writes.length = 0;
+  assert.equal(await saveArchiveWithDialog(contents, 'collection.zip', async () => null, writeFile), false);
+  assert.deepEqual(writes, []);
+});
+
+test('new folder names are trimmed and blank names are rejected without creating a folder', async () => {
+  const names: string[] = [];
+  const createFolder = async (name: string) => {
+    names.push(name);
+  };
+
+  assert.equal(await createFolderFromName('  My Collection  ', createFolder), true);
+  assert.equal(await createFolderFromName('   ', createFolder), false);
+  assert.deepEqual(names, ['My Collection']);
 });
 
 test('request ZIP round-trip preserves request names, extensions, folders, and exact contents', async () => {
