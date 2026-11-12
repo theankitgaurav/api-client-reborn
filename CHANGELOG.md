@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2] — 2026-11-13
+
+### Fixed
+
+- Corrected collection export labels to `.zip` and added native save-location selection for desktop exports.
+- Replaced the sidebar New Folder prompt with an in-app dialog and surfaced folder-creation errors.
+
 ## [0.13.1] — 2026-11-13
 
 ### Added
