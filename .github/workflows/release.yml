@@ -36,6 +36,27 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Extract release notes from changelog
+        id: release-notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          notes="$(awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            echo "Missing changelog entry for $RELEASE_TAG" >&2
+            exit 1
+          fi
+          {
+            echo "body<<CHANGELOG_EOF"
+            printf '%s\n' "$notes"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -70,7 +91,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'API Client Reborn ${{ github.ref_name }}'
-          releaseBody: 'Automated release build for macOS, Windows, and Linux.'
+          releaseBody: ${{ steps.release-notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
