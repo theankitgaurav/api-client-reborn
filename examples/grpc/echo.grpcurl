@@ -1,8 +1,8 @@
-# @name gRPC Say Hello (Reflection, Unary, Variables)
+# @name gRPC Say Hello (TLS, Reflection, Unary)
+# @description Calls grpcb.in's public TLS-enabled HelloService using server reflection.
 # @timeout 30000
 
 grpcurl \
-  -plaintext \
-  -d '{"greeting": "Hello {{tenant_id}} from API Client Reborn"}' \
-  'grpc.postman-echo.com:443' \
-  'HelloService/SayHello'
+  -d '{"greeting": "Hello from API Client Reborn"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/SayHello'

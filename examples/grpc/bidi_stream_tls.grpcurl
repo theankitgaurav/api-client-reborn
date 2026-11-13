@@ -1,0 +1,8 @@
+# @name gRPC Bidi Hello (TLS, Bidirectional Stream)
+# @description Exchanges multiple messages with grpcb.in over a verified TLS bidirectional stream.
+# @timeout 30000
+
+printf '%s\n' '{"greeting":"First message"}' '{"greeting":"Second message"}' | grpcurl \
+  -d @ \
+  'grpcb.in:9001' \
+  'hello.HelloService/BidiHello'

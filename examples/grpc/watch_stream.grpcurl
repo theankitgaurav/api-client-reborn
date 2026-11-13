@@ -1,10 +1,10 @@
-# @name gRPC Lots of Replies (Server Stream, Spooled)
+# @name gRPC Lots of Replies (TLS, Local Proto, Server Stream)
+# @description Receives server-streamed replies from grpcb.in over verified TLS using the bundled proto file.
 # @timeout 30000
 
 grpcurl \
-  -plaintext \
   -import-path 'examples/grpc' \
   -proto 'hello.proto' \
   -d '{"greeting": "Hello server streaming"}' \
-  'grpc.postman-echo.com:443' \
-  'HelloService/LotsOfReplies'
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfReplies'

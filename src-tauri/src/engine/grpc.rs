@@ -182,7 +182,7 @@ fn endpoint_uri(config: &GrpcRequestConfig) -> String {
     }
 }
 
-async fn connect(config: &GrpcRequestConfig) -> Result<GrpcChannel> {
+async fn connect(config: &GrpcRequestConfig, workspace_root: Option<&Path>) -> Result<GrpcChannel> {
     let uri = endpoint_uri(config);
     let mut endpoint = Endpoint::from_shared(uri)
         .map_err(|e| AppError::NetworkError(format!("Invalid gRPC endpoint: {e}")))?
@@ -191,26 +191,37 @@ async fn connect(config: &GrpcRequestConfig) -> Result<GrpcChannel> {
         .initial_stream_window_size(Some(256 * 1024));
 
     if config.tls_enabled {
-        let mut tls = ClientTlsConfig::new().with_enabled_roots();
+        let mut tls = ClientTlsConfig::new();
+        if !config.tls_insecure {
+            tls = tls.with_enabled_roots();
+        }
         if config.tls_insecure && config.tls_ca_file.as_deref().is_some_and(|p| !p.trim().is_empty()) {
             return Err(AppError::NetworkError("Choose either certificate bypass or a custom CA certificate".into()));
         }
         if let Some(path) = config.tls_ca_file.as_deref().filter(|p| !p.trim().is_empty()) {
-            let pem = tokio::fs::read(path).await
+            let requested_path = Path::new(path.trim());
+            let cert_path = if requested_path.is_absolute() {
+                requested_path.to_path_buf()
+            } else if let Some(root) = workspace_root {
+                root.join(requested_path)
+            } else {
+                requested_path.to_path_buf()
+            };
+            let pem = tokio::fs::read(&cert_path).await
                 .map_err(|e| AppError::FsError(format!("Cannot read CA certificate: {e}")))?;
             tls = tls.ca_certificate(tonic::transport::Certificate::from_pem(pem));
         }
         if config.tls_insecure {
             endpoint = endpoint.tls_config_with_verifier(tls, Arc::new(SkipServerCertificateVerification))
-                .map_err(|e| AppError::NetworkError(format!("Invalid TLS configuration: {e}")))?;
+                .map_err(|e| AppError::NetworkError(format!("Invalid TLS configuration: {e:?}")))?;
         } else {
             endpoint = endpoint.tls_config(tls)
-                .map_err(|e| AppError::NetworkError(format!("Invalid TLS configuration: {e}")))?;
+                .map_err(|e| AppError::NetworkError(format!("Invalid TLS configuration: {e:?}")))?;
         }
     }
 
     endpoint.connect().await
-        .map_err(|e| AppError::NetworkError(format!("Could not connect to gRPC server: {e}")))
+        .map_err(|e| AppError::NetworkError(format!("Could not connect to gRPC server: {e:?}")))
 }
 
 async fn reflect_request_v1(
@@ -386,7 +397,7 @@ async fn run_call(
     let _ = channel.send(ResponseChunk::Started { request_id });
     let conn = tokio::select! {
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
-        result = connect(&config) => result?,
+        result = connect(&config, workspace_root) => result?,
     };
     let pool = tokio::select! {
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -543,7 +554,7 @@ pub async fn execute_grpc_request_collect(
     let start = Instant::now();
     let conn = tokio::select! {
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
-        result = connect(&config) => result?,
+        result = connect(&config, workspace_root) => result?,
     };
     let pool = tokio::select! {
         _ = cancel.cancelled() => return Err(AppError::Cancelled),
@@ -699,7 +710,7 @@ pub async fn discover_grpc_services(config: GrpcRequestConfig, workspace_root: O
     let pool = if let Some(proto) = config.proto_file.as_deref().filter(|p| !p.trim().is_empty()) {
         descriptor_pool_from_proto(proto, workspace_root).await?
     } else {
-        let channel = connect(&config).await?;
+        let channel = connect(&config, workspace_root).await?;
         use tonic_reflection::pb::v1::server_reflection_request::MessageRequest;
         use tonic_reflection::pb::v1::server_reflection_response::MessageResponse;
         use tonic_reflection::pb::v1::ServerReflectionRequest;

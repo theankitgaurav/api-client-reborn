@@ -15,7 +15,7 @@ use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::codegen::http::{Request as HttpRequest, Response as HttpResponse};
 use tonic::codegen::Service;
-use tonic::server::{ClientStreamingService, NamedService, ServerStreamingService, UnaryService};
+use tonic::server::{ClientStreamingService, NamedService, ServerStreamingService, StreamingService, UnaryService};
 use tonic::{Request as TonicRequest, Response as TonicResponse, Status};
 
 struct TempWorkspace {
@@ -270,13 +270,18 @@ impl UnaryService<Bytes> for SayHelloUnary {
     type Future = Pin<Box<dyn Future<Output = Result<TonicResponse<Self::Response>, Status>> + Send>>;
 
     fn call(&mut self, req: TonicRequest<Bytes>) -> Self::Future {
+        let echoed_metadata = req.metadata().get("x-test").cloned();
         let raw = req.into_inner();
         let hello_req = HelloRequest::decode(raw).unwrap_or(HelloRequest { greeting: "world".into() });
         let resp = HelloResponse {
             reply: format!("Hello, {}!", hello_req.greeting),
         };
         Box::pin(async move {
-            Ok(TonicResponse::new(Bytes::from(resp.encode_to_vec())))
+            let mut response = TonicResponse::new(Bytes::from(resp.encode_to_vec()));
+            if let Some(value) = echoed_metadata {
+                response.metadata_mut().insert("x-echoed-metadata", value);
+            }
+            Ok(response)
         })
     }
 }
@@ -359,6 +364,48 @@ impl ClientStreamingService<Bytes> for ClientStreamingGreetings {
 }
 
 #[derive(Clone)]
+struct BidiHello;
+
+impl StreamingService<Bytes> for BidiHello {
+    type Response = Bytes;
+    type ResponseStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<Bytes, Status>> + Send>>;
+    type Future = Pin<Box<dyn Future<Output = Result<TonicResponse<Self::ResponseStream>, Status>> + Send>>;
+
+    fn call(&mut self, req: TonicRequest<tonic::Streaming<Bytes>>) -> Self::Future {
+        let mut stream = req.into_inner();
+        Box::pin(async move {
+            let (tx, rx) = tokio::sync::mpsc::channel(8);
+            tokio::spawn(async move {
+                loop {
+                    let request = match stream.message().await {
+                        Ok(Some(bytes)) => match HelloRequest::decode(bytes) {
+                            Ok(request) => request,
+                            Err(error) => {
+                                let _ = tx.send(Err(Status::invalid_argument(error.to_string()))).await;
+                                break;
+                            }
+                        },
+                        Ok(None) => break,
+                        Err(status) => {
+                            let _ = tx.send(Err(status)).await;
+                            break;
+                        }
+                    };
+                    let response = HelloResponse {
+                        reply: format!("Echo: {}", request.greeting),
+                    };
+                    if tx.send(Ok(Bytes::from(response.encode_to_vec()))).await.is_err() {
+                        break;
+                    }
+                }
+            });
+            let response_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+            Ok(TonicResponse::new(Box::pin(response_stream) as Self::ResponseStream))
+        })
+    }
+}
+
+#[derive(Clone)]
 pub struct HelloServer;
 
 impl NamedService for HelloServer {
@@ -409,14 +456,54 @@ where
     }
 }
 
+#[derive(Clone)]
+struct BidiHelloServer;
+
+impl NamedService for BidiHelloServer {
+    const NAME: &'static str = "fixture.BidiService";
+}
+
+impl<B> Service<HttpRequest<B>> for BidiHelloServer
+where
+    B: tonic::codegen::Body<Data = bytes::Bytes> + Send + 'static,
+    B::Error: Into<tonic::codegen::StdError> + Send + 'static,
+{
+    type Response = HttpResponse<tonic::body::Body>;
+    type Error = Infallible;
+    type Future = tonic::codegen::BoxFuture<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: HttpRequest<B>) -> Self::Future {
+        Box::pin(async move {
+            let path = req.uri().path();
+            if path == "/fixture.BidiService/BidiHello" {
+                let response = tonic::server::Grpc::new(RawCodec)
+                    .streaming(BidiHello, req)
+                    .await;
+                Ok(response)
+            } else {
+                Ok(HttpResponse::builder()
+                    .header("content-type", "application/grpc")
+                    .header("grpc-status", "12")
+                    .body(tonic::body::Body::empty())
+                    .unwrap())
+            }
+        })
+    }
+}
+
 async fn start_grpc_fixture() -> (SocketAddr, tokio::sync::oneshot::Sender<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let proto_dir = manifest_dir.join("../examples/grpc");
-    let proto_path = proto_dir.join("hello.proto");
-    let fds = protox::compile([&proto_path], [&proto_dir]).unwrap();
+    let fixture_dir = manifest_dir.join("tests/fixtures");
+    let proto_path = fixture_dir.join("test_hello.proto");
+    let bidi_proto_path = fixture_dir.join("bidi.proto");
+    let fds = protox::compile([&proto_path, &bidi_proto_path], [&fixture_dir]).unwrap();
     let fds_bytes = fds.encode_to_vec();
 
     let reflection_service = tonic_reflection::server::Builder::configure()
@@ -430,6 +517,7 @@ async fn start_grpc_fixture() -> (SocketAddr, tokio::sync::oneshot::Sender<()>) 
         tonic::transport::Server::builder()
             .add_service(reflection_service)
             .add_service(HelloServer)
+            .add_service(BidiHelloServer)
             .serve_with_incoming_shutdown(tokio_stream::wrappers::TcpListenerStream::new(listener), async {
                 let _ = shutdown_rx.await;
             })
@@ -438,6 +526,65 @@ async fn start_grpc_fixture() -> (SocketAddr, tokio::sync::oneshot::Sender<()>) 
     });
 
     (addr, shutdown_tx)
+}
+
+async fn start_grpc_tls_fixture() -> (SocketAddr, tokio::sync::oneshot::Sender<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture_dir = manifest_dir.join("tests/fixtures");
+    let proto_path = fixture_dir.join("test_hello.proto");
+    let bidi_proto_path = fixture_dir.join("bidi.proto");
+    let fds = protox::compile([&proto_path, &bidi_proto_path], [&fixture_dir]).unwrap();
+    let fds_bytes = fds.encode_to_vec();
+
+    let reflection_service = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(&fds_bytes)
+        .build_v1()
+        .unwrap();
+    let identity = tonic::transport::Identity::from_pem(
+        include_bytes!("fixtures/grpc-server.crt").as_slice(),
+        include_bytes!("fixtures/grpc-server.key").as_slice(),
+    );
+    let tls_config = tonic::transport::ServerTlsConfig::new().identity(identity);
+
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    tokio::spawn(async move {
+        tonic::transport::Server::builder()
+            .tls_config(tls_config)
+            .unwrap()
+            .add_service(reflection_service)
+            .add_service(HelloServer)
+            .add_service(BidiHelloServer)
+            .serve_with_incoming_shutdown(
+                tokio_stream::wrappers::TcpListenerStream::new(listener),
+                async {
+                    let _ = shutdown_rx.await;
+                },
+            )
+            .await
+            .unwrap();
+    });
+
+    (addr, shutdown_tx)
+}
+
+async fn save_grpc_request(proc: &mut McpProcess, id: u64, path: &str, content: String) {
+    proc.send_request(json!(id), "tools/call", json!({
+        "name": "save_request",
+        "arguments": { "path": path, "content": content }
+    })).await;
+    let response = proc.read_response().await;
+    assert_eq!(response["result"]["isError"], false, "{}", response);
+}
+
+async fn execute_grpc_request(proc: &mut McpProcess, id: u64, path: &str) -> Value {
+    proc.send_request(json!(id), "tools/call", json!({
+        "name": "execute_grpc_request",
+        "arguments": { "path": path }
+    })).await;
+    proc.read_response().await
 }
 
 // -----------------------------------------------------------------------------
@@ -793,7 +940,7 @@ async fn test_process_grpc_unary_streaming_reflection_and_proto() {
 
     // Copy hello.proto into workspace
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let proto_src = manifest_dir.join("../examples/grpc/hello.proto");
+    let proto_src = manifest_dir.join("tests/fixtures/test_hello.proto");
     fs::create_dir_all(root.join("protos")).unwrap();
     fs::copy(proto_src, root.join("protos/hello.proto")).unwrap();
 
@@ -898,6 +1045,18 @@ async fn test_process_grpc_unary_streaming_reflection_and_proto() {
     let cs_data: Value = serde_json::from_str(cs_resp["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
     assert!(cs_data["body"].as_str().unwrap().contains("Received 2 greetings"));
 
+    save_grpc_request(
+        &mut proc,
+        55,
+        "timeout.grpcurl",
+        format!(
+            "# @timeout 100\ngrpcurl -plaintext -d '{{}}' {} HelloService/SlowCall",
+            grpc_addr
+        ),
+    ).await;
+    let timeout_resp = execute_grpc_request(&mut proc, 56, "timeout.grpcurl").await;
+    assert_eq!(timeout_resp["result"]["isError"], true);
+
     // 5. gRPC Cancellation
     let slow_grpc = format!("grpcurl -plaintext -d '{{}}' {} HelloService/SlowCall", grpc_addr);
     proc.send_request(json!(48), "tools/call", json!({
@@ -970,4 +1129,161 @@ async fn test_process_grpc_unary_streaming_reflection_and_proto() {
     let size_grpc_resp = proc_bounded.read_response().await;
     assert_eq!(size_grpc_resp["result"]["isError"], true);
     assert!(size_grpc_resp["result"]["content"][0]["text"].as_str().unwrap().contains("exceeds maximum allowed"));
+}
+
+#[tokio::test]
+async fn test_process_grpc_tls_verification_and_streaming_modes() {
+    let (grpc_addr, _shutdown) = start_grpc_tls_fixture().await;
+    let ws = TempWorkspace::new();
+    let root = ws.path();
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    fs::create_dir_all(root.join("protos")).unwrap();
+    fs::copy(
+        manifest_dir.join("tests/fixtures/test_hello.proto"),
+        root.join("protos/hello.proto"),
+    ).unwrap();
+    fs::copy(
+        manifest_dir.join("tests/fixtures/grpc-test-ca.crt"),
+        root.join("tls-ca.crt"),
+    ).unwrap();
+
+    let mut proc = McpProcess::spawn(root, &[]).await;
+    let target = format!("127.0.0.1:{}", grpc_addr.port());
+
+    save_grpc_request(
+        &mut proc,
+        1,
+        "untrusted.grpcurl",
+        format!("grpcurl -d '{{\"greeting\":\"untrusted\"}}' {target} HelloService/SayHello"),
+    ).await;
+    let untrusted = execute_grpc_request(&mut proc, 2, "untrusted.grpcurl").await;
+    assert_eq!(untrusted["result"]["isError"], true);
+
+    save_grpc_request(
+        &mut proc,
+        3,
+        "trusted-reflection.grpcurl",
+        format!(
+            "grpcurl -cacert tls-ca.crt -H 'x-test: ping' -d '{{\"greeting\":\"trusted\"}}' {target} HelloService/SayHello"
+        ),
+    ).await;
+    let trusted = execute_grpc_request(&mut proc, 4, "trusted-reflection.grpcurl").await;
+    assert_eq!(trusted["result"]["isError"], false, "{}", trusted);
+    let trusted_data: Value = serde_json::from_str(
+        trusted["result"]["content"][0]["text"].as_str().unwrap(),
+    ).unwrap();
+    assert_eq!(trusted_data["parsedJson"]["reply"], "Hello, trusted!");
+    assert_eq!(trusted_data["headers"]["x-echoed-metadata"], "ping");
+
+    save_grpc_request(
+        &mut proc,
+        5,
+        "trusted-local-proto.grpcurl",
+        format!(
+            "grpcurl -cacert tls-ca.crt -import-path protos -proto hello.proto -d '{{\"greeting\":\"local proto\"}}' {target} HelloService/SayHello"
+        ),
+    ).await;
+    let local_proto = execute_grpc_request(&mut proc, 6, "trusted-local-proto.grpcurl").await;
+    assert_eq!(local_proto["result"]["isError"], false, "{}", local_proto);
+    let local_proto_data: Value = serde_json::from_str(
+        local_proto["result"]["content"][0]["text"].as_str().unwrap(),
+    ).unwrap();
+    assert_eq!(local_proto_data["parsedJson"]["reply"], "Hello, local proto!");
+
+    save_grpc_request(
+        &mut proc,
+        7,
+        "tls-server-stream.grpcurl",
+        format!(
+            "grpcurl -cacert tls-ca.crt -d '{{\"greeting\":\"server stream\"}}' {target} HelloService/LotsOfReplies"
+        ),
+    ).await;
+    let server_stream = execute_grpc_request(&mut proc, 8, "tls-server-stream.grpcurl").await;
+    assert_eq!(server_stream["result"]["isError"], false, "{}", server_stream);
+    let server_stream_data: Value = serde_json::from_str(
+        server_stream["result"]["content"][0]["text"].as_str().unwrap(),
+    ).unwrap();
+    assert!(server_stream_data["body"].as_str().unwrap().contains("1: server stream"));
+    assert!(server_stream_data["body"].as_str().unwrap().contains("2: server stream"));
+
+    let client_stream = format!(
+        "printf '%s\\n' '{{\"greeting\":\"g1\"}}' '{{\"greeting\":\"g2\"}}' | grpcurl -cacert tls-ca.crt -d @ {target} HelloService/LotsOfGreetings"
+    );
+    save_grpc_request(&mut proc, 9, "tls-client-stream.grpcurl", client_stream).await;
+    let client_stream_resp = execute_grpc_request(&mut proc, 10, "tls-client-stream.grpcurl").await;
+    assert_eq!(client_stream_resp["result"]["isError"], false, "{}", client_stream_resp);
+    let client_stream_data: Value = serde_json::from_str(
+        client_stream_resp["result"]["content"][0]["text"].as_str().unwrap(),
+    ).unwrap();
+    assert!(client_stream_data["body"].as_str().unwrap().contains("Received 2 greetings"));
+
+    let bidi_stream = format!(
+        "printf '%s\\n' '{{\"greeting\":\"first\"}}' '{{\"greeting\":\"second\"}}' | grpcurl -cacert tls-ca.crt -d @ {target} fixture.BidiService/BidiHello"
+    );
+    save_grpc_request(&mut proc, 11, "tls-bidi-stream.grpcurl", bidi_stream).await;
+    let bidi_stream_resp = execute_grpc_request(&mut proc, 12, "tls-bidi-stream.grpcurl").await;
+    assert_eq!(bidi_stream_resp["result"]["isError"], false, "{}", bidi_stream_resp);
+    let bidi_stream_data: Value = serde_json::from_str(
+        bidi_stream_resp["result"]["content"][0]["text"].as_str().unwrap(),
+    ).unwrap();
+    assert!(bidi_stream_data["body"].as_str().unwrap().contains("Echo: first"));
+    assert!(bidi_stream_data["body"].as_str().unwrap().contains("Echo: second"));
+
+    save_grpc_request(
+        &mut proc,
+        13,
+        "skip-certificate.grpcurl",
+        format!("grpcurl -insecure -d '{{\"greeting\":\"skip certificate\"}}' {target} HelloService/SayHello"),
+    ).await;
+    let skip_certificate = execute_grpc_request(&mut proc, 14, "skip-certificate.grpcurl").await;
+    assert_eq!(skip_certificate["result"]["isError"], false, "{}", skip_certificate);
+
+    let wrong_host = format!("localhost:{}", grpc_addr.port());
+    save_grpc_request(
+        &mut proc,
+        15,
+        "wrong-host.grpcurl",
+        format!(
+            "grpcurl -cacert tls-ca.crt -d '{{\"greeting\":\"wrong host\"}}' {wrong_host} HelloService/SayHello"
+        ),
+    ).await;
+    let wrong_host_resp = execute_grpc_request(&mut proc, 16, "wrong-host.grpcurl").await;
+    assert_eq!(wrong_host_resp["result"]["isError"], true);
+
+    save_grpc_request(
+        &mut proc,
+        17,
+        "missing-ca.grpcurl",
+        format!(
+            "grpcurl -cacert missing-ca.crt -d '{{\"greeting\":\"missing CA\"}}' {target} HelloService/SayHello"
+        ),
+    ).await;
+    let missing_ca = execute_grpc_request(&mut proc, 18, "missing-ca.grpcurl").await;
+    assert_eq!(missing_ca["result"]["isError"], true);
+    assert!(
+        missing_ca["result"]["content"][0]["text"].as_str().unwrap().contains("File not found"),
+        "unexpected missing CA error: {missing_ca}"
+    );
+
+    let conflicting_tls_config = json!({
+        "name": "Conflicting TLS options",
+        "endpoint": format!("https://{target}"),
+        "service": "HelloService",
+        "method": "SayHello",
+        "request_json": "{}",
+        "metadata": [],
+        "proto_file": null,
+        "use_reflection": true,
+        "tls_enabled": true,
+        "tls_insecure": true,
+        "tls_ca_file": "tls-ca.crt",
+        "timeout_ms": 30000
+    }).to_string();
+    save_grpc_request(&mut proc, 19, "conflicting-tls.grpc", conflicting_tls_config).await;
+    let conflicting_tls = execute_grpc_request(&mut proc, 20, "conflicting-tls.grpc").await;
+    assert_eq!(conflicting_tls["result"]["isError"], true);
+    assert!(conflicting_tls["result"]["content"][0]["text"].as_str().unwrap().contains(
+        "Choose either certificate bypass or a custom CA certificate"
+    ));
 }

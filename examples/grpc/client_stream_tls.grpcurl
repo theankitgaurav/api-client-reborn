@@ -1,0 +1,8 @@
+# @name gRPC Lots of Greetings (TLS, Client Stream)
+# @description Sends multiple request messages to grpcb.in over verified TLS.
+# @timeout 30000
+
+printf '%s\n' '{"greeting":"First greeting"}' '{"greeting":"Second greeting"}' | grpcurl \
+  -d @ \
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfGreetings'

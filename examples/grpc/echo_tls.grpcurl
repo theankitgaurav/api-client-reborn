@@ -1,0 +1,9 @@
+# @name gRPC Metadata (TLS, Reflection)
+# @description Sends metadata to grpcb.in's public TLS-enabled HeadersUnary method and inspects its echoed headers.
+# @timeout 30000
+
+grpcurl \
+  -H 'x-manual-check: api-client-reborn' \
+  -d '{}' \
+  'grpcb.in:9001' \
+  'grpcbin.GRPCBin/HeadersUnary'

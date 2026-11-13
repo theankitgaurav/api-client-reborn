@@ -42,9 +42,36 @@ test('imports TLS and local proto options', () => {
   assert.equal(result.config.use_reflection, false);
 });
 
+test('roundtrips TLS certificate bypass and custom CA options', () => {
+  const config = createDefaultGrpcRequest('TLS Echo');
+  config.endpoint = 'https://api.example.test:443';
+  config.service = 'demo.DemoService';
+  config.method = 'Echo';
+  config.request_json = '{"message":"secure"}';
+  config.tls_enabled = true;
+  config.tls_insecure = true;
+
+  const bypassCommand = toGrpcurl(config);
+  assert.ok(bypassCommand.includes('-insecure'));
+  const bypass = parseGrpcurlCommand(bypassCommand).config;
+  assert.equal(bypass.tls_enabled, true);
+  assert.equal(bypass.tls_insecure, true);
+  assert.equal(bypass.tls_ca_file, null);
+
+  config.tls_insecure = false;
+  config.tls_ca_file = '/tmp/custom root.pem';
+  const caCommand = serializeGrpcRequest(config);
+  assert.ok(caCommand.includes("-cacert '/tmp/custom root.pem'"));
+  const trusted = parseGrpcRequest(caCommand);
+  assert.equal(trusted.tls_enabled, true);
+  assert.equal(trusted.tls_insecure, false);
+  assert.equal(trusted.tls_ca_file, '/tmp/custom root.pem');
+});
+
 test('reports invalid grpcurl commands clearly', () => {
   assert.throws(() => parseGrpcurlCommand('grpcurl -plaintext localhost:50051'), /target and a fully qualified service\/method/);
   assert.throws(() => parseGrpcurlCommand('grpcurl -plaintext -d @ localhost:50051 demo.Service/Echo'), /piped with printf/);
+  assert.throws(() => parseGrpcurlCommand('grpcurl -insecure -cacert ca.pem localhost:50051 demo.Service/Echo'), /cannot combine -insecure with -cacert/);
 });
 
 test('serializeGrpcRequest formats runnable grpcurl command with metadata directives', () => {

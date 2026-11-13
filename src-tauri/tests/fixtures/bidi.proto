@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package fixture;
+
+service BidiService {
+  rpc BidiHello (stream HelloRequest) returns (stream HelloResponse);
+}
+
+message HelloRequest {
+  string greeting = 1;
+}
+
+message HelloResponse {
+  string reply = 1;
+}

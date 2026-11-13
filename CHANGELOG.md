@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.1] — 2026-11-14
+
+### Added
+
+- Added seven grpcb.in TLS examples covering server reflection, local protos, unary calls, metadata, and all gRPC streaming modes.
+
+### Fixed
+
+- Fixed gRPC TLS certificate-bypass configuration and resolved custom CA certificate paths relative to the workspace.
+- Migrated existing workspaces from outdated Postman gRPC examples and proto definitions to grpcb.in-compatible examples.
+
 ## [0.14.0] — 2026-11-13
 
 ### Changed

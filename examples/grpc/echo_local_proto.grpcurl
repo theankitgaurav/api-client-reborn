@@ -1,10 +1,10 @@
-# @name gRPC Say Hello (Local Proto, Unary)
+# @name gRPC Say Hello (TLS, Local Proto)
+# @description Calls grpcb.in's public TLS-enabled HelloService using the bundled proto file.
 # @timeout 30000
 
 grpcurl \
-  -plaintext \
   -import-path 'examples/grpc' \
   -proto 'hello.proto' \
   -d '{"greeting": "Hello local proto"}' \
-  'grpc.postman-echo.com:443' \
-  'HelloService/SayHello'
+  'grpcb.in:9001' \
+  'hello.HelloService/SayHello'

@@ -339,5 +339,6 @@ mod tests {
         assert!(parse_grpc_request("grpcurl -plaintext localhost:50051").is_err());
         assert!(parse_grpc_request("grpcurl -plaintext -d @ localhost:50051 s.S/M").is_err());
         assert!(parse_grpc_request("grpcurl -plaintext -insecure localhost:50051 s.S/M").is_err());
+        assert!(parse_grpc_request("grpcurl -insecure -cacert ca.pem localhost:50051 s.S/M").is_err());
     }
 }

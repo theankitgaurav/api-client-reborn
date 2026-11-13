@@ -1,0 +1,8 @@
+# @name gRPC Lots of Replies (TLS, Reflection, Verified Server Stream)
+# @description Receives server-streamed replies from grpcb.in over verified TLS using server reflection.
+# @timeout 30000
+
+grpcurl \
+  -d '{"greeting": "Hello server streaming with reflection"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfReplies'

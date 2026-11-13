@@ -47,6 +47,14 @@ const DEFAULT_PROD_ENV: &str = r#"{
 const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description Connects to a public SSE demo. Let a few events arrive, then press Cancel to close the live stream.\n# @timeout 60000\n\ncurl -N \"https://sse.dev/test\" \\\n  -H \"Accept: text/event-stream\"\n";
 
 const LEGACY_GRPC_DEMO_PROTO: &str = "syntax = \"proto3\";\npackage demo;\n\nservice DemoService {\n  rpc Echo (EchoRequest) returns (EchoResponse);\n  rpc Watch (EchoRequest) returns (stream EchoResponse);\n  rpc Collect (stream EchoRequest) returns (EchoResponse);\n  rpc Chat (stream EchoRequest) returns (stream EchoResponse);\n}\n\nmessage EchoRequest {\n  string message = 1;\n  int32 count = 2;\n}\n\nmessage EchoResponse {\n  string message = 1;\n  int32 sequence = 2;\n}\n";
+const LEGACY_POSTMAN_GRPC_PROTO: &str = "syntax = \"proto3\";\n\nservice HelloService {\n  rpc SayHello (HelloRequest) returns (HelloResponse);\n  rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);\n  rpc LotsOfGreetings (stream HelloRequest) returns (HelloResponse);\n  rpc SlowCall (HelloRequest) returns (HelloResponse);\n  rpc LargeCall (HelloRequest) returns (HelloResponse);\n}\n\nmessage HelloRequest {\n  string greeting = 1;\n}\n\nmessage HelloResponse {\n  string reply = 1;\n}\n";
+const LEGACY_MINIMAL_GRPC_PROTO: &str = "syntax = \"proto3\";\n\nservice HelloService {\n  rpc SayHello (HelloRequest) returns (HelloResponse);\n  rpc LotsOfReplies (HelloRequest) returns (stream HelloResponse);\n}\n\nmessage HelloRequest {\n  string greeting = 1;\n}\n\nmessage HelloResponse {\n  string reply = 1;\n}\n";
+const LEGACY_POSTMAN_ECHO: &str = "# @name gRPC Say Hello (Reflection, Unary, Variables)\n# @timeout 30000\n\ngrpcurl \\\n  -plaintext \\\n  -d '{\"greeting\": \"Hello {{tenant_id}} from API Client Reborn\"}' \\\n  'grpc.postman-echo.com:443' \\\n  'HelloService/SayHello'\n";
+const LEGACY_POSTMAN_LOCAL_ECHO: &str = "# @name gRPC Say Hello (Local Proto, Unary)\n# @timeout 30000\n\ngrpcurl \\\n  -plaintext \\\n  -import-path 'examples/grpc' \\\n  -proto 'hello.proto' \\\n  -d '{\"greeting\": \"Hello local proto\"}' \\\n  'grpc.postman-echo.com:443' \\\n  'HelloService/SayHello'\n";
+const LEGACY_POSTMAN_STREAM: &str = "# @name gRPC Lots of Replies (Server Stream, Spooled)\n# @timeout 30000\n\ngrpcurl \\\n  -plaintext \\\n  -import-path 'examples/grpc' \\\n  -proto 'hello.proto' \\\n  -d '{\"greeting\": \"Hello server streaming\"}' \\\n  'grpc.postman-echo.com:443' \\\n  'HelloService/LotsOfReplies'\n";
+const LEGACY_TLS_ECHO_EXAMPLE: &str = "# @name gRPC Say Hello (TLS, Reflection)\n# @description Calls grpcb.in's public TLS-enabled gRPC HelloService using certificate validation and server reflection.\n# @timeout 30000\n\ngrpcurl \\\n  -d '{\"greeting\": \"Hello over verified TLS\"}' \\\n  'grpcb.in:9001' \\\n  'hello.HelloService/SayHello'\n";
+const LEGACY_TLS_STREAM_EXAMPLE: &str = "# @name gRPC Lots of Replies (TLS, Server Stream)\n# @description Tests server streaming over verified TLS against grpcb.in using server reflection.\n# @timeout 30000\n\ngrpcurl \\\n  -d '{\"greeting\": \"Streaming over verified TLS\"}' \\\n  'grpcb.in:9001' \\\n  'hello.HelloService/LotsOfReplies'\n";
+const LEGACY_TLS_BYPASS_EXAMPLE: &str = "# @name gRPC Lots of Replies (TLS, Certificate Bypass)\n# @description Tests server streaming over TLS against grpcb.in while bypassing certificate verification.\n# @timeout 30000\n\ngrpcurl \\\n  -insecure \\\n  -d '{\"greeting\": \"Streaming with certificate bypass\"}' \\\n  'grpcb.in:9001' \\\n  'hello.HelloService/LotsOfReplies'\n";
 
 const STARTER_EXAMPLES: &[(&str, &str)] = &[
     (
@@ -64,6 +72,22 @@ const STARTER_EXAMPLES: &[(&str, &str)] = &[
     (
         "grpc/echo_local_proto.grpcurl",
         include_str!("../../../examples/grpc/echo_local_proto.grpcurl"),
+    ),
+    (
+        "grpc/echo_tls.grpcurl",
+        include_str!("../../../examples/grpc/echo_tls.grpcurl"),
+    ),
+    (
+        "grpc/watch_stream_tls.grpcurl",
+        include_str!("../../../examples/grpc/watch_stream_tls.grpcurl"),
+    ),
+    (
+        "grpc/client_stream_tls.grpcurl",
+        include_str!("../../../examples/grpc/client_stream_tls.grpcurl"),
+    ),
+    (
+        "grpc/bidi_stream_tls.grpcurl",
+        include_str!("../../../examples/grpc/bidi_stream_tls.grpcurl"),
     ),
     (
         "get_users.curl",
@@ -375,17 +399,39 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
                     existing.contains("127.0.0.1:50051") && existing.contains("demo.DemoService")
                 })
                 .unwrap_or(false);
-        let is_legacy_postman_grpc_example = name.starts_with("grpc/")
+        let legacy_postman_example = match *name {
+            "grpc/echo.grpcurl" => Some(LEGACY_POSTMAN_ECHO),
+            "grpc/echo_local_proto.grpcurl" => Some(LEGACY_POSTMAN_LOCAL_ECHO),
+            "grpc/watch_stream.grpcurl" => Some(LEGACY_POSTMAN_STREAM),
+            _ => None,
+        };
+        let is_legacy_postman_grpc_example = legacy_postman_example.is_some_and(|legacy| {
+            fs::read_to_string(&path).map(|existing| existing == legacy).unwrap_or(false)
+        });
+        let is_legacy_postman_grpc_proto = *name == "grpc/hello.proto"
             && fs::read_to_string(&path)
                 .map(|existing| {
-                    existing.contains("https://grpc.postman-echo.com")
-                        && existing.contains("\"tls_enabled\": true")
+                    existing == LEGACY_POSTMAN_GRPC_PROTO || existing == LEGACY_MINIMAL_GRPC_PROTO
                 })
                 .unwrap_or(false);
+        let is_legacy_tls_example = match *name {
+            "grpc/echo_tls.grpcurl" => fs::read_to_string(&path)
+                .map(|existing| existing == LEGACY_TLS_ECHO_EXAMPLE)
+                .unwrap_or(false),
+            "grpc/watch_stream_tls.grpcurl" => fs::read_to_string(&path)
+                .map(|existing| {
+                    existing == LEGACY_TLS_STREAM_EXAMPLE
+                        || existing == LEGACY_TLS_BYPASS_EXAMPLE
+                })
+                .unwrap_or(false),
+            _ => false,
+        };
         if !path.exists()
             || is_unchanged_legacy_sse_example
             || is_legacy_local_grpc_example
             || is_legacy_postman_grpc_example
+            || is_legacy_postman_grpc_proto
+            || is_legacy_tls_example
         {
             let _ = fs::write(&path, content);
         }
@@ -615,9 +661,25 @@ mod tests {
         let children = examples.unwrap().children.as_ref().unwrap();
         assert_eq!(
             count_requests(children),
-            22,
+            26,
             "Expected all manual test requests in examples folder"
         );
+        let grpc_examples = temp_dir.join("examples/grpc");
+        for request in [
+            "echo.grpcurl",
+            "echo_local_proto.grpcurl",
+            "watch_stream.grpcurl",
+            "echo_tls.grpcurl",
+            "watch_stream_tls.grpcurl",
+            "client_stream_tls.grpcurl",
+            "bidi_stream_tls.grpcurl",
+        ] {
+            let path = grpc_examples.join(request);
+            assert!(path.is_file(), "missing gRPC example: {request}");
+            let content = fs::read_to_string(path).unwrap();
+            assert!(content.contains("grpcb.in:9001"), "wrong gRPC host in {request}");
+            assert!(!content.contains("grpc.postman-echo.com"), "legacy host in {request}");
+        }
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
         assert!(items
@@ -632,12 +694,58 @@ mod tests {
             .expect("Expected Examples to remain in an initialized workspace");
         assert_eq!(
             count_requests(examples_again.children.as_deref().unwrap_or_default()),
-            22,
+            26,
             "Repeated initialization should not duplicate example requests"
         );
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn legacy_postman_grpc_examples_are_updated() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("legacy_grpc_examples_{}", uuid::Uuid::new_v4()));
+        let request_path = temp_dir.join("examples/grpc/echo.grpcurl");
+        let proto_path = temp_dir.join("examples/grpc/hello.proto");
+        fs::create_dir_all(request_path.parent().unwrap()).unwrap();
+        fs::write(
+            &request_path,
+            LEGACY_POSTMAN_ECHO,
+        ).unwrap();
+        let custom_request_path = temp_dir.join("examples/grpc/echo_local_proto.grpcurl");
+        let custom_request = "grpcurl -d '{\"greeting\":\"custom\"}' grpc.postman-echo.com:443 HelloService/SayHello";
+        fs::write(&custom_request_path, custom_request).unwrap();
+        let stream_request_path = temp_dir.join("examples/grpc/watch_stream.grpcurl");
+        fs::write(&stream_request_path, LEGACY_POSTMAN_STREAM).unwrap();
+        fs::write(&proto_path, LEGACY_MINIMAL_GRPC_PROTO).unwrap();
+        fs::write(
+            temp_dir.join("examples/grpc/echo_tls.grpcurl"),
+            LEGACY_TLS_ECHO_EXAMPLE,
+        ).unwrap();
+        fs::write(
+            temp_dir.join("examples/grpc/watch_stream_tls.grpcurl"),
+            LEGACY_TLS_BYPASS_EXAMPLE,
+        ).unwrap();
+
+        ensure_workspace_initialized(&temp_dir).unwrap();
+        let migrated = fs::read_to_string(request_path).unwrap();
+        assert!(migrated.contains("grpcb.in:9001"));
+        assert!(!migrated.contains("grpc.postman-echo.com"));
+        assert_eq!(fs::read_to_string(custom_request_path).unwrap(), custom_request);
+        assert!(fs::read_to_string(stream_request_path).unwrap().contains("grpcb.in:9001"));
+        let migrated_proto = fs::read_to_string(proto_path).unwrap();
+        assert!(migrated_proto.contains("package hello;"));
+        assert!(migrated_proto.contains("rpc BidiHello"));
+        let migrated_echo_tls =
+            fs::read_to_string(temp_dir.join("examples/grpc/echo_tls.grpcurl")).unwrap();
+        assert!(migrated_echo_tls.contains("grpcbin.GRPCBin/HeadersUnary"));
+        let migrated_stream_tls =
+            fs::read_to_string(temp_dir.join("examples/grpc/watch_stream_tls.grpcurl")).unwrap();
+        assert!(migrated_stream_tls.contains("TLS, Reflection, Verified Server Stream"));
+        assert!(!migrated_stream_tls.contains("-insecure"));
+
+        let _ = fs::remove_dir_all(temp_dir);
     }
 
     #[test]
@@ -687,7 +795,7 @@ mod tests {
         let streaming_cmd = "printf '%s\\n' '{\"id\":1}' | grpcurl -plaintext -d @ api.test.com:443 package.Service/Collect";
         assert_eq!(parse_grpc_method_from_command(streaming_cmd).as_deref(), Some("package.Service/Collect"));
 
-        let multiline_cmd = "grpcurl \\\n  -plaintext \\\n  -import-path examples/grpc \\\n  -proto hello.proto \\\n  -d '{}' \\\n  grpc.postman-echo.com:443 \\\n  HelloService/SayHello";
-        assert_eq!(parse_grpc_method_from_command(multiline_cmd).as_deref(), Some("HelloService/SayHello"));
+        let multiline_cmd = "grpcurl \\\n  -import-path examples/grpc \\\n  -proto hello.proto \\\n  -d '{}' \\\n  grpcb.in:9001 \\\n  hello.HelloService/SayHello";
+        assert_eq!(parse_grpc_method_from_command(multiline_cmd).as_deref(), Some("hello.HelloService/SayHello"));
     }
 }
