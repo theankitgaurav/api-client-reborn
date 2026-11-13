@@ -258,9 +258,9 @@
       case 'PATCH':
         return 'text-purple-500 font-bold';
       case 'GRPC':
-        return 'text-violet-600 dark:text-violet-400 font-bold';
+        return 'text-cyan-500 font-bold';
       default:
-        return 'text-neutral-400 font-bold';
+        return 'text-[var(--text-muted)] font-bold';
     }
   }
 
@@ -391,31 +391,31 @@
 <div class="contents">
   <!-- Top Request Metadata & Toolbar -->
   <div class="col-span-3 row-start-1 flex min-w-0 flex-col overflow-hidden">
-    <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-2">
+    <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-1.5">
       <div class="mr-2 flex min-w-0 flex-1 items-center gap-2">
         <input
           type="text"
           bind:value={model.name}
           oninput={syncToWorkspace}
           placeholder="Request Name"
-          class="w-64 min-w-0 bg-transparent px-1.5 py-0.5 text-xs font-semibold text-neutral-800 outline-none transition-colors hover:bg-neutral-200/50 dark:text-neutral-200 dark:hover:bg-neutral-800/50"
+          class="w-64 min-w-0 bg-transparent px-2 py-0.5 text-xs font-semibold text-[var(--text-strong)] rounded hover:bg-[var(--surface-hover)] focus:bg-[var(--surface)] border border-transparent focus:border-[var(--border)] outline-none transition-colors"
         />
       </div>
 
-      <div class="flex shrink-0 items-center gap-2">
+      <div class="flex shrink-0 items-center gap-1.5">
         <button
           onclick={copyCurl}
           title="Copy as cURL"
-          class="flex items-center gap-1 rounded border border-neutral-300 px-2.5 py-[3px] text-xs text-neutral-600 hover:bg-neutral-100 dark:border-[#3a3a3c] dark:text-neutral-300 dark:hover:bg-[#303030]"
+          class="ui-button ui-button-secondary h-6.5 px-2.5 text-[11px]"
         >
-          {#if copiedCurl}<Check size={12} /><span>Copied</span>{:else}<Copy size={12} /><span>cURL</span>{/if}
+          {#if copiedCurl}<Check size={11} class="text-[var(--success)]" /><span>Copied</span>{:else}<Copy size={11} /><span>cURL</span>{/if}
         </button>
         {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
           <button
             onclick={() => workspaceState.saveActiveFile()}
-            class="flex items-center gap-1 rounded bg-blue-600 px-2.5 py-1 text-xs text-white shadow-sm transition-colors hover:bg-blue-500"
+            class="ui-button ui-button-primary h-6.5 px-2.5 text-[11px]"
           >
-            <Save size={12} />
+            <Save size={11} />
             <span>Save ({isMac ? '⌘S' : 'Ctrl+S'})</span>
           </button>
         {/if}
@@ -423,22 +423,22 @@
     </div>
 
   <!-- Primary Postman Request Bar (Method + URL + Send) -->
-  <div class="flex min-w-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-3">
+  <div class="flex min-w-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] p-2.5">
     <!-- Method Selector -->
     <div class="relative shrink-0">
       <select
         value={model.method}
         onchange={handleRequestMethodChange}
-        class="ui-select ui-select-control px-2.5 py-1.5 font-mono text-xs cursor-pointer {getMethodColor(model.method)}"
+        class="ui-select h-8 px-2.5 font-mono text-xs cursor-pointer font-bold {getMethodColor(model.method)}"
       >
         <option value="GET" class="text-blue-500 font-bold">GET</option>
         <option value="POST" class="text-emerald-500 font-bold">POST</option>
         <option value="PUT" class="text-amber-500 font-bold">PUT</option>
         <option value="DELETE" class="text-rose-500 font-bold">DELETE</option>
         <option value="PATCH" class="text-purple-500 font-bold">PATCH</option>
-        <option value="HEAD" class="text-neutral-400 font-bold">HEAD</option>
-        <option value="OPTIONS" class="text-neutral-400 font-bold">OPTIONS</option>
-        <option value="gRPC" class="text-violet-600 font-bold">gRPC</option>
+        <option value="HEAD" class="text-[var(--text-muted)] font-bold">HEAD</option>
+        <option value="OPTIONS" class="text-[var(--text-muted)] font-bold">OPTIONS</option>
+        <option value="gRPC" class="text-cyan-500 font-bold">gRPC</option>
       </select>
     </div>
 
@@ -454,22 +454,22 @@
         onblur={handleVarLeave}
         title="Request URL ({isMac ? '⌘L' : 'Ctrl+L'})"
         placeholder={"Enter request URL (e.g. {{base_url}}/users or https://api.example.com)"}
-        class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:border-blue-500 transition-colors"
+        class="h-8 w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 font-mono text-xs text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none transition-colors"
       />
     </div>
 
     <!-- Send Button -->
     <button
       onclick={handleSend}
-      class="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-semibold text-white shadow-sm transition-all active:scale-95 {responseState.isExecuting
-        ? 'bg-rose-600 hover:bg-rose-700'
-        : 'bg-blue-600 hover:bg-blue-500'}"
+      class="ui-button h-8 px-4 text-xs font-semibold text-white shadow-sm transition-all active:scale-[0.98] {responseState.isExecuting
+        ? 'bg-[var(--danger)] hover:bg-[var(--danger-hover)]'
+        : 'bg-[var(--accent)] hover:bg-[var(--accent-strong)]'}"
     >
       {#if responseState.isExecuting}
-        <Square size={13} fill="currentColor" />
+        <Square size={12} fill="currentColor" />
         <span>Cancel</span>
       {:else}
-        <Play size={13} fill="currentColor" />
+        <Play size={12} fill="currentColor" />
         <span>Send</span>
         <span class="text-[10px] opacity-75 font-mono ml-0.5">{isMac ? '⌘↵' : 'Ctrl+↵'}</span>
       {/if}
@@ -477,16 +477,16 @@
   </div>
   </div>
 
-  <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts | Raw) -->
-  <div class="col-start-1 row-start-2 flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3">
+  <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts) -->
+  <div class="col-start-1 row-start-2 flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3 text-xs">
     <button
       onclick={() => (activeTab = 'params')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'params'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'params'
+        ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
+        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
     >
       Params {#if model.params.filter((p) => p.enabled && p.key).length > 0}
-        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-500 font-mono">
+        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-mono font-bold">
           {model.params.filter((p) => p.enabled && p.key).length}
         </span>
       {/if}
@@ -494,12 +494,12 @@
 
     <button
       onclick={() => (activeTab = 'headers')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'headers'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'headers'
+        ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
+        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
     >
       Headers {#if model.headers.filter((h) => h.enabled && h.key).length > 0}
-        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/10 text-blue-500 font-mono">
+        <span class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-mono font-bold">
           {model.headers.filter((h) => h.enabled && h.key).length}
         </span>
       {/if}
@@ -507,38 +507,37 @@
 
     <button
       onclick={() => (activeTab = 'body')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'body'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'body'
+        ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
+        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
     >
       Body {#if model.bodyType !== 'none'}
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block ml-1"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] inline-block ml-1"></span>
       {/if}
     </button>
 
     <button
       onclick={() => (activeTab = 'auth')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'auth'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'auth'
+        ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
+        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
     >
       Auth {#if model.authType !== 'none'}
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block ml-1"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--warning)] inline-block ml-1"></span>
       {/if}
     </button>
 
     <button
       onclick={() => (activeTab = 'scripts')}
-      class="px-3 py-2 text-xs font-medium border-b-2 transition-colors {activeTab === 'scripts'
-        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-        : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
+      class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'scripts'
+        ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
+        : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
     >
       Scripts
       {#if preRequestScript.trim() || postResponseScript.trim()}
-        <span class="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block ml-1"></span>
+        <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] inline-block ml-1"></span>
       {/if}
     </button>
-
   </div>
 
   <!-- Tab Content Body -->
@@ -546,27 +545,27 @@
     <!-- 1. PARAMS TAB -->
     {#if activeTab === 'params'}
       <div class="flex-1 overflow-y-auto p-3">
-        <div class="text-[11px] font-semibold text-neutral-500 mb-2 uppercase tracking-wider">
+        <div class="text-[10px] font-semibold text-[var(--text-subtle)] mb-2 uppercase tracking-wider">
           Query Parameters
         </div>
         <table class="w-full text-left font-mono text-xs">
           <thead>
-            <tr class="text-neutral-400 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+            <tr class="text-[var(--text-subtle)] border-b border-[var(--border)]">
               <th class="w-8 pb-1.5"></th>
               <th class="pb-1.5 font-medium">Key</th>
               <th class="pb-1.5 font-medium">Value</th>
               <th class="w-8 pb-1.5"></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#efeff2] dark:divide-[#252525]">
+          <tbody class="divide-y divide-[var(--border-subtle)]">
             {#each model.params as param}
-              <tr class="hover:bg-neutral-50 dark:hover:bg-[#202020] group">
+              <tr class="hover:bg-[var(--surface-hover)] group transition-colors">
                 <td class="py-1 text-center">
                   <input
                     type="checkbox"
                     bind:checked={param.enabled}
                     onchange={syncToWorkspace}
-                    class="rounded accent-blue-600"
+                    class="rounded accent-[var(--accent)]"
                   />
                 </td>
                 <td class="py-1 pr-2">
@@ -578,7 +577,7 @@
                     onmousemove={(e) => handleVarHover(e, param.key)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
-                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                    class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
                 </td>
                 <td class="py-1 pr-2">
@@ -590,13 +589,13 @@
                     onmousemove={(e) => handleVarHover(e, param.value)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
-                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                    class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
                 </td>
                 <td class="py-1 text-center">
                   <button
                     onclick={() => deleteParam(param.id)}
-                    class="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-rose-500 transition-opacity"
+                    class="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -607,7 +606,7 @@
         </table>
         <button
           onclick={addParam}
-          class="mt-2.5 flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+          class="mt-2.5 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
         >
           <Plus size={13} />
           <span>Add Parameter</span>
@@ -617,27 +616,27 @@
     <!-- 2. HEADERS TAB -->
     {:else if activeTab === 'headers'}
       <div class="flex-1 overflow-y-auto p-3">
-        <div class="text-[11px] font-semibold text-neutral-500 mb-2 uppercase tracking-wider">
+        <div class="text-[10px] font-semibold text-[var(--text-subtle)] mb-2 uppercase tracking-wider">
           Request Headers
         </div>
         <table class="w-full text-left font-mono text-xs">
           <thead>
-            <tr class="text-neutral-400 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+            <tr class="text-[var(--text-subtle)] border-b border-[var(--border)]">
               <th class="w-8 pb-1.5"></th>
               <th class="pb-1.5 font-medium">Header Name</th>
               <th class="pb-1.5 font-medium">Header Value</th>
               <th class="w-8 pb-1.5"></th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#efeff2] dark:divide-[#252525]">
+          <tbody class="divide-y divide-[var(--border-subtle)]">
             {#each model.headers as h}
-              <tr class="hover:bg-neutral-50 dark:hover:bg-[#202020] group">
+              <tr class="hover:bg-[var(--surface-hover)] group transition-colors">
                 <td class="py-1 text-center">
                   <input
                     type="checkbox"
                     bind:checked={h.enabled}
                     onchange={syncToWorkspace}
-                    class="rounded accent-blue-600"
+                    class="rounded accent-[var(--accent)]"
                   />
                 </td>
                 <td class="py-1 pr-2">
@@ -649,7 +648,7 @@
                     onmousemove={(e) => handleVarHover(e, h.key)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
-                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                    class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
                 </td>
                 <td class="py-1 pr-2">
@@ -661,13 +660,13 @@
                     onmousemove={(e) => handleVarHover(e, h.value)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
-                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                    class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
                 </td>
                 <td class="py-1 text-center">
                   <button
                     onclick={() => deleteHeader(h.id)}
-                    class="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-rose-500 transition-opacity"
+                    class="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -678,7 +677,7 @@
         </table>
         <button
           onclick={addHeader}
-          class="mt-2.5 flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+          class="mt-2.5 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
         >
           <Plus size={13} />
           <span>Add Header</span>
@@ -689,14 +688,14 @@
     {:else if activeTab === 'body'}
       <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <!-- Body Type Radios -->
-        <div class="flex flex-wrap items-center gap-3 mb-2.5 text-xs text-neutral-700 dark:text-neutral-300 select-none">
+        <div class="flex flex-wrap items-center gap-3 mb-2 text-xs text-[var(--text)] select-none">
           <label class="flex items-center gap-1.5 cursor-pointer">
             <input
               type="radio"
               value="none"
               bind:group={model.bodyType}
               onchange={syncToWorkspace}
-              class="accent-blue-600"
+              class="accent-[var(--accent)]"
             />
             <span>None</span>
           </label>
@@ -706,7 +705,7 @@
               value="json"
               bind:group={model.bodyType}
               onchange={syncToWorkspace}
-              class="accent-blue-600"
+              class="accent-[var(--accent)]"
             />
             <span>JSON</span>
           </label>
@@ -716,7 +715,7 @@
               value="text"
               bind:group={model.bodyType}
               onchange={syncToWorkspace}
-              class="accent-blue-600"
+              class="accent-[var(--accent)]"
             />
             <span>Raw Text</span>
           </label>
@@ -726,7 +725,7 @@
               value="urlencoded"
               bind:group={model.bodyType}
               onchange={syncToWorkspace}
-              class="accent-blue-600"
+              class="accent-[var(--accent)]"
             />
             <span>x-www-form-urlencoded</span>
           </label>
@@ -736,7 +735,7 @@
               value="multipart"
               bind:group={model.bodyType}
               onchange={syncToWorkspace}
-              class="accent-blue-600"
+              class="accent-[var(--accent)]"
             />
             <span>form-data / multipart</span>
           </label>
@@ -744,7 +743,7 @@
           {#if model.bodyType === 'json'}
             <button
               onclick={beautifyJson}
-              class="ml-auto text-[11px] bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 px-2 py-0.5 rounded transition-colors text-neutral-700 dark:text-neutral-300"
+              class="ml-auto ui-button ui-button-secondary h-6 px-2 text-[10px]"
             >
               Beautify JSON
             </button>
@@ -762,28 +761,28 @@
             placeholder={model.bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Enter raw payload'}
             wrap="soft"
             spellcheck="false"
-            class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[13px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+            class="flex-1 w-full whitespace-pre-wrap break-words bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded p-2.5 font-mono text-xs leading-relaxed text-[var(--text-strong)] outline-none resize-none transition-colors"
           ></textarea>
         {:else if model.bodyType === 'urlencoded' || model.bodyType === 'multipart'}
           <div class="flex-1 overflow-y-auto">
             <table class="w-full text-left font-mono text-xs">
               <thead>
-                <tr class="text-neutral-400 border-b border-[#e5e5e5] dark:border-[#2d2d2d]">
+                <tr class="text-[var(--text-subtle)] border-b border-[var(--border)]">
                   <th class="w-8 pb-1.5"></th>
                   <th class="pb-1.5 font-medium">Field</th>
                   <th class="pb-1.5 font-medium">{model.bodyType === 'multipart' ? 'Value / File' : 'Value'}</th>
                   <th class="w-8 pb-1.5"></th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-[#efeff2] dark:divide-[#252525]">
+              <tbody class="divide-y divide-[var(--border-subtle)]">
                 {#each model.bodyUrlencoded as item}
-                  <tr class="hover:bg-neutral-50 dark:hover:bg-[#202020] group">
+                  <tr class="hover:bg-[var(--surface-hover)] group transition-colors">
                     <td class="py-1 text-center">
                       <input
                         type="checkbox"
                         bind:checked={item.enabled}
                         onchange={syncToWorkspace}
-                        class="rounded accent-blue-600"
+                        class="rounded accent-[var(--accent)]"
                       />
                     </td>
                     <td class="py-1 pr-2">
@@ -795,15 +794,15 @@
                         onmousemove={(e) => handleVarHover(e, item.key)}
                         onmouseleave={handleVarLeave}
                         onblur={handleVarLeave}
-                        class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                        class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                       />
                       {#if model.bodyType === 'multipart'}
-                        <label class="mt-1 inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
+                        <label class="mt-1 inline-flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
                           <input
                             type="checkbox"
                             bind:checked={item.isFile}
                             onchange={() => { if (item.isFile) void chooseFormFile(item.id); else { item.value = ''; syncToWorkspace(); } }}
-                            class="rounded accent-blue-600"
+                            class="rounded accent-[var(--accent)]"
                           />
                           File upload
                         </label>
@@ -814,11 +813,11 @@
                         <div class="flex items-center gap-2">
                           <button
                             onclick={() => chooseFormFile(item.id)}
-                            class="shrink-0 rounded border border-neutral-300 dark:border-neutral-700 px-2 py-1 text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                            class="shrink-0 ui-button ui-button-secondary h-6 px-2 text-[10px]"
                           >
                             {item.value ? 'Choose another file' : 'Choose file…'}
                           </button>
-                          <span class="truncate text-[11px] text-neutral-500" title={item.value}>
+                          <span class="truncate text-[11px] text-[var(--text-muted)]" title={item.value}>
                             {item.value || 'No file selected'}
                           </span>
                         </div>
@@ -831,14 +830,14 @@
                           onmousemove={(e) => handleVarHover(e, item.value)}
                           onmouseleave={handleVarLeave}
                           onblur={handleVarLeave}
-                          class="w-full bg-transparent border-b border-transparent hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-blue-500 px-1 py-0.5 outline-none text-neutral-800 dark:text-neutral-200"
+                          class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                         />
                       {/if}
                     </td>
                     <td class="py-1 text-center">
                       <button
                         onclick={() => deleteFormParam(item.id)}
-                        class="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-rose-500 transition-opacity"
+                        class="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -849,14 +848,14 @@
             </table>
             <button
               onclick={addFormParam}
-              class="mt-2.5 flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+              class="mt-2.5 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
             >
               <Plus size={13} />
               <span>Add Form Field</span>
             </button>
           </div>
         {:else}
-          <div class="m-auto text-neutral-400 dark:text-neutral-600 text-xs">
+          <div class="m-auto text-[var(--text-subtle)] text-xs">
             This request does not have a body.
           </div>
         {/if}
@@ -866,7 +865,7 @@
     {:else if activeTab === 'auth'}
       <div class="flex-1 p-4 overflow-y-auto max-w-lg space-y-4">
         <div>
-          <label for="auth-type-select" class="block text-neutral-600 dark:text-neutral-400 text-xs font-semibold mb-1">
+          <label for="auth-type-select" class="block text-[var(--text-muted)] text-xs font-semibold mb-1">
             Type
           </label>
           <select
@@ -883,7 +882,7 @@
 
         {#if model.authType === 'bearer'}
           <div>
-            <label for="bearer-token-input" class="block text-neutral-600 dark:text-neutral-400 text-xs font-semibold mb-1">
+            <label for="bearer-token-input" class="block text-[var(--text-muted)] text-xs font-semibold mb-1">
               Token
             </label>
             <input
@@ -895,13 +894,13 @@
               onmousemove={(e) => handleVarHover(e, model.bearerToken)}
               onmouseleave={handleVarLeave}
               onblur={handleVarLeave}
-              class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
+              class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none"
             />
           </div>
         {:else if model.authType === 'basic'}
           <div class="space-y-3">
             <div>
-              <label for="basic-username-input" class="block text-neutral-600 dark:text-neutral-400 text-xs font-semibold mb-1">
+              <label for="basic-username-input" class="block text-[var(--text-muted)] text-xs font-semibold mb-1">
                 Username
               </label>
               <input
@@ -913,11 +912,11 @@
                 onmousemove={(e) => handleVarHover(e, model.basicUser)}
                 onmouseleave={handleVarLeave}
                 onblur={handleVarLeave}
-                class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
+                class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none"
               />
             </div>
             <div>
-              <label for="basic-password-input" class="block text-neutral-600 dark:text-neutral-400 text-xs font-semibold mb-1">
+              <label for="basic-password-input" class="block text-[var(--text-muted)] text-xs font-semibold mb-1">
                 Password
               </label>
               <input
@@ -929,12 +928,12 @@
                 onmousemove={(e) => handleVarHover(e, model.basicPass)}
                 onmouseleave={handleVarLeave}
                 onblur={handleVarLeave}
-                class="w-full bg-[#f9f9fb] dark:bg-[#181818] border border-[#d2d2d7] dark:border-[#333] rounded px-3 py-1.5 font-mono text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
+                class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none"
               />
             </div>
           </div>
         {:else}
-          <p class="text-neutral-500 text-xs">
+          <p class="text-[var(--text-muted)] text-xs">
             This request does not use any authorization headers.
           </p>
         {/if}
@@ -942,34 +941,34 @@
 
     <!-- 5. SCRIPTS TAB (Postman-style Pre-request & Post-response) -->
     {:else if activeTab === 'scripts'}
-      <div class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#1a1a1a]">
+      <div class="flex-1 flex flex-col overflow-hidden bg-[var(--surface)]">
         <!-- Sub-tab switcher -->
-        <div class="px-3 py-1.5 bg-[#f9f9fb] dark:bg-[#202020] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between">
-          <div class="flex items-center gap-2">
+        <div class="px-3 py-1.5 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between">
+          <div class="flex items-center gap-1">
             <button
               onclick={() => (scriptSubTab = 'pre')}
               class="px-2.5 py-1 rounded text-xs font-medium transition-colors {scriptSubTab === 'pre'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-[#2d2d2d]'}"
+                ? 'bg-[var(--surface)] text-[var(--text-strong)] shadow-sm font-semibold border border-[var(--border)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
             >
               Pre-request Script
               {#if preRequestScript.trim()}
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block ml-1"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] inline-block ml-1"></span>
               {/if}
             </button>
             <button
               onclick={() => (scriptSubTab = 'post')}
               class="px-2.5 py-1 rounded text-xs font-medium transition-colors {scriptSubTab === 'post'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-[#2d2d2d]'}"
+                ? 'bg-[var(--surface)] text-[var(--text-strong)] shadow-sm font-semibold border border-[var(--border)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
             >
               Post-response Script (Tests)
               {#if postResponseScript.trim()}
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block ml-1"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] inline-block ml-1"></span>
               {/if}
             </button>
           </div>
-          <span class="text-[10px] text-neutral-400 font-mono">
+          <span class="text-[10px] text-[var(--text-subtle)] font-mono">
             {scriptSubTab === 'pre' ? 'Runs before sending request' : 'Runs after response is received'}
           </span>
         </div>
@@ -985,7 +984,7 @@
                 placeholder={"// JavaScript to execute BEFORE sending the request\n// e.g. pm.environment.set(\"request_time\", Date.now());\n// Available: pm.environment, pm.variables, pm.request, console.log"}
                 wrap="soft"
                 spellcheck="false"
-                class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+                class="flex-1 w-full whitespace-pre-wrap break-words bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded p-2.5 font-mono text-xs leading-relaxed text-[var(--text-strong)] outline-none resize-none transition-colors"
               ></textarea>
             {:else}
               <textarea
@@ -994,43 +993,43 @@
                 placeholder={"// JavaScript to execute AFTER response is received\n// e.g. pm.test(\"Status is 200\", function() {\n//   pm.response.to.have.status(200);\n// });\n// Available: pm.response, pm.environment, pm.test, pm.expect"}
                 wrap="soft"
                 spellcheck="false"
-                class="flex-1 w-full whitespace-pre-wrap break-words bg-[#f9f9fb] dark:bg-[#121212] border border-[#d2d2d7] dark:border-[#2d2d2d] rounded p-3 font-mono text-[12px] leading-relaxed text-neutral-800 dark:text-neutral-200 outline-none resize-none focus:border-blue-500"
+                class="flex-1 w-full whitespace-pre-wrap break-words bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded p-2.5 font-mono text-xs leading-relaxed text-[var(--text-strong)] outline-none resize-none transition-colors"
               ></textarea>
             {/if}
           </div>
 
           <!-- Postman-style Snippets Sidebar -->
-          <div class="w-56 border-l border-[#e5e5e5] dark:border-[#2d2d2d] bg-[#f9f9fb] dark:bg-[#181818] p-3 flex flex-col overflow-y-auto">
-            <span class="font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider text-[10px] mb-2">
+          <div class="w-56 border-l border-[var(--border)] bg-[var(--surface-muted)] p-3 flex flex-col overflow-y-auto">
+            <span class="font-semibold text-[var(--text-subtle)] uppercase tracking-wider text-[10px] mb-2">
               Snippets
             </span>
-            <div class="space-y-1">
+            <div class="space-y-0.5">
               {#if scriptSubTab === 'pre'}
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.environment.set("variable_key", "variable_value");')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Set an environment variable
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('let val = pm.environment.get("variable_key");')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Get an environment variable
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.request.headers.add({ key: "X-Trace-Id", value: crypto.randomUUID() });')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Add a request header
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('let uuid = crypto.randomUUID();\npm.environment.set("uuid", uuid);')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Generate dynamic UUID
                 </button>
@@ -1038,35 +1037,35 @@
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.test("Status code is 200", function () {\n  pm.response.to.have.status(200);\n});')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Status code: Code is 200
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.test("Check JSON body property", function () {\n  let jsonData = pm.response.json();\n  pm.expect(jsonData).to.have.property("id");\n});')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Response body: JSON check
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('let jsonData = pm.response.json();\npm.environment.set("auth_token", jsonData.token);')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Set env var from JSON response
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.test("Response time is less than 500ms", function () {\n  pm.expect(pm.response.responseTime).to.be.below(500);\n});')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Response time &lt; 500ms
                 </button>
                 <button
                   type="button"
                   onclick={() => insertSnippet('pm.test("Status text is OK", function () {\n  pm.response.to.have.status("OK");\n});')}
-                  class="w-full text-left px-2 py-1 rounded text-[11px] text-blue-600 dark:text-blue-400 hover:bg-neutral-200/60 dark:hover:bg-[#252526] transition-colors"
+                  class="w-full text-left px-2 py-1 rounded text-[11px] text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   Check status code name
                 </button>
@@ -1075,10 +1074,8 @@
           </div>
         </div>
       </div>
-
     {/if}
   </div>
-
 
   <!-- Variable Hover Tooltip Card -->
   {#if varTooltip && varTooltip.visible}
@@ -1086,46 +1083,46 @@
       role="tooltip"
       onmouseenter={onTooltipMouseEnter}
       onmouseleave={onTooltipMouseLeave}
-      class="fixed z-50 pointer-events-auto transition-all duration-100 ease-out bg-[#1e1e20] dark:bg-[#202022] text-neutral-100 border border-[#3e3e42] dark:border-[#38383c] shadow-2xl rounded-lg p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
+      class="ui-menu-surface fixed z-50 pointer-events-auto transition-all duration-100 ease-out p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
       style="left: {varTooltip.x}px; top: {varTooltip.y}px;"
     >
       <!-- Header: variable name & origin -->
-      <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#2e2e32] dark:border-[#2e2e32]">
+      <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[var(--border)]">
         <div class="flex items-center gap-1.5 truncate">
           <span class="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded border {varTooltip.isDynamic
-            ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+            ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
             : varTooltip.isSecret
-              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
               : varTooltip.isDefined
-                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                : 'bg-rose-500/20 text-rose-400 border-rose-500/30'}">
+                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}">
             &#123;&#123;{varTooltip.variableName}&#125;&#125;
           </span>
         </div>
-        <span class="text-[10px] font-medium text-neutral-400 shrink-0">
+        <span class="text-[10px] font-medium text-[var(--text-muted)] shrink-0">
           {varTooltip.source}
         </span>
       </div>
 
       <!-- Resolved Value Section -->
       <div class="space-y-1">
-        <div class="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
+        <div class="text-[10px] text-[var(--text-subtle)] uppercase tracking-wider font-semibold">
           Value:
         </div>
-        <div class="font-mono text-[11px] p-1.5 rounded bg-[#141416] border border-[#2a2a2e] break-all select-text max-h-24 overflow-y-auto">
+        <div class="font-mono text-[11px] p-1.5 rounded bg-[var(--surface)] border border-[var(--border)] break-all select-text max-h-24 overflow-y-auto">
           {#if varTooltip.isDefined}
             {#if varTooltip.isSecret}
               {@const isRevealed = isAltPressed || !!revealedTooltipSecrets[varTooltip.variableName]}
               <div class="flex items-center justify-between gap-1.5">
                 <div class="flex-1 min-w-0">
                   {#if isRevealed}
-                    <span class="text-amber-400 font-semibold">{varTooltip.variableValue || '<empty>'}</span>
+                    <span class="text-[var(--warning)] font-semibold">{varTooltip.variableValue || '<empty>'}</span>
                   {:else}
-                    <span class="text-neutral-500 font-mono tracking-widest select-none">••••••••••••</span>
+                    <span class="text-[var(--text-muted)] font-mono tracking-widest select-none">••••••••••••</span>
                   {/if}
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <span class="text-[9px] text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded font-mono">secret</span>
+                  <span class="text-[9px] text-[var(--warning)] bg-amber-500/10 px-1 py-0.5 rounded font-mono">secret</span>
                   <button
                     type="button"
                     onclick={() => {
@@ -1135,7 +1132,7 @@
                     }}
                     title={isRevealed ? 'Hide secret' : `Reveal secret (or hold ${isMac ? '⌥' : 'Alt'})`}
                     aria-label={isRevealed ? 'Hide secret' : 'Reveal secret'}
-                    class="p-0.5 text-neutral-400 hover:text-neutral-200 transition-colors rounded hover:bg-neutral-800"
+                    class="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors rounded hover:bg-[var(--surface-hover)]"
                   >
                     {#if isRevealed}
                       <EyeOff size={12} />
@@ -1145,17 +1142,17 @@
                   </button>
                 </div>
               </div>
-              <div class="text-[9px] text-neutral-500 pt-0.5 flex items-center justify-between">
+              <div class="text-[9px] text-[var(--text-subtle)] pt-0.5 flex items-center justify-between">
                 <span>{isRevealed ? 'Revealed' : 'Hidden for security'}</span>
                 <span class="font-mono text-[8px] opacity-75">{isMac ? 'Hold ⌥ to peek' : 'Hold Alt to peek'}</span>
               </div>
             {:else}
-              <span class="text-emerald-400 font-semibold">{varTooltip.variableValue || '<empty string>'}</span>
+              <span class="text-[var(--success)] font-semibold">{varTooltip.variableValue || '<empty string>'}</span>
             {/if}
           {:else}
-            <div class="text-rose-400 italic flex items-center gap-1">
+            <div class="text-[var(--danger)] italic flex items-center gap-1">
               <span>⚠️ Not found</span>
-              <span class="text-neutral-500 font-sans text-[10px]">(click Variables in navbar)</span>
+              <span class="text-[var(--text-muted)] font-sans text-[10px]">(click Variables in navbar)</span>
             </div>
           {/if}
         </div>

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0] — 2026-11-13
+
+### Changed
+
+- **Linear-inspired developer-tool UI redesign**: Redesigned the entire application interface inspired by Linear, Raycast, and Zed for a high-density, fast, developer-first experience.
+- **Unified semantic design tokens**: Replaced scattered hardcoded colors with unified CSS custom properties across dark (`#0d0e11` graphite) and light (`#fbfbfc` paper slate) appearances.
+- **Modernized application shell**:
+  - Compact 36px titlebar with macOS traffic lights inset, quick-access `⌘K` command palette pill, workspace selector with active checkmark, and environment indicator.
+  - Collapsible icon/tree rail sidebar with SegmentedControl for Requests and History, search filter (`⌘F`), and context menus.
+  - 34px high-density tab bar with color-coded method badges, dirty indicators, and OS-native close button placement.
+- **Unified request playgrounds & response viewers**:
+  - Aligned HTTP and gRPC primary request bars to a uniform 32px control height across method selector, endpoint URL input, discovery button, and Send (`⌘↵`) / Cancel action.
+  - Restructured request tabs (Params, Headers, Body, Auth, Scripts) with monospace key-value editors, variable hover preview tooltips, and gRPC reflection/proto pickers.
+  - High-density response viewer with color-coded status badges (2xx/3xx/4xx/5xx), timing/size metrics, copy/download actions, and test assertions.
+- **Raycast/Linear style command palette (`⌘K`)**: Quick launcher for actions, requests, tabs, history entries, and environments.
+- **Standardized UI primitives & modals**: Introduced reusable `Modal`, `SegmentedControl`, and `Kbd` micro-components across Environment variables, Request Save, Shortcuts, MCP, Import, Export, and Software Update dialogs.
+
 ## [0.13.4] — 2026-11-13
 
 ### Fixed

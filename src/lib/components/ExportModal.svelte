@@ -4,7 +4,8 @@
   import { COLLECTION_EXPORT_LABEL, getCollectionArchivePath } from '$lib/utils/collection-exporter';
   import { saveArchiveWithDialog } from '$lib/utils/archive-save';
   import { createRequestArchive, type RequestArchiveFile } from '$lib/utils/request-archive';
-  import { X, Download, Folder, HardDrive } from '$lib/components/icons';
+  import { Download, Folder, HardDrive } from '$lib/components/icons';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import type { WorkspaceFileItem } from '$lib/types';
 
   let archiveFiles = $state<RequestArchiveFile[]>([]);
@@ -100,79 +101,61 @@
   }
 </script>
 
-{#if workspaceState.isExportModalOpen}
-  <div class="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-[#202020] border border-neutral-200 dark:border-[#333] rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col text-xs max-h-[85vh]">
-      <!-- Header -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <HardDrive size={16} class="text-blue-500" />
-          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">
-            {COLLECTION_EXPORT_LABEL}
-          </h2>
-        </div>
-        <button
-          onclick={() => (workspaceState.isExportModalOpen = false)}
-          class="text-neutral-500 hover:text-neutral-800 dark:hover:text-white transition-colors"
-        >
-          <X size={16} />
-        </button>
-      </div>
+<Modal
+  isOpen={workspaceState.isExportModalOpen}
+  title={COLLECTION_EXPORT_LABEL}
+  description={collectionTitle}
+  maxWidth="2xl"
+  onclose={() => (workspaceState.isExportModalOpen = false)}
+>
+  {#snippet icon()}
+    <HardDrive size={15} />
+  {/snippet}
 
-      <!-- Settings Bar -->
-      <div class="px-4 py-2.5 bg-neutral-100 dark:bg-[#1a1a1a] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Folder size={14} class="text-blue-500" />
-          <span class="font-medium text-neutral-700 dark:text-neutral-300">
-            {collectionTitle}
-          </span>
-          <span class="bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-1.5 py-0.2 rounded-full font-mono text-[10px]">
-            {archiveFiles.length} {archiveFiles.length === 1 ? 'file' : 'files'}
-          </span>
-        </div>
-      </div>
+  {#snippet headerActions()}
+    <span class="ui-badge ui-badge-neutral">
+      {archiveFiles.length} {archiveFiles.length === 1 ? 'file' : 'files'}
+    </span>
+  {/snippet}
 
-      <div class="p-4 flex-1 overflow-y-auto bg-white dark:bg-[#202020] min-h-[220px]">
-        <p class="mb-3 text-[11px] text-neutral-500 dark:text-neutral-400">
-          The ZIP contains the saved .curl, .grpcurl and .grpc files with their relative folders and exact on-disk contents.
-        </p>
-        <div class="rounded border border-neutral-200 dark:border-[#333] divide-y divide-neutral-200 dark:divide-[#2a2a2a] max-h-[320px] overflow-y-auto">
-          {#if isGenerating}
-            <div class="p-4 text-center text-neutral-400">Preparing archive...</div>
-          {:else if exportError}
-            <div class="p-4 text-rose-500">{exportError}</div>
-          {:else if archiveFiles.length === 0}
-            <div class="p-4 text-center text-neutral-400">No request files found to export.</div>
-          {:else}
-            {#each archiveFiles as file}
-              <div class="px-3 py-2 flex items-center gap-2 font-mono text-[11px] text-neutral-700 dark:text-neutral-300">
-                <Folder size={12} class="text-blue-500 shrink-0" />
-                <span class="truncate">{file.path}</span>
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </div>
-
-      <!-- Footer Actions -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-t border-neutral-200 dark:border-[#333] flex items-center justify-end">
-        <div class="flex items-center gap-2">
-          <button
-            onclick={() => (workspaceState.isExportModalOpen = false)}
-            class="px-3 py-1.5 rounded border border-neutral-300 dark:border-[#383838] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030] transition-colors"
-          >
-            Close
-          </button>
-          <button
-            onclick={handleDownload}
-            disabled={!archiveOutput || isGenerating}
-            class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded font-medium transition-colors shadow-sm active:scale-95"
-          >
-            <Download size={13} />
-            <span>Download ZIP</span>
-          </button>
-        </div>
+  {#snippet children()}
+    <div class="p-4 space-y-3 text-xs">
+      <p class="text-[11px] text-[var(--text-muted)]">
+        The ZIP contains the saved .curl, .grpcurl and .grpc files with their relative folders and exact on-disk contents.
+      </p>
+      <div class="rounded border border-[var(--border)] divide-y divide-[var(--border-subtle)] max-h-[320px] overflow-y-auto">
+        {#if isGenerating}
+          <div class="p-4 text-center text-[var(--text-muted)]">Preparing archive...</div>
+        {:else if exportError}
+          <div class="p-4 text-[var(--danger)]">{exportError}</div>
+        {:else if archiveFiles.length === 0}
+          <div class="p-4 text-center text-[var(--text-muted)]">No request files found to export.</div>
+        {:else}
+          {#each archiveFiles as file}
+            <div class="px-3 py-2 flex items-center gap-2 font-mono text-[11px] text-[var(--text)]">
+              <Folder size={12} class="text-[var(--accent)] shrink-0" />
+              <span class="truncate">{file.path}</span>
+            </div>
+          {/each}
+        {/if}
       </div>
     </div>
-  </div>
-{/if}
+  {/snippet}
+
+  {#snippet footer()}
+    <button
+      onclick={() => (workspaceState.isExportModalOpen = false)}
+      class="ui-button ui-button-secondary px-3 py-1.5"
+    >
+      Close
+    </button>
+    <button
+      onclick={handleDownload}
+      disabled={!archiveOutput || isGenerating}
+      class="ui-button ui-button-primary px-3.5 py-1.5"
+    >
+      <Download size={13} />
+      <span>Download ZIP</span>
+    </button>
+  {/snippet}
+</Modal>

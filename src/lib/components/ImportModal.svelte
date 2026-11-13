@@ -11,7 +11,9 @@
   import { parseGrpcurlCommand } from '$lib/utils/grpcurl-importer';
   import { serializeGrpcRequest } from '$lib/utils/grpc';
   import { prepareRequestCollectionImport, readRequestArchive } from '$lib/utils/request-archive';
-  import { X, Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
+  import { Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
+  import Modal from '$lib/components/ui/Modal.svelte';
+  import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 
   let rawInput = $state('');
   let fileName = $state('');
@@ -22,6 +24,11 @@
   let isImporting = $state(false);
   let importSuccess = $state(false);
 
+  const modeItems = [
+    { id: 'file', label: 'Upload File' },
+    { id: 'text', label: 'Paste Text' },
+  ];
+
   function resetState() {
     rawInput = '';
     fileName = '';
@@ -30,6 +37,11 @@
     parseError = null;
     isImporting = false;
     importSuccess = false;
+  }
+
+  function closeModal() {
+    workspaceState.isImportModalOpen = false;
+    resetState();
   }
 
   async function processFile(file: File) {
@@ -230,205 +242,175 @@
       case 'PATCH':
         return 'badge-patch';
       default:
-        return 'bg-neutral-800 text-neutral-400 border border-neutral-700';
+        return 'ui-badge ui-badge-neutral';
     }
   }
 </script>
 
-{#if workspaceState.isImportModalOpen}
-  <div class="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-[#202020] border border-neutral-200 dark:border-[#333] rounded-lg shadow-2xl w-full max-w-xl overflow-hidden flex flex-col text-xs max-h-[85vh]">
-      <!-- Header -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Upload size={16} class="text-blue-500" />
-          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">
-            Import Collection, Environment or Requests
-          </h2>
-        </div>
-        <button
-          onclick={() => {
-            workspaceState.isImportModalOpen = false;
-            resetState();
-          }}
-          class="text-neutral-500 hover:text-neutral-800 dark:hover:text-white transition-colors"
-        >
-          <X size={16} />
-        </button>
-      </div>
+<Modal
+  isOpen={workspaceState.isImportModalOpen}
+  title="Import"
+  description="Collection, Environment or Requests"
+  maxWidth="xl"
+  onclose={closeModal}
+>
+  {#snippet icon()}
+    <Upload size={15} />
+  {/snippet}
 
-      <!-- Mode Selector Tabs -->
-      <div class="flex border-b border-neutral-200 dark:border-[#333] bg-neutral-100 dark:bg-[#1a1a1a] px-4 pt-2 gap-4">
-        <button
-          class="pb-2 text-xs font-medium border-b-2 transition-colors {importType === 'file'
-            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-            : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-          onclick={() => (importType = 'file')}
-        >
-          Upload Collection File
-        </button>
-        <button
-          class="pb-2 text-xs font-medium border-b-2 transition-colors {importType === 'text'
-            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-            : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-          onclick={() => (importType = 'text')}
-        >
-          Paste Raw JSON or cURL
-        </button>
-      </div>
+  {#snippet children()}
+    <!-- Mode Selector -->
+    <div class="px-4 pt-3 pb-0">
+      <SegmentedControl items={modeItems} bind:activeId={importType} size="sm" />
+    </div>
 
-      <!-- Body -->
-      <div class="p-4 space-y-4 overflow-y-auto flex-1 bg-white dark:bg-[#202020]">
-        {#if importType === 'file'}
-          <!-- Drag and Drop Dropzone -->
-          <label
-            ondragover={(e) => e.preventDefault()}
-            ondrop={handleDrop}
-            class="border-2 border-dashed border-neutral-300 dark:border-[#383838] hover:border-blue-500 dark:hover:border-blue-500 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-neutral-50 dark:bg-[#181818]"
-          >
-            <Upload size={28} class="text-neutral-400 dark:text-neutral-500 mb-2" />
-            <span class="font-medium text-neutral-700 dark:text-neutral-200">
-              {fileName ? fileName : 'Choose a file or drag & drop it here'}
-            </span>
-            <span class="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              Supports ZIP request archives, Postman files, cURL and grpcurl files
-            </span>
-            <input
-              type="file"
-              accept=".zip,.json,.curl,.grpcurl,.grpc"
-              class="hidden"
-              onchange={handleFileSelect}
-            />
+    <!-- Body -->
+    <div class="p-4 space-y-4 text-xs">
+      {#if importType === 'file'}
+        <!-- Drag and Drop Dropzone -->
+        <label
+          ondragover={(e) => e.preventDefault()}
+          ondrop={handleDrop}
+          class="border-2 border-dashed border-[var(--border)] hover:border-[var(--accent)] rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-[var(--surface-muted)]"
+        >
+          <Upload size={28} class="text-[var(--text-subtle)] mb-2" />
+          <span class="font-medium text-[var(--text-strong)]">
+            {fileName ? fileName : 'Choose a file or drag & drop it here'}
+          </span>
+          <span class="text-[11px] text-[var(--text-subtle)] mt-1">
+            Supports ZIP request archives, Postman files, cURL and grpcurl files
+          </span>
+          <input
+            type="file"
+            accept=".zip,.json,.curl,.grpcurl,.grpc"
+            class="hidden"
+            onchange={handleFileSelect}
+          />
+        </label>
+      {:else}
+        <!-- Text Input -->
+        <div>
+          <label for="raw-import-text" class="block text-[var(--text-muted)] font-medium mb-1.5">
+            Paste Postman Collection or Environment JSON, cURL command, or grpcurl command:
           </label>
-        {:else}
-          <!-- Text Input -->
-          <div>
-            <label for="raw-import-text" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1.5">
-              Paste Postman Collection or Environment JSON, cURL command, or grpcurl command:
-            </label>
-            <textarea
-              id="raw-import-text"
-              rows={6}
-              bind:value={rawInput}
-              oninput={(e) => processInput((e.target as HTMLTextAreaElement).value)}
-              placeholder="Paste Postman collection/environment JSON, cURL, or grpcurl command here..."
-              class="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded p-2.5 font-mono text-[11px] text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
-            ></textarea>
-          </div>
-        {/if}
+          <textarea
+            id="raw-import-text"
+            rows={6}
+            bind:value={rawInput}
+            oninput={(e) => processInput((e.target as HTMLTextAreaElement).value)}
+            placeholder="Paste Postman collection/environment JSON, cURL, or grpcurl command here..."
+            class="w-full bg-[var(--surface-muted)] border border-[var(--border)] rounded p-2.5 font-mono text-[11px] text-[var(--text)] outline-none focus:border-[var(--accent)] transition-colors"
+          ></textarea>
+        </div>
+      {/if}
 
-        <!-- Error Message -->
-        {#if parseError}
-          <div class="flex items-start gap-2 p-2.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded text-rose-700 dark:text-rose-400 text-xs">
-            <AlertCircle size={15} class="shrink-0 mt-0.5" />
-            <span>{parseError}</span>
-          </div>
-        {/if}
+      <!-- Error Message -->
+      {#if parseError}
+        <div class="flex items-start gap-2 p-2.5 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] rounded text-[var(--danger)] text-xs">
+          <AlertCircle size={15} class="shrink-0 mt-0.5" />
+          <span>{parseError}</span>
+        </div>
+      {/if}
 
-        <!-- Import Summary Preview -->
-        {#if environmentImport}
-          <div class="border border-neutral-200 dark:border-[#333] rounded-md overflow-hidden bg-neutral-50/50 dark:bg-[#181818]">
-            <div class="px-3 py-2 bg-neutral-100 dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-              <div class="font-medium text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
-                <Folder size={13} class="text-blue-500" />
-                <span>{environmentImport.name}</span>
-              </div>
-              <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                {environmentImport.variables.length + environmentImport.secretVariables.length} variables
+      <!-- Import Summary Preview -->
+      {#if environmentImport}
+        <div class="border border-[var(--border)] rounded-md overflow-hidden bg-[var(--surface)]">
+          <div class="px-3 py-2 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between">
+            <div class="font-medium text-[var(--text-strong)] flex items-center gap-1.5">
+              <Folder size={13} class="text-[var(--accent)]" />
+              <span>{environmentImport.name}</span>
+            </div>
+            <span class="ui-badge ui-badge-amber">
+              {environmentImport.variables.length + environmentImport.secretVariables.length} variables
+            </span>
+          </div>
+          <div class="px-3 py-2 text-[11px] text-[var(--text-muted)]">
+            This environment will be saved locally and selected for requests. Secret typed values are stored in the ignored local secrets folder.
+          </div>
+        </div>
+      {:else if parseResult}
+        <div class="border border-[var(--border)] rounded-md overflow-hidden bg-[var(--surface)]">
+          <div class="px-3 py-2 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between">
+            <div class="font-medium text-[var(--text-strong)] flex items-center gap-1.5">
+              <Folder size={13} class="text-[var(--accent)]" />
+              <span>{parseResult.collectionName}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="ui-badge ui-badge-blue">
+                {parseResult.totalRequests} {parseResult.totalRequests === 1 ? 'request' : 'requests'}
               </span>
-            </div>
-            <div class="px-3 py-2 text-[11px] text-neutral-600 dark:text-neutral-400">
-              This environment will be saved locally and selected for requests. Secret typed values are stored in the ignored local secrets folder.
-            </div>
-          </div>
-        {:else if parseResult}
-          <div class="border border-neutral-200 dark:border-[#333] rounded-md overflow-hidden bg-neutral-50/50 dark:bg-[#181818]">
-            <div class="px-3 py-2 bg-neutral-100 dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-              <div class="font-medium text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5">
-                <Folder size={13} class="text-blue-500" />
-                <span>{parseResult.collectionName}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-[10px] font-mono">
-                  {parseResult.totalRequests} {parseResult.totalRequests === 1 ? 'request' : 'requests'}
+              {#if parseResult.variables.length > 0}
+                <span class="ui-badge ui-badge-amber" title="Collection variables override selected environment and workspace secrets">
+                  {parseResult.variables.length + (parseResult.secretVariables?.length || 0)} vars
                 </span>
-                {#if parseResult.variables.length > 0}
-                  <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-mono" title="Collection variables override selected environment and workspace secrets">
-                    {parseResult.variables.length + (parseResult.secretVariables?.length || 0)} vars
-                  </span>
-                {/if}
-              </div>
-            </div>
-            {#if fileName.toLowerCase().endsWith('.zip')}
-              <div class="px-3 py-2 text-[11px] text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-[#333]">
-                ZIP requests will be imported into a new collection. Existing workspace files will not be replaced.
-              </div>
-            {/if}
-
-            <!-- Request List Preview (truncated to top 15) -->
-            <div class="max-h-48 overflow-y-auto divide-y divide-neutral-200 dark:divide-[#2a2a2a] p-1">
-              {#each parseResult.items.slice(0, 15) as item}
-                <div class="px-2.5 py-1.5 flex items-center justify-between text-[11px]">
-                  <div class="flex items-center gap-2 truncate mr-2">
-                    <FileCode size={12} class="text-neutral-400 shrink-0" />
-                    <span class="font-medium text-neutral-800 dark:text-neutral-200 truncate">
-                      {item.name}
-                    </span>
-                    <span class="text-[10px] text-neutral-400 font-mono truncate">
-                      {item.relativePath}
-                    </span>
-                  </div>
-                  {#if item.sidecar?.post_response_script || item.sidecar?.pre_request_script}
-                    <span class="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.2 rounded font-mono shrink-0">
-                      Scripts
-                    </span>
-                  {/if}
-                </div>
-              {/each}
-              {#if parseResult.items.length > 15}
-                <div class="px-3 py-1.5 text-center text-neutral-400 text-[10px]">
-                  + {parseResult.items.length - 15} more requests
-                </div>
               {/if}
             </div>
           </div>
-        {/if}
-
-        {#if importSuccess}
-          <div class="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded text-emerald-700 dark:text-emerald-400 text-xs font-medium">
-            <Check size={16} />
-            <span>{environmentImport ? 'Environment successfully imported and selected!' : 'Collection successfully imported into workspace!'}</span>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Footer Actions -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-t border-neutral-200 dark:border-[#333] flex items-center justify-end gap-2">
-        <button
-          onclick={() => {
-            workspaceState.isImportModalOpen = false;
-            resetState();
-          }}
-          class="px-3 py-1.5 rounded border border-neutral-300 dark:border-[#383838] text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-[#303030] transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          disabled={(!parseResult && !environmentImport) || isImporting || importSuccess}
-          onclick={executeImport}
-          class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded font-medium transition-colors shadow-sm active:scale-95"
-        >
-          {#if isImporting}
-            <span>Importing...</span>
-          {:else if importSuccess}
-            <Check size={13} />
-            <span>Done</span>
-          {:else}
-            <Upload size={13} />
-            <span>Import to Workspace</span>
+          {#if fileName.toLowerCase().endsWith('.zip')}
+            <div class="px-3 py-2 text-[11px] text-[var(--text-muted)] border-t border-[var(--border)]">
+              ZIP requests will be imported into a new collection. Existing workspace files will not be replaced.
+            </div>
           {/if}
-        </button>
-      </div>
+
+          <!-- Request List Preview (truncated to top 15) -->
+          <div class="max-h-48 overflow-y-auto divide-y divide-[var(--border-subtle)] p-1">
+            {#each parseResult.items.slice(0, 15) as item}
+              <div class="px-2.5 py-1.5 flex items-center justify-between text-[11px]">
+                <div class="flex items-center gap-2 truncate mr-2">
+                  <FileCode size={12} class="text-[var(--text-subtle)] shrink-0" />
+                  <span class="font-medium text-[var(--text-strong)] truncate">
+                    {item.name}
+                  </span>
+                  <span class="text-[10px] text-[var(--text-subtle)] font-mono truncate">
+                    {item.relativePath}
+                  </span>
+                </div>
+                {#if item.sidecar?.post_response_script || item.sidecar?.pre_request_script}
+                  <span class="ui-badge ui-badge-green shrink-0">
+                    Scripts
+                  </span>
+                {/if}
+              </div>
+            {/each}
+            {#if parseResult.items.length > 15}
+              <div class="px-3 py-1.5 text-center text-[var(--text-subtle)] text-[10px]">
+                + {parseResult.items.length - 15} more requests
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      {#if importSuccess}
+        <div class="flex items-center gap-2 p-2.5 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_25%,transparent)] rounded text-[var(--success)] text-xs font-medium">
+          <Check size={16} />
+          <span>{environmentImport ? 'Environment successfully imported and selected!' : 'Collection successfully imported into workspace!'}</span>
+        </div>
+      {/if}
     </div>
-  </div>
-{/if}
+  {/snippet}
+
+  {#snippet footer()}
+    <button
+      onclick={closeModal}
+      class="ui-button ui-button-secondary px-3 py-1.5"
+    >
+      Cancel
+    </button>
+    <button
+      disabled={(!parseResult && !environmentImport) || isImporting || importSuccess}
+      onclick={executeImport}
+      class="ui-button ui-button-primary px-3.5 py-1.5"
+    >
+      {#if isImporting}
+        <span>Importing...</span>
+      {:else if importSuccess}
+        <Check size={13} />
+        <span>Done</span>
+      {:else}
+        <Upload size={13} />
+        <span>Import to Workspace</span>
+      {/if}
+    </button>
+  {/snippet}
+</Modal>

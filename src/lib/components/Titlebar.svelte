@@ -10,6 +10,7 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { getWorkspaceHistory } from '$lib/ipc';
   import { buildWorkspaceOptions } from '$lib/utils/workspace-history';
+  import Kbd from '$lib/components/ui/Kbd.svelte';
   import {
     Layers,
     FolderOpen,
@@ -20,7 +21,6 @@
     Keyboard,
     Bot,
     Download,
-    RefreshCw,
     Search,
   } from '$lib/components/icons';
 
@@ -41,7 +41,7 @@
     return path.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).at(-1) || 'Workspace';
   }
 
-  function closeThemeMenuOutside(event: MouseEvent) {
+  function closeMenuOutside(event: MouseEvent) {
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (!target.closest('[data-theme-picker]')) isThemeMenuOpen = false;
@@ -120,23 +120,26 @@
   }
 </script>
 
-<svelte:window onclick={closeThemeMenuOutside} />
+<svelte:window onclick={closeMenuOutside} />
 
 <header
   data-tauri-drag-region
-  class="flex h-10 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 select-none transition-colors"
+  class="flex h-9 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 select-none text-xs"
 >
-  <!-- App name at the extreme left, offset past macOS traffic lights -->
-    <div class="flex items-center gap-2 pl-[76px]">
+  <!-- Left: Traffic Lights Offset & Workspace Selector -->
+  <div class="flex items-center gap-2 {isMac ? 'pl-[70px]' : 'pl-1'}">
     <button
       type="button"
       onclick={() => updaterState.checkForUpdates({ manual: true })}
       title="API Client Reborn v{updaterState.currentVersion} • Check for updates"
-      class="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-[var(--text)] transition-colors hover:text-[var(--accent)]"
+      class="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-[var(--text-strong)] transition-colors hover:text-[var(--accent)]"
     >
-      <Layers size={14} class="text-blue-500" />
-      API Client Reborn
+      <Layers size={13} class="text-[var(--accent)]" />
+      <span>API Client Reborn</span>
     </button>
+
+    <div class="h-3 w-px bg-[var(--border)]"></div>
+
     <div class="relative" data-workspace-picker>
       <button
         type="button"
@@ -146,25 +149,26 @@
         aria-haspopup="menu"
         aria-expanded={isWorkspaceMenuOpen}
         disabled={isSwitchingWorkspace}
-        class="flex max-w-44 items-center gap-1 rounded-md border border-neutral-300/80 bg-white/60 px-1.5 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-white dark:border-neutral-700 dark:bg-neutral-800/60 dark:text-neutral-300 dark:hover:bg-neutral-800 disabled:opacity-60"
+        class="flex max-w-44 items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-60"
       >
-        <FolderOpen size={12} class="shrink-0 text-blue-500" />
+        <FolderOpen size={12} class="shrink-0 text-[var(--accent)]" />
         <span class="truncate">{workspaceName}</span>
-        <span aria-hidden="true" class="shrink-0 text-[10px] opacity-70">⌄</span>
+        <span aria-hidden="true" class="shrink-0 text-[9px] opacity-60">▾</span>
       </button>
+
       {#if isWorkspaceMenuOpen}
         <div
           role="menu"
           aria-label="Workspace options"
-          class="absolute left-0 top-full z-[100] mt-2 w-80 rounded-md border border-neutral-200 bg-white p-2 text-neutral-800 shadow-xl dark:border-[#383838] dark:bg-[#252526] dark:text-neutral-200"
+          class="ui-menu-surface absolute left-0 top-full z-[100] mt-1.5 w-72 text-[11px]"
         >
-          <div class="border-b border-neutral-100 px-2 pb-2 dark:border-neutral-700">
-            <div class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Current workspace</div>
-            <div class="mt-1 break-all text-xs text-neutral-700 dark:text-neutral-200">{workspaceState.workspacePath}</div>
+          <div class="border-b border-[var(--border)] px-2.5 py-1.5">
+            <div class="text-[9px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">Current Workspace</div>
+            <div class="mt-0.5 break-all text-[11px] font-mono text-[var(--text-muted)]">{workspaceState.workspacePath}</div>
           </div>
-          <div class="max-h-56 overflow-y-auto border-b border-neutral-100 py-1 dark:border-neutral-700">
+          <div class="max-h-56 overflow-y-auto py-1">
             {#if isLoadingWorkspaceHistory}
-              <p class="px-2 py-2 text-xs text-neutral-500">Loading workspaces…</p>
+              <p class="px-2.5 py-2 text-[11px] text-[var(--text-muted)]">Loading workspaces…</p>
             {:else}
               {#each workspaceOptions as path, index}
                 <button
@@ -174,81 +178,88 @@
                   title={path}
                   aria-label="Switch to {getWorkspaceName(path)}{index === 0 ? ', default workspace' : ''}"
                   onclick={() => switchToWorkspace(path)}
-                  class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50"
+                  class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 {path === workspaceState.workspacePath ? 'bg-[var(--surface-hover)] font-medium text-[var(--text-strong)]' : 'text-[var(--text)]'}"
                 >
-                  <FolderOpen size={14} class="shrink-0 text-blue-600 dark:text-blue-400" />
+                  <FolderOpen size={13} class="shrink-0 text-[var(--accent)]" />
                   <span class="flex min-w-0 flex-1 flex-col">
-                    <span class="truncate text-xs">{getWorkspaceName(path)}</span>
-                    <span class="truncate text-[10px] text-neutral-500">{path}</span>
+                    <span class="truncate">{getWorkspaceName(path)}</span>
+                    <span class="truncate font-mono text-[9px] text-[var(--text-subtle)]">{path}</span>
                   </span>
                   {#if index === 0}
-                    <span class="shrink-0 rounded bg-blue-500/10 px-1 py-0.5 text-[9px] text-blue-600 dark:text-blue-400">Default</span>
+                    <span class="shrink-0 rounded bg-[var(--surface-muted)] border border-[var(--border)] px-1 py-0.2 text-[9px] text-[var(--text-muted)]">Default</span>
                   {/if}
-                  {#if path === workspaceState.workspacePath}<Check size={13} class="shrink-0" />{/if}
+                  {#if path === workspaceState.workspacePath}
+                    <Check size={12} class="shrink-0 text-[var(--accent)]" />
+                  {/if}
                 </button>
               {/each}
             {/if}
           </div>
           {#if workspaceState.workspaceError || workspaceMenuError}
-            <p role="alert" class="px-2 pt-2 text-xs text-red-600 dark:text-red-400">{workspaceMenuError || workspaceState.workspaceError}</p>
+            <p role="alert" class="px-2.5 py-1.5 text-[10px] text-[var(--danger)] border-t border-[var(--border)]">{workspaceMenuError || workspaceState.workspaceError}</p>
           {/if}
-          <button
-            type="button"
-            role="menuitem"
-            disabled={isSwitchingWorkspace}
-            onclick={chooseWorkspace}
-            class="mt-1 flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50"
-          >
-            <FolderOpen size={14} class="text-blue-600 dark:text-blue-400" />
-            <span class="flex-1">{isSwitchingWorkspace ? 'Opening workspace…' : 'Choose Workspace…'}</span>
-          </button>
+          <div class="border-t border-[var(--border)] pt-1">
+            <button
+              type="button"
+              role="menuitem"
+              disabled={isSwitchingWorkspace}
+              onclick={chooseWorkspace}
+              class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 text-[var(--text-strong)]"
+            >
+              <FolderOpen size={13} class="text-[var(--text-muted)]" />
+              <span>{isSwitchingWorkspace ? 'Opening workspace…' : 'Choose Workspace…'}</span>
+            </button>
+          </div>
         </div>
       {/if}
     </div>
   </div>
 
-  <!-- Right: Theme Switcher & Variables Action -->
-  <div class="flex items-center gap-1.5">
+  <!-- Center: Search Trigger (Command Palette) -->
+  <div class="flex items-center">
     <button
       type="button"
       onclick={() => uiState.openCommandPalette()}
-      title="Command palette ({isMac ? '⌘K' : 'Ctrl+K'})"
-      class="hidden items-center gap-2 rounded-md border px-2 py-1 text-[11px] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] sm:flex"
-      style="border-color: var(--border)"
+      title="Search and commands ({isMac ? '⌘K' : 'Ctrl+K'})"
+      class="flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 py-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:border-[var(--border-strong)] transition-all select-none"
     >
-      <Search size={12} />
-      <span>Search</span>
-      <kbd class="rounded border px-1 font-mono text-[10px]" style="border-color: var(--border)">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+      <Search size={11} class="text-[var(--text-subtle)]" />
+      <span class="font-normal">Search or command…</span>
+      <Kbd class="ml-1 text-[9px]">{isMac ? '⌘K' : 'Ctrl K'}</Kbd>
     </button>
-    <!-- Update Available Badge -->
+  </div>
+
+  <!-- Right: Actions (Update, MCP, Shortcuts, Theme, Env Vars) -->
+  <div class="flex items-center gap-1.5">
     {#if updaterState.hasUpdateNotification}
       <button
         onclick={() => updaterState.openModal()}
-        title="Update v{updaterState.availableVersion} is available! Click to view details and install."
-        class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 text-xs font-medium transition-all"
+        title="Update v{updaterState.availableVersion} is available"
+        class="flex items-center gap-1 rounded bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] transition-colors"
       >
-        <Download size={13} class="animate-bounce" />
-        <span class="text-[11px] font-semibold">Update v{updaterState.availableVersion}</span>
+        <Download size={11} />
+        <span>v{updaterState.availableVersion}</span>
       </button>
     {/if}
 
     <!-- MCP AI Integration Button -->
     <button
       onclick={() => (workspaceState.isMcpModalOpen = true)}
-      title="AI & MCP Server Configuration"
-      class="flex items-center gap-1.5 px-2 py-1 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors text-xs font-medium"
+      title="AI & Model Context Protocol (MCP)"
+      aria-label="MCP Integration"
+      class="ui-icon-button"
     >
-      <Bot size={13} class="text-emerald-500" />
-      <span class="text-[11px] font-medium hidden sm:inline">MCP</span>
+      <Bot size={13} />
     </button>
 
     <!-- Keyboard Shortcuts Button -->
     <button
       onclick={() => shortcutsState.toggleCheatSheet()}
       title="Keyboard Shortcuts ({isMac ? '⌘/' : 'Ctrl+/'})"
-      class="p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors"
+      aria-label="Keyboard Shortcuts"
+      class="ui-icon-button"
     >
-      <Keyboard size={14} />
+      <Keyboard size={13} />
     </button>
 
     <!-- Theme Picker -->
@@ -256,16 +267,16 @@
       <button
         type="button"
         onclick={() => (isThemeMenuOpen = !isThemeMenuOpen)}
-        title="Theme: {themeState.mode} ({effectiveThemeIsDark ? 'dark' : 'light'} appearance)"
-        aria-label="Choose theme. Current mode: {themeState.mode}; effective theme: {effectiveThemeIsDark ? 'dark' : 'light'}"
+        title="Theme: {themeState.mode} ({effectiveThemeIsDark ? 'dark' : 'light'})"
+        aria-label="Choose theme"
         aria-haspopup="menu"
         aria-expanded={isThemeMenuOpen}
-        class="p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200/60 dark:hover:bg-neutral-800 rounded transition-colors"
+        class="ui-icon-button"
       >
         {#if effectiveThemeIsDark}
-          <Moon size={14} class="text-neutral-600 dark:text-neutral-300" />
+          <Moon size={13} />
         {:else}
-          <Sun size={14} class="text-amber-500 dark:text-amber-400" />
+          <Sun size={13} />
         {/if}
       </button>
 
@@ -273,60 +284,56 @@
         <div
           role="menu"
           aria-label="Choose theme"
-          class="absolute right-0 top-full z-50 mt-2 w-44 rounded-md border border-neutral-200 bg-white p-1 text-neutral-800 shadow-xl dark:border-[#383838] dark:bg-[#252526] dark:text-neutral-200"
+          class="ui-menu-surface absolute right-0 top-full z-50 mt-1.5 w-36 text-[11px]"
         >
           <button
             type="button"
             role="menuitemradio"
             aria-checked={themeState.mode === 'system'}
             onclick={() => selectTheme('system')}
-            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[var(--surface-hover)] transition-colors text-[var(--text)]"
           >
-            <Monitor size={14} class="text-blue-600 dark:text-blue-400" />
+            <Monitor size={12} class="text-[var(--text-muted)]" />
             <span class="flex-1">System</span>
-            {#if themeState.mode === 'system'}<Check size={13} />{/if}
+            {#if themeState.mode === 'system'}<Check size={12} class="text-[var(--accent)]" />{/if}
           </button>
           <button
             type="button"
             role="menuitemradio"
             aria-checked={themeState.mode === 'light'}
             onclick={() => selectTheme('light')}
-            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[var(--surface-hover)] transition-colors text-[var(--text)]"
           >
-            <Sun size={14} class="text-amber-500" />
+            <Sun size={12} class="text-[var(--text-muted)]" />
             <span class="flex-1">Light</span>
-            {#if themeState.mode === 'light'}<Check size={13} />{/if}
+            {#if themeState.mode === 'light'}<Check size={12} class="text-[var(--accent)]" />{/if}
           </button>
           <button
             type="button"
             role="menuitemradio"
             aria-checked={themeState.mode === 'dark'}
             onclick={() => selectTheme('dark')}
-            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-[var(--surface-hover)] transition-colors text-[var(--text)]"
           >
-            <Moon size={14} class="text-neutral-600 dark:text-neutral-300" />
+            <Moon size={12} class="text-[var(--text-muted)]" />
             <span class="flex-1">Dark</span>
-            {#if themeState.mode === 'dark'}<Check size={13} />{/if}
+            {#if themeState.mode === 'dark'}<Check size={12} class="text-[var(--accent)]" />{/if}
           </button>
         </div>
       {/if}
     </div>
 
-    <!-- Variables Button -->
+    <!-- Environment Variables Button -->
     <button
       onclick={() => (envState.isVariablesModalOpen = true)}
-      title={`Configure environment variables & secrets for ${envState.activeEnvName} (${isMac ? '⌘E' : 'Ctrl+E'})`}
-      aria-label={`Configure environment variables and secrets for ${envState.activeEnvName}`}
-      class="flex items-center gap-1 text-xs bg-white dark:bg-[#252526] hover:bg-neutral-100 dark:hover:bg-[#303030] border border-[#d2d2d7] dark:border-[#383838] rounded-md px-2 py-1 text-neutral-700 dark:text-neutral-300 transition-colors shadow-sm"
+      title="Environment variables ({isMac ? '⌘E' : 'Ctrl+E'})"
+      aria-label="Configure environment variables"
+      class="flex items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] px-2 py-1 text-[11px] font-medium text-[var(--text-strong)] transition-colors select-none"
     >
-      <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-[11px]">&#123;x&#125;</span>
-      <span
-        class="text-[11px] font-medium text-neutral-600 dark:text-neutral-300"
-      >
-        Env vars
-      </span>
+      <span class="font-mono text-[10px] font-bold text-[var(--accent)] leading-none">&#123;x&#125;</span>
+      <span class="truncate max-w-28 text-[11px] text-[var(--text)]">{envState.activeEnvName}</span>
       {#if envState.variables.length > 0}
-        <span class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-mono">
+        <span class="rounded bg-[var(--border)] px-1 py-0.2 font-mono text-[9px] font-semibold text-[var(--text-muted)] leading-none">
           {envState.variables.length}
         </span>
       {/if}

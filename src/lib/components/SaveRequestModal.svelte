@@ -1,6 +1,7 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
-  import { X, Save, Folder } from '$lib/components/icons';
+  import { Save } from '$lib/components/icons';
+  import Modal from '$lib/components/ui/Modal.svelte';
   import type { WorkspaceFileItem } from '$lib/types';
 
   let requestName = $state('');
@@ -67,87 +68,84 @@
   }
 </script>
 
-{#if workspaceState.isSaveModalOpen}
-  <div class="fixed inset-0 z-50 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-[#202020] border border-neutral-200 dark:border-[#333] rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col text-xs">
-      <!-- Modal Header -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-b border-neutral-200 dark:border-[#333] flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <Save size={15} class="text-blue-500" />
-          <h2 class="font-semibold text-neutral-800 dark:text-neutral-200 text-sm">Save {workspaceState.activeTab?.requestType === 'grpc' ? 'gRPC' : 'HTTP'} Request</h2>
-        </div>
-        <button
-          onclick={() => (workspaceState.isSaveModalOpen = false)}
-          class="text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white transition-colors"
-        >
-          <X size={16} />
-        </button>
-      </div>
+<Modal
+  isOpen={workspaceState.isSaveModalOpen}
+  title="Save {workspaceState.activeTab?.requestType === 'grpc' ? 'gRPC' : 'HTTP'} Request"
+  maxWidth="md"
+  onclose={() => (workspaceState.isSaveModalOpen = false)}
+>
+  {#snippet icon()}
+    <Save size={14} class="text-[var(--accent)]" />
+  {/snippet}
 
-      <!-- Modal Body -->
-      <div class="p-4 space-y-3.5 bg-white dark:bg-[#202020]">
-        <div>
-          <label for="save-req-name" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1">
-            Request Name
-          </label>
-          <input
-            id="save-req-name"
-            type="text"
-            bind:value={requestName}
-            oninput={(e) => handleNameInput((e.target as HTMLInputElement).value)}
-            placeholder="e.g. Get User Profile"
-            class="w-full bg-neutral-50 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2.5 py-1.5 text-xs text-neutral-800 dark:text-neutral-200 outline-none focus:border-blue-500"
-          />
-        </div>
-
-        <div>
-          <label for="save-folder-select" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1">
-            Folder / Collection
-          </label>
-          <div class="relative">
-            <select
-              id="save-folder-select"
-              bind:value={selectedFolder}
-              class="ui-select w-full px-2.5 py-1.5 text-xs cursor-pointer"
-            >
-              {#each folderOptions as opt}
-                <option value={opt.path}>{opt.label}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label for="save-file-name" class="block text-neutral-600 dark:text-neutral-400 font-medium mb-1">
-            File Name
-          </label>
-          <div class="flex items-center gap-1 font-mono text-[11px] text-neutral-500 bg-neutral-100 dark:bg-[#181818] border border-neutral-300 dark:border-[#333] rounded px-2.5 py-1.5">
-            <span>{selectedFolder === '.' ? '' : `${selectedFolder}/`}</span>
-            <input
-              id="save-file-name"
-              type="text"
-              bind:value={customFileName}
-              class="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 outline-none font-mono"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="px-4 py-3 bg-[#f9f9fb] dark:bg-[#252526] border-t border-neutral-200 dark:border-[#333] flex justify-end gap-2">
-        <button
-          onclick={() => (workspaceState.isSaveModalOpen = false)}
-          class="px-3 py-1.5 rounded text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white"
-        >
-          Cancel
-        </button>
-        <button
-          onclick={handleSave}
-          class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded font-medium shadow"
-        >
-          Save Request
-        </button>
-      </div>
+  <form
+    onsubmit={(e) => {
+      e.preventDefault();
+      void handleSave();
+    }}
+    class="p-4 space-y-3.5 text-xs"
+  >
+    <div>
+      <label for="save-req-name" class="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+        Request Name
+      </label>
+      <input
+        id="save-req-name"
+        type="text"
+        bind:value={requestName}
+        oninput={(e) => handleNameInput((e.target as HTMLInputElement).value)}
+        placeholder="e.g. Get User Profile"
+        class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2.5 py-1.5 text-xs text-[var(--text-strong)] outline-none transition-colors"
+      />
     </div>
-  </div>
-{/if}
+
+    <div>
+      <label for="save-folder-select" class="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+        Folder / Collection
+      </label>
+      <select
+        id="save-folder-select"
+        bind:value={selectedFolder}
+        class="ui-select w-full px-2.5 py-1.5 text-xs cursor-pointer"
+      >
+        {#each folderOptions as opt}
+          <option value={opt.path}>{opt.label}</option>
+        {/each}
+      </select>
+    </div>
+
+    <div>
+      <label for="save-file-name" class="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+        File Name
+      </label>
+      <input
+        id="save-file-name"
+        type="text"
+        bind:value={customFileName}
+        placeholder="request.curl"
+        class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2.5 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none transition-colors"
+      />
+      <p class="text-[10px] text-[var(--text-subtle)] mt-1 font-mono">
+        Will be saved to: {selectedFolder === '.' ? '' : `${selectedFolder}/`}{customFileName}
+      </p>
+    </div>
+  </form>
+
+  {#snippet footer()}
+    <button
+      type="button"
+      onclick={() => (workspaceState.isSaveModalOpen = false)}
+      class="ui-button ui-button-secondary h-7 px-3 text-[11px]"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      onclick={handleSave}
+      disabled={!requestName.trim()}
+      class="ui-button ui-button-primary h-7 px-3 text-[11px] disabled:opacity-40"
+    >
+      Save Request
+    </button>
+  {/snippet}
+</Modal>

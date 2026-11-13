@@ -2,7 +2,7 @@ import { relaunchApp } from '../ipc.ts';
 
 declare const __APP_VERSION__: string | undefined;
 
-export const DEFAULT_APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.13.4';
+export const DEFAULT_APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.14.0';
 
 export type UpdateStatus =
   | 'idle'

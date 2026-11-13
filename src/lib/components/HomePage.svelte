@@ -1,6 +1,7 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { Layers, Plus, Upload } from '$lib/components/icons';
+  import Kbd from '$lib/components/ui/Kbd.svelte';
 </script>
 
 <section class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-[var(--bg)] px-6 py-10">
@@ -17,7 +18,7 @@
       <button
         type="button"
         onclick={() => workspaceState.createNewRequest()}
-        class="inline-flex items-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-strong)]"
+        class="ui-button ui-button-primary inline-flex items-center gap-2 px-4 py-2 text-xs"
       >
         <Plus size={15} />
         New request
@@ -25,15 +26,17 @@
       <button
         type="button"
         onclick={() => workspaceState.openImportModal()}
-        class="inline-flex items-center gap-2 rounded-md border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-muted)]"
+        class="ui-button ui-button-secondary inline-flex items-center gap-2 px-4 py-2 text-xs"
       >
         <Upload size={15} />
         Import collection
       </button>
     </div>
 
-    <p class="mt-6 text-xs text-[var(--text-subtle)]">
-      Or choose an existing request from the workspace sidebar.
-    </p>
+    <div class="mt-8 flex items-center gap-4 text-[11px] text-[var(--text-subtle)]">
+      <span class="flex items-center gap-1.5"><Kbd>⌘N</Kbd> New request</span>
+      <span class="text-[var(--border-strong)]">·</span>
+      <span class="flex items-center gap-1.5"><Kbd>⌘K</Kbd> Command palette</span>
+    </div>
   </div>
 </section>

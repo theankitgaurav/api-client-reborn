@@ -7,6 +7,7 @@
   import { themeState } from '$lib/state/theme.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { filterCommandItems } from '$lib/utils/command-palette';
+  import Kbd from '$lib/components/ui/Kbd.svelte';
   import { X, Search, Clock, FolderOpen, Save, Play, Moon, Keyboard, Layers } from '$lib/components/icons';
 
   let searchInput = $state<HTMLInputElement>();
@@ -56,7 +57,7 @@
       description: `${tab.method}${tab.isDirty ? ' · unsaved' : ''}`,
       group: 'Tabs' as const,
       keywords: [tab.filePath || ''],
-          run: () => { workspaceState.activeTabId = tab.id; },
+      run: () => { workspaceState.activeTabId = tab.id; },
     }));
 
     const history = historyState.entries.slice(0, 20).map((entry) => ({
@@ -108,39 +109,74 @@
 </script>
 
 {#if uiState.isCommandPaletteOpen}
-  <div class="fixed inset-0 z-[100] bg-black/35 p-4 pt-[12vh] backdrop-blur-[2px]" role="presentation" onclick={(event) => event.target === event.currentTarget && close()}>
-    <div class="ui-menu-surface mx-auto w-full max-w-[620px] overflow-hidden" role="dialog" aria-modal="true" aria-label="Command palette">
-      <div class="flex items-center gap-2 border-b px-3" style="border-color: var(--border)">
-        <Search size={16} class="text-[var(--text-muted)]" />
-        <input bind:this={searchInput} bind:value={uiState.commandQuery} onkeydown={handleKeydown} placeholder="Search commands, requests, tabs…" class="h-11 min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text-strong)] outline-none placeholder:text-[var(--text-subtle)]" />
-        <kbd class="rounded border px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]" style="border-color: var(--border)">Esc</kbd>
-        <button type="button" aria-label="Close command palette" onclick={close} class="ui-icon-button"><X size={14} /></button>
+  <div
+    class="fixed inset-0 z-[100] bg-black/45 p-4 pt-[12vh] backdrop-blur-[1px] select-none"
+    role="presentation"
+    onclick={(event) => event.target === event.currentTarget && close()}
+  >
+    <div
+      class="ui-menu-surface mx-auto w-full max-w-[600px] overflow-hidden p-0 shadow-2xl animate-in fade-in zoom-in-95 duration-100"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+    >
+      <div class="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2 bg-[var(--surface-muted)]">
+        <Search size={15} class="text-[var(--text-subtle)]" />
+        <input
+          bind:this={searchInput}
+          bind:value={uiState.commandQuery}
+          onkeydown={handleKeydown}
+          placeholder="Type a command or search requests…"
+          class="h-8 min-w-0 flex-1 bg-transparent text-xs text-[var(--text-strong)] outline-none placeholder:text-[var(--text-subtle)]"
+        />
+        <Kbd>Esc</Kbd>
+        <button type="button" aria-label="Close command palette" onclick={close} class="ui-icon-button">
+          <X size={13} />
+        </button>
       </div>
-      <div class="max-h-[min(60vh,480px)] overflow-y-auto p-1.5">
+
+      <div class="max-h-[min(60vh,460px)] overflow-y-auto p-1.5 bg-[var(--surface)]">
         {#if filteredItems.length === 0}
-          <div class="px-3 py-10 text-center text-[12px] text-[var(--text-muted)]">No commands or workspace items match “{uiState.commandQuery}”.</div>
+          <div class="px-3 py-10 text-center text-xs text-[var(--text-subtle)]">
+            No commands or workspace items match “{uiState.commandQuery}”.
+          </div>
         {:else}
           {#each groupOrder as group}
             {@const groupItems = filteredItems.filter((item) => item.group === group)}
             {#if groupItems.length > 0}
-              <div class="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-subtle)]">{group}</div>
+              <div class="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-subtle)]">
+                {group}
+              </div>
               {#each groupItems as item}
                 {@const index = filteredItems.indexOf(item)}
-                <button type="button" onclick={() => run(item)} onmouseenter={() => (uiState.commandIndex = index)} class="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left transition-colors {index === uiState.commandIndex ? 'bg-[color-mix(in_srgb,var(--accent)_14%,transparent)]' : 'hover:bg-[var(--surface-muted)]'}">
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[var(--surface-muted)] text-[var(--text-muted)]">
-                    {#if item.group === 'Requests'}<FolderOpen size={13} />{:else if item.group === 'Tabs'}<Layers size={13} />{:else if item.group === 'History'}<Clock size={13} />{:else if item.id.includes('save')}<Save size={13} />{:else if item.id.includes('send')}<Play size={13} />{:else if item.id === 'theme'}<Moon size={13} />{:else if item.id === 'shortcuts'}<Keyboard size={13} />{:else}<Search size={13} />{/if}
+                <button
+                  type="button"
+                  onclick={() => run(item)}
+                  onmouseenter={() => (uiState.commandIndex = index)}
+                  class="flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-left transition-colors {index === uiState.commandIndex ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--text-strong)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}"
+                >
+                  <span class="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded bg-[var(--surface-muted)] text-[var(--text-muted)] border border-[var(--border)]">
+                    {#if item.group === 'Requests'}<FolderOpen size={12} />{:else if item.group === 'Tabs'}<Layers size={12} />{:else if item.group === 'History'}<Clock size={12} />{:else if item.id.includes('save')}<Save size={12} />{:else if item.id.includes('send')}<Play size={12} />{:else if item.id === 'theme'}<Moon size={12} />{:else if item.id === 'shortcuts'}<Keyboard size={12} />{:else}<Search size={12} />{/if}
                   </span>
-                  <span class="min-w-0 flex-1"><span class="block truncate text-[12px] font-medium text-[var(--text-strong)]">{item.label}</span><span class="block truncate text-[10px] text-[var(--text-muted)]">{item.description}</span></span>
-                  {#if item.shortcut}<kbd class="shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]" style="border-color: var(--border)">{item.shortcut}</kbd>{/if}
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-xs font-medium text-[var(--text-strong)]">{item.label}</span>
+                    {#if item.description}
+                      <span class="block truncate text-[10px] text-[var(--text-muted)] font-mono">{item.description}</span>
+                    {/if}
+                  </span>
+                  {#if item.shortcut}
+                    <Kbd class="shrink-0 text-[9px]">{item.shortcut}</Kbd>
+                  {/if}
                 </button>
               {/each}
             {/if}
           {/each}
         {/if}
       </div>
-      <div class="flex items-center justify-between border-t px-3 py-2 text-[10px] text-[var(--text-muted)]" style="border-color: var(--border)">
-        <span><kbd class="font-mono">↑↓</kbd> Navigate · <kbd class="font-mono">↵</kbd> Open</span>
-        <span>{filteredItems.length} results</span>
+
+      <div class="flex items-center justify-between border-t border-[var(--border)] px-3 py-1.5 text-[10px] text-[var(--text-subtle)] bg-[var(--surface-muted)]">
+        <span><kbd class="font-mono">↑↓</kbd> navigate · <kbd class="font-mono">↵</kbd> select · <kbd class="font-mono">esc</kbd> close</span>
+        <span class="font-mono">{filteredItems.length} results</span>
       </div>
     </div>
   </div>

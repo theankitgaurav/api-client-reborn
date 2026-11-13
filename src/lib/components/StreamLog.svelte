@@ -26,15 +26,15 @@
   });
 </script>
 
-<div class="flex flex-col h-full overflow-hidden text-xs bg-white dark:bg-[#1a1a1a]">
+<div class="flex flex-col h-full overflow-hidden text-xs bg-[var(--surface)]">
   <!-- Top Stream Toolbar -->
-  <div class="p-2 bg-[#f9f9fb] dark:bg-[#202020] border-b border-[#e5e5e5] dark:border-[#2d2d2d] flex items-center justify-between text-neutral-600 dark:text-neutral-400">
+  <div class="p-2 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between text-[var(--text-muted)]">
     <div class="flex items-center gap-2 font-medium">
-      <Radio size={13} class={responseState.isExecuting ? 'text-emerald-500 animate-pulse' : 'text-neutral-400 dark:text-neutral-500'} />
-      <span class="text-neutral-800 dark:text-neutral-200">
-        {responseState.isExecuting ? 'Receiving Live Stream...' : 'Stream Event Log'}
+      <Radio size={13} class={responseState.isExecuting ? 'text-[var(--success)] animate-pulse' : 'text-[var(--text-subtle)]'} />
+      <span class="text-[var(--text-strong)] font-semibold">
+        {responseState.isExecuting ? 'Receiving Live Stream…' : 'Stream Event Log'}
       </span>
-      <span class="bg-blue-50 dark:bg-[#2d2d2d] text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-transparent text-[10px] px-1.5 py-0.5 rounded-full font-mono font-semibold">
+      <span class="bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold">
         {#if responseState.totalEventsCount > responseState.streamMessages.length}
           {responseState.streamMessages.length} / {responseState.totalEventsCount.toLocaleString()} events
         {:else}
@@ -44,15 +44,16 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <label class="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400 cursor-pointer select-none">
-        <input type="checkbox" bind:checked={autoScroll} class="rounded bg-white dark:bg-[#2a2a2a] border-neutral-300 dark:border-[#444] text-blue-600" />
+      <label class="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer select-none">
+        <input type="checkbox" bind:checked={autoScroll} class="rounded accent-[var(--accent)]" />
         <span>Auto-scroll</span>
       </label>
       {#if responseState.streamMessages.length > 0}
         <button
           onclick={clearStream}
           title="Clear events"
-          class="p-1 text-neutral-500 hover:text-rose-500 transition-colors"
+          aria-label="Clear stream"
+          class="ui-icon-button"
         >
           <Trash2 size={13} />
         </button>
@@ -61,9 +62,9 @@
   </div>
 
   {#if responseState.totalEventsCount > responseState.streamMessages.length}
-    <div class="px-3 py-1 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800/40 text-[11px] text-blue-700 dark:text-blue-300 flex items-center justify-between">
+    <div class="px-3 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-b border-[var(--border)] text-[11px] text-[var(--accent)] flex items-center justify-between">
       <span>
-        ⚡ High-volume stream: displaying latest <strong>{responseState.streamMessages.length}</strong> of <strong>{responseState.totalEventsCount.toLocaleString()}</strong> events (memory defense active).
+        ⚡ High-volume stream: displaying latest <strong>{responseState.streamMessages.length}</strong> of <strong>{responseState.totalEventsCount.toLocaleString()}</strong> events.
       </span>
     </div>
   {/if}
@@ -71,47 +72,47 @@
   <!-- Messages List -->
   <div
     bind:this={scrollContainer}
-    class="flex-1 overflow-y-auto p-2 space-y-2 bg-[#fafafa] dark:bg-[#161616]"
+    class="flex-1 overflow-y-auto p-2 space-y-2 bg-[var(--bg)]"
   >
     {#each responseState.streamMessages as msg, idx}
-      <div class="bg-white dark:bg-[#202020] border border-[#e5e5e5] dark:border-[#2e2e2e] rounded p-2.5 flex flex-col gap-1.5 shadow-sm">
-        <div class="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded-md p-2.5 flex flex-col gap-1.5 shadow-sm">
+        <div class="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
           <div class="flex items-center gap-2">
-            <span class="font-mono text-neutral-400 dark:text-neutral-500 text-[10px]">#{idx + 1}</span>
-            <span class="font-semibold text-xs px-1.5 py-0.2 rounded {msg.event === 'chunk' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
+            <span class="font-mono text-[var(--text-subtle)] text-[10px]">#{idx + 1}</span>
+            <span class="font-semibold text-[10px] px-1.5 py-0.2 rounded {msg.event === 'chunk' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'}">
               {msg.event || 'message'}
             </span>
             {#if msg.id}
-              <span class="text-neutral-400 dark:text-neutral-500 font-mono text-[10px]">id: {msg.id}</span>
+              <span class="text-[var(--text-subtle)] font-mono text-[10px]">id: {msg.id}</span>
             {/if}
             {#if msg.bytes}
-              <span class="text-neutral-400 dark:text-neutral-500 font-mono text-[10px]">{msg.bytes} B</span>
+              <span class="text-[var(--text-subtle)] font-mono text-[10px]">{msg.bytes} B</span>
             {/if}
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono">{msg.timestamp}</span>
+            <span class="text-[10px] text-[var(--text-subtle)] font-mono">{msg.timestamp}</span>
             <button
               onclick={() => copyData(msg.data, idx)}
               title="Copy payload"
-              class="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+              class="text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors"
             >
               {#if copiedIndex === idx}
-                <Check size={12} class="text-emerald-500" />
+                <Check size={12} class="text-[var(--success)]" />
               {:else}
                 <Copy size={12} />
               {/if}
             </button>
           </div>
         </div>
-        <pre class="bg-[#f5f5f7] dark:bg-[#121212] border border-[#ebebeb] dark:border-transparent p-2 rounded text-[12px] font-mono text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre-wrap selection:bg-blue-600/30">{msg.data}</pre>
+        <pre class="bg-[var(--surface-muted)] border border-[var(--border)] p-2 rounded text-xs font-mono text-[var(--text-strong)] overflow-x-auto whitespace-pre-wrap">{msg.data}</pre>
       </div>
     {/each}
 
     {#if responseState.streamMessages.length === 0}
-      <div class="text-center py-16 text-neutral-400 dark:text-neutral-500 flex flex-col items-center gap-2">
-        <Radio size={24} class="text-neutral-300 dark:text-neutral-600" />
-        <p class="text-xs font-medium">No streaming events recorded yet.</p>
-        <p class="text-[11px] text-neutral-400 dark:text-neutral-500">Execute a streaming request (SSE or chunked transfer) to see real-time frames.</p>
+      <div class="text-center py-16 text-[var(--text-subtle)] flex flex-col items-center gap-2">
+        <Radio size={24} class="opacity-50" />
+        <p class="text-xs font-medium text-[var(--text-strong)]">No streaming events recorded yet.</p>
+        <p class="text-[11px] text-[var(--text-muted)]">Execute a streaming request (SSE or chunked transfer) to see real-time frames.</p>
       </div>
     {/if}
   </div>
