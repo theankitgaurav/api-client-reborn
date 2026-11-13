@@ -5,63 +5,69 @@
 <h1 align="center">API Client Reborn</h1>
 
 <p align="center">
-  <strong>The lightweight, native, Git-friendly HTTP &amp; gRPC API client.</strong>
+  <strong>Send HTTP and gRPC requests, keep them in files, and share them with Git.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/theankitgaurav/api-client-reborn/releases"><img src="https://img.shields.io/badge/Release-v0.13.0-blue?style=flat-square" alt="Release v0.13.0" /></a>
-  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2.0-24C8D8?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" /></a>
-  <a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" /></a>
-  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust 2021" /></a>
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /></a>
-  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-3.4-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" /></a>
-  <img src="https://img.shields.io/badge/Binary_Size-~12_MB-brightgreen?style=flat-square" alt="Binary Size ~12 MB" />
-  <img src="https://img.shields.io/badge/Memory_Idle-~35_MB-brightgreen?style=flat-square" alt="Memory Idle ~35 MB" />
+  <a href="https://github.com/theankitgaurav/api-client-reborn/releases/latest"><img src="https://img.shields.io/github/v/release/theankitgaurav/api-client-reborn?style=flat-square" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License MIT" /></a>
 </p>
 
 <p align="center">
-  <a href="#-why-api-client-reborn">Why API Client Reborn?</a> •
+  <a href="#-installation">Download</a> •
+  <a href="#-your-first-request">First request</a> •
   <a href="#-features">Features</a> •
-  <a href="#-comparison">Comparison</a> •
   <a href="#-architecture--file-formats">File Formats</a> •
-  <a href="#-installation">Installation</a> •
-  <a href="#-quickstart">Quickstart</a> •
+  <a href="#-quickstart-development">Development</a> •
   <a href="#-keyboard-shortcuts">Shortcuts</a> •
   <a href="#-license">License</a>
 </p>
 
 ---
 
-## ⚡ Why API Client Reborn?
+API Client Reborn is an open-source desktop client built with Tauri, Rust, and Svelte. Work with local request files, inspect HTTP and gRPC streams, import Postman collections, and connect AI assistants through MCP.
 
-Modern API clients have become bloated, sluggish, and increasingly captive behind forced cloud logins, mandatory workspaces, and paid subscription paywalls. Simple requests take seconds to launch, consume hundreds of megabytes of RAM, and store your collections in proprietary cloud databases.
+## 📥 Installation
 
-**API Client Reborn** is built on a clean, modern philosophy:
+Download the latest release for macOS, Windows, or Linux from [**GitHub Releases**](https://github.com/theankitgaurav/api-client-reborn/releases/latest).
 
-- 🚀 **Blazing Native Performance**: Powered by **Tauri v2** and **Rust** with native OS webviews. Cold startup is virtually instantaneous (<150 ms) and idle memory footprint is just **~35 MB** (instead of 500+ MB on Electron).
-- 💾 **100% Local & Git-Native**: HTTP requests use plain `.curl` files and gRPC requests use readable `.grpcurl` files. Version-control collections alongside your code with standard `git commit`, `git diff`, and pull requests.
-- 🕘 **Persistent Request History**: Every sent request and its response are recorded in `history.json` under the workspace directory (by default `~/.api-client-reborn`) and can be searched in the sidebar.
-- 🐚 **True CLI Interoperability**: Copy HTTP requests as cURL and gRPC requests as `grpcurl`. Export collections to POSIX shell scripts; exported gRPC requests require `grpcurl` installed.
-- 🛡️ **Zero Cloud Lock-In & Zero Telemetry**: No mandatory accounts, no cloud sync, no tracking, and no paywalls. Everything executes on your own machine.
-- 🌊 **Streaming & SSE Ready**: First-class support for chunked responses and Server-Sent Events with intelligent sliding-window memory defense and disk spooling for massive payloads.
+| Platform | Package |
+| :--- | :--- |
+| **macOS** | Universal `.dmg` |
+| **Windows** | x64 `.exe` (NSIS) or `.msi` |
+| **Linux** | x86_64 `.deb` or `.AppImage` |
 
----
+### macOS
+1. Open the downloaded `.dmg` and drag **API Client Reborn** to `/Applications`.
+2. For unsigned builds, if Gatekeeper prompts about an unidentified developer, right-click the app in `/Applications` and choose **Open**, or run:
+   ```bash
+   xattr -cr "/Applications/API Client Reborn.app"
+   ```
 
-## 📊 Comparison
+### Windows
+Run the `.exe` or `.msi` installer. The app requires Microsoft Edge WebView2 Evergreen Runtime, pre-installed on Windows 11 and updated Windows 10.
 
-| Feature | **API Client Reborn** | **Postman** | **Insomnia** | **Bruno** | **cURL CLI** |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Runtime Architecture** | **Tauri v2 + Rust** | Electron | Electron | Electron | Native C |
-| **Installed Binary Size** | **~12 MB** | ~180 MB | ~160 MB | ~140 MB | < 5 MB |
-| **Idle Memory (RAM)** | **~35 MB** | 400–800 MB | 350–650 MB | 150–250 MB | N/A |
-| **Cold Startup Time** | **< 150 ms** | 3–8 s | 2–5 s | 1–2 s | Instant |
-| **Storage Format** | **Plain `.curl`** | Proprietary JSON / Cloud | Proprietary JSON / Cloud | Custom `.bru` DSL | Shell commands |
-| **Git-Native Versioning** | **Yes (Direct Files)** | Paid Teams / Cloud | Cloud / Git Sync | Yes | Manual scripts |
-| **Mandatory Cloud Login** | **No (100% Local)** | Yes | Yes (v8+) | No | No |
-| **Real-time SSE & Streams** | **Yes (Spooler + Defense)** | Basic | Basic | No | Terminal only |
-| **Zero-Dependency CLI Export** | **Yes (Standalone `.sh`)** | Newman CLI (Node.js) | Inso CLI | Bru CLI | Manual |
-| **License** | **MIT (Free forever)** | Proprietary | Proprietary (Free tier) | Open Core | MIT / curl |
+### Linux
+Install the `.deb` on Ubuntu / Debian:
+```bash
+sudo apt update
+sudo apt install ./api-client-reborn_*_amd64.deb
+```
+Or make the AppImage executable and run it:
+```bash
+chmod +x api-client-reborn_*_amd64.AppImage
+./api-client-reborn_*_amd64.AppImage
+```
+
+For system prerequisites, distribution instructions, and code signing information, see [**docs/DISTRIBUTION.md**](docs/DISTRIBUTION.md).
+
+## 🚀 Your First Request
+
+1. Open the app and create an HTTP request with **New Request** or <kbd>⌘</kbd>+<kbd>N</kbd> (Windows/Linux: <kbd>Ctrl</kbd>+<kbd>N</kbd>).
+2. Enter a URL such as `https://httpbin.org/get` and select **Send**, or press <kbd>⌘</kbd>+<kbd>Enter</kbd> (Windows/Linux: <kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+3. To keep the request, press <kbd>⌘</kbd>+<kbd>S</kbd> (Windows/Linux: <kbd>Ctrl</kbd>+<kbd>S</kbd>), choose a name and workspace folder, and save it as a `.curl` file.
+
+Use the command palette with <kbd>⌘</kbd>+<kbd>K</kbd> (Windows/Linux: <kbd>Ctrl</kbd>+<kbd>K</kbd>), or see the [keyboard shortcuts](#-keyboard-shortcuts).
 
 ---
 
@@ -81,37 +87,36 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ### 🌊 Real-Time Streaming & Server-Sent Events (SSE)
 - **Live Event Streamer**: Inspect chunked HTTP streaming endpoints and Server-Sent Events with structured event IDs, types, and payloads.
-- **Sliding Window Memory Defense**: High-frequency streaming endpoints are capped in memory to keep the interface silky smooth.
-- **Background Disk Spooling**: Giant payloads and streams are spooled safely to disk (`engine/spooler.rs`) preventing out-of-memory crashes.
+- **Bounded Preview**: A sliding window limits the events retained in the interface.
+- **Background Disk Spooling**: Streaming response data is written to disk (`engine/spooler.rs`).
 
-### 🪄 Dynamic Variables & Instant Hover Tooltips
+### 🪄 Dynamic Variables & Hover Tooltips
 - **Built-in Generators**: Automatically generate dynamic values such as `{{$guid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}`, and `{{$randomInt}}`.
-- **Interactive Variable Cards**: Hover over any `{{variable}}` to instantly view its evaluated value, active scope, and secret status.
+- **Interactive Variable Cards**: Hover over a `{{variable}}` to view its evaluated value, active scope, and secret status.
 
 ### 🔐 Multi-Environment & Safe Secret Management
 - **Environment Switcher**: Organize variables into JSON environments (`development.env.json`, `production.env.json`).
 - **Environment Import**: Import Postman environment exports and switch the active environment from the Variables menu.
-- **Clear Variable Priority**: Collection variables override the selected environment, which overrides workspace variables and secrets.
-- **Secret Isolation**: Mark sensitive credentials (tokens, private keys) as secrets to automatically store them in `.secrets.json`, guaranteed to stay excluded from Git version control.
+- **Variable Scopes**: Use workspace, environment, and collection variables. See the [MCP guide](docs/MCP_GUIDE.md) for MCP variable resolution.
+- **Secret Isolation**: Mark sensitive variables as secrets to store them separately. The app adds ignore rules for secret files; check Git status before committing.
 
 ### 🧪 Postman Scripting & Chai Assertions
-- **Pre-Request & Post-Response Scripts**: Write JavaScript test logic compatible with the standard Postman runtime (`pm.environment.get()`, `pm.environment.set()`, `pm.response.json()`).
-- **Chai-style Assertions**: Validate responses with `pm.test()`, `pm.expect(res.code).to.equal(200)`, latency thresholds, and header checks. Visual status badges display passed and failed tests instantly.
+- **Pre-Request & Post-Response Scripts**: Write JavaScript using supported Postman-style APIs such as `pm.environment.get()`, `pm.environment.set()`, and `pm.response.json()`.
+- **Chai-style Assertions**: Validate responses with `pm.test()`, `pm.expect()`, latency thresholds, and header checks. Status badges display passed and failed tests.
 
 ### 📦 Postman Collection v2.1 Importer
-- Import your existing Postman collections (v2.1 JSON) in one click. Automatically extracts folder hierarchies, headers, auth configurations, request bodies, collection variables, and pre/post scripts into clean `.curl` and `.sidecar.json` files. Import Postman environment exports separately and select them in the app.
+- Import Postman collections (v2.1 JSON), including folders, headers, supported auth, request bodies, collection variables, and pre/post scripts, into `.curl` and `.sidecar.json` files. Import Postman environment exports separately and select them in the app.
 
 ### 🚀 Collection CLI Exporter (`.sh`)
-- Export collections or folders into a standalone, portable POSIX bash script.
-- HTTP requests use cURL; collections with gRPC requests also require `grpcurl`. No Node.js, Python, or proprietary CLI runner is needed.
+- Export collections or folders into a portable shell script. Running HTTP exports requires cURL; gRPC exports additionally require `grpcurl`. No Node.js, Python, or proprietary CLI runner is needed.
 
 ### 🤖 Model Context Protocol (MCP) Server for AI Coding Agents
 - Built-in, zero-dependency MCP server over stdio for AI coding assistants (**Claude Desktop**, **Cursor**, **Antigravity**, **VS Code Copilot**, **Zed**).
 - Exposes tools to discover (`list_requests`), inspect (`get_request`), execute HTTP (`execute_request`, `execute_quick_curl`) and gRPC (`execute_grpc_request`), and save requests (`save_request`).
 - See [**docs/MCP_GUIDE.md**](docs/MCP_GUIDE.md) for quick client setup configurations.
 
-### ⌨️ Browser & Vim-Class Keyboard Shortcuts
-- Full keyboard control: create requests (`Cmd+N`), switch tabs (`Cmd+1..9`, `Ctrl+Tab`), send/cancel (`Cmd+Enter`), focus URL bar (`Cmd+L`), search requests (`Cmd+F`), beautify JSON (`Cmd+Opt+B`), and open the shortcut cheat sheet (`?` or `Cmd+/`).
+### ⌨️ Keyboard Shortcuts
+- Create requests (`Cmd+N`), switch tabs (`Cmd+1..9`, `Ctrl+Tab`), send/cancel (`Cmd+Enter`), focus the URL bar (`Cmd+L`), and open the command palette (`Cmd+K`) or shortcut cheat sheet (`?` or `Cmd+/`).
 
 ### 🌓 Adaptive Dark / Light UI
 - Designed with Tailwind CSS and Svelte 5 runes. Includes a streamlined titlebar, draggable workspace splitter, tab color customization, and responsive layout.
@@ -120,120 +125,30 @@ Modern API clients have become bloated, sluggish, and increasingly captive behin
 
 ## 📁 Architecture & File Formats
 
-API Client Reborn stores your workspace as transparent files and folders on disk:
+The default workspace is `~/.api-client-reborn`; you can also work in your own folder. A workspace can look like this:
 
-```mermaid
-graph TD
-  subgraph Workspace Root
-    A["my-api-project/"] --> B["environments/"]
-    B --> B1["development.env.json"]
-    B --> B2["production.env.json"]
-    A --> C[".apiclient/"]
-    C --> C1[".secrets.json (Git-ignored)"]
-    A --> D["collections/"]
-    D --> D1["auth/login.curl"]
-    D --> D2["auth/.apiclient/login.sidecar.json"]
-    D --> D3["users/create_user.curl"]
-    D --> D4["users/stream_events.curl"]
-    D --> D5["users/ListUsers.grpcurl"]
-    A --> E["history.json"]
-    A --> F[".apiclient/cache/stream_*.bin"]
-  end
+```text
+my-api-project/
+├── environments/development.env.json
+├── collections/
+│   ├── auth/login.curl
+│   ├── auth/.apiclient/login.sidecar.json
+│   └── users/ListUsers.grpcurl
+├── .apiclient/.secrets.env
+└── history.json
 ```
 
-### 1. `.curl` Request File
-Directly executable cURL command with leading `# @directive` comment headers for metadata:
+| File | Purpose |
+| :--- | :--- |
+| `.curl` / `.grpcurl` | Readable request commands, with optional `# @directive` metadata. The app also supports `.grpc` request files. |
+| `.apiclient/*.sidecar.json` | Optional request metadata, tests, and scripts beside a collection. |
+| `environments/*.env.json` | Environment variables, selectable from the Variables menu. |
+| `.apiclient/.secrets.env` | Workspace secrets. Environment and collection secrets are stored separately in `*.secrets.json` files. |
+| `history.json` | Local request history, including response previews and paths to spooled streaming responses. |
 
-```bash
-# @name Create User Profile
-# @description Creates a new user record with authorization headers
-# @timeout 15000
+The app adds secret-file rules to the workspace `.gitignore` when saving secrets. Git ignore rules do not protect files already tracked, so check Git status before committing. Request files may contain variable placeholders that must be resolved before running them outside the app.
 
-curl -X POST "{{base_url}}/users" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{auth_token}}" \
-  -d '{
-    "username": "alex_developer",
-    "email": "alex@example.com",
-    "role": "admin",
-    "created_at": "{{$isoTimestamp}}"
-  }'
-```
-
-### 2. `.grpcurl` Request File
-gRPC requests are stored as directly executable `grpcurl` commands with leading `# @directive` comment headers for metadata:
-
-```bash
-# @name List Users
-# @description Fetches active user profiles with reflection
-# @timeout 30000
-
-grpcurl -plaintext \
-  -H 'x-tenant-id: acme-corp' \
-  -d '{
-    "page_size": 20
-  }' \
-  localhost:50051 \
-  users.v1.UserService/ListUsers
-```
-
-For client-streaming methods, `request_json` is a JSON array of request messages. Server-streaming responses are spooled under `.apiclient/cache/`; their history entries retain a bounded preview and the full response file path.
-
-### 3. `.sidecar.json` Metadata & Test File
-Optional sidecar file stored in `.apiclient/` containing test assertions and automation scripts:
-
-```json
-{
-  "name": "Create User Profile",
-  "tab_color": "#38BDF8",
-  "pre_request_script": "pm.environment.set('trace_id', 'req_' + Date.now());",
-  "post_response_script": "pm.test('Status is 201 Created', function() {\n  pm.expect(pm.response.code).to.equal(201);\n});\npm.test('User ID returned', function() {\n  var json = pm.response.json();\n  pm.expect(json.id).to.exist;\n  pm.environment.set('user_id', json.id);\n});"
-}
-```
-
-### 4. `history.json` Request History
-The app stores a local JSON history in the workspace directory. Each entry includes the request name, method, URL, timestamp, response status, duration, headers, a bounded response preview, and a spool-file path for full streaming responses. Request commands retain their variable placeholders instead of storing resolved environment secrets.
-
-Environment files are workspace-local JSON files in the `environments/` folder. Imported collection variables are saved with their collection and take precedence over the selected environment and workspace values. Imported environments can be switched from the Variables menu; workspace secrets remain stored separately in `.apiclient/.secrets.json`.
-
----
-
-## 📥 Installation
-
-Pre-built binaries for macOS, Windows, and Linux are available on the [**GitHub Releases**](https://github.com/theankitgaurav/api-client-reborn/releases) page.
-
-| Platform | Architecture | Package Format | Download |
-| :--- | :--- | :--- | :--- |
-| **macOS** | Universal (Apple Silicon M1/M2/M3/M4 & Intel) | `.dmg` | [Download DMG](https://github.com/theankitgaurav/api-client-reborn/releases) |
-| **Windows** | x64 (Windows 10/11) | `.exe` (NSIS) / `.msi` | [Download Installer](https://github.com/theankitgaurav/api-client-reborn/releases) |
-| **Linux** | x86_64 (Ubuntu, Debian, Fedora, Arch) | `.deb` / `.AppImage` | [Download Linux](https://github.com/theankitgaurav/api-client-reborn/releases) |
-
-### macOS Installation
-1. Download the `.dmg` from [Releases](https://github.com/theankitgaurav/api-client-reborn/releases).
-2. Open the DMG and drag **API Client Reborn** to your `/Applications` folder.
-3. *Note for unsigned builds*: If Gatekeeper prompts about an unidentified developer, right-click `API Client Reborn.app` in `/Applications`, click **Open**, or run:
-   ```bash
-   xattr -cr "/Applications/API Client Reborn.app"
-   ```
-
-### Windows Installation
-1. Download the `.exe` setup installer or `.msi`.
-2. Run the installer. It installs per-user by default without requiring administrator privileges.
-3. *Note*: Microsoft Edge WebView2 Evergreen Runtime is pre-installed on Windows 11 and updated Windows 10.
-
-### Linux Installation
-- **Ubuntu / Debian (`.deb`)**:
-  ```bash
-  sudo apt update
-  sudo apt install ./api-client-reborn_*_amd64.deb
-  ```
-- **AppImage**:
-  ```bash
-  chmod +x api-client-reborn_*_amd64.AppImage
-  ./api-client-reborn_*_amd64.AppImage
-  ```
-
-For detailed system prerequisites, distribution instructions, and code signing information, see [**docs/DISTRIBUTION.md**](docs/DISTRIBUTION.md).
+See the [example requests](examples/) and the [MCP guide](docs/MCP_GUIDE.md) for workspace and variable resolution details.
 
 ---
 
