@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101512" />
-    <meta name="description" content="A lightweight, local-first HTTP and gRPC API client. Keep requests as readable files, switch environments, and inspect streamed responses without loading them all into memory." />
+    <meta name="description" content="A local-first HTTP and gRPC API client. Keep requests as readable files, switch environments, and inspect streamed responses with a bounded preview." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="API Client Reborn — APIs, on your terms" />
-    <meta property="og:description" content="A lightweight, local-first HTTP and gRPC API client with Git-friendly requests, environment support, and disk-spooled streaming responses." />
+    <meta property="og:description" content="A local-first HTTP and gRPC API client with Git-friendly requests, environment support, and disk-spooled streaming responses." />
     <meta property="og:url" content="https://theankitgaurav.github.io/api-client-reborn/" />
     <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-screenshot.svg" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -129,7 +129,7 @@
         <div>
           <div class="eyebrow"><i></i> Open-source desktop API client</div>
           <h1 id="hero-title">Your APIs.<br /><span>Your files.</span><br />Your workflow.</h1>
-          <p class="hero-copy">A lightweight, local-first client for HTTP and gRPC. Keep requests readable, version them with Git, and inspect streams without holding the whole response in memory.</p>
+          <p class="hero-copy">A local-first client for HTTP and gRPC. Keep requests readable, version them with Git, and inspect streams with a bounded preview.</p>
           <div class="actions">
             <a class="button primary" href="https://github.com/theankitgaurav/api-client-reborn/releases/latest">Download the app <span aria-hidden="true">↗</span></a>
             <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn">Explore the source <span aria-hidden="true">↗</span></a>
@@ -149,7 +149,7 @@
       <div class="shell proof" aria-label="Project principles">
         <div><strong>Local-first</strong>Your workspace stays on your machine</div>
         <div><strong>Git-friendly</strong>Readable request files, easy diffs</div>
-        <div><strong>MCP-enabled</strong>AI agents test and write your APIs</div>
+        <div><strong>MCP-enabled</strong>AI agents discover and run requests</div>
         <div><strong>HTTP + gRPC</strong>One focused desktop client</div>
         <div><strong>Open source</strong>MIT licensed and community-visible</div>
       </div>
@@ -179,7 +179,7 @@
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
             <h3>Environments and secrets</h3>
-            <p>Import Postman environments, switch context as you work, and keep local secrets outside version control.</p>
+            <p>Import Postman environments, switch context, and store secrets separately with Git ignore rules.</p>
           </article>
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>
@@ -189,12 +189,12 @@
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 8 4 12l4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></div>
             <h3>CLI when you need it</h3>
-            <p>Run headless with <code>api-client-reborn mcp</code>, copy cURL or grpcurl, and export portable shell scripts.</p>
+            <p>Copy commands or export shell scripts. HTTP exports require cURL; gRPC exports additionally require grpcurl.</p>
           </article>
           <article class="card">
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></div>
-            <h3>Fits your desktop</h3>
-            <p>Use a native desktop app with a theme that follows your system or switches to light or dark.</p>
+            <h3>Bring your Postman collections</h3>
+            <p>Import v2.1 collections and use supported Postman-style scripts and assertions.</p>
           </article>
         </div>
       </section>
@@ -204,14 +204,15 @@
           <div>
             <div class="eyebrow"><i></i> AI-Agent Native</div>
             <h2 id="mcp-title">Your AI assistant now speaks your APIs.</h2>
-            <p>API Client Reborn includes a built-in Model Context Protocol (MCP) server over standard JSON-RPC. AI coding assistants like Cursor, Claude Desktop, and Antigravity can discover your requests, execute tests with secrets, and author new endpoints directly into your Git repository.</p>
+            <p>Connect an AI coding assistant to the built-in Model Context Protocol (MCP) server to discover, run, and save requests in your workspace.</p>
             <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn/blob/main/docs/MCP_GUIDE.md">Read the MCP Setup Guide <span aria-hidden="true">↗</span></a>
           </div>
           <div class="file-tree" aria-label="MCP Tool Capabilities">
             <span class="dim">// Available MCP Tools for Coding Agents</span><br />
-            ├── <span class="accent">list_requests</span> <span class="dim">→ Discover all .curl &amp; .grpc files</span><br />
+            ├── <span class="accent">list_requests</span> <span class="dim">→ Discover .curl, .grpcurl &amp; .grpc files</span><br />
             ├── <span class="accent">get_request</span> <span class="dim">→ Inspect headers, params &amp; tests</span><br />
             ├── <span class="accent">execute_request</span> <span class="dim">→ Run with secret injection</span><br />
+            ├── <span class="accent">execute_grpc_request</span> <span class="dim">→ Run a gRPC request</span><br />
             ├── <span class="accent">execute_quick_curl</span> <span class="dim">→ Ad-hoc cURL execution</span><br />
             ├── <span class="accent">save_request</span> <span class="dim">→ Save new routes to repo</span><br />
             └── <span class="file">list_environments</span> <span class="dim">→ Read env variables safely</span>
@@ -224,7 +225,7 @@
           <div>
             <div class="eyebrow"><i></i> Local by design</div>
             <h2 id="local-title">Your API workspace is a folder.</h2>
-            <p>Requests, environments, and collections live as files you can inspect, back up, and version. Imported collection variables take priority over your selected environment and workspace values.</p>
+            <p>Requests, environments, and collections live as files you can inspect, back up, and version. Navigate with keyboard shortcuts and the command palette.</p>
             <a class="button secondary" href="https://github.com/theankitgaurav/api-client-reborn#architecture--file-formats">See the file formats <span aria-hidden="true">↗</span></a>
           </div>
           <div class="file-tree" aria-label="Example local workspace folder structure">
@@ -234,7 +235,9 @@
             │&nbsp;&nbsp; └── production.env.json<br />
             ├── <span class="accent">collections/</span><br />
             │&nbsp;&nbsp; ├── users/list_users.curl<br />
-            │&nbsp;&nbsp; └── grpc/watch_events.grpc<br />
+            │&nbsp;&nbsp; └── grpc/watch_events.grpcurl<br />
+            ├── <span class="accent">.apiclient/</span><br />
+            │&nbsp;&nbsp; └── .secrets.env <span class="dim">(local secrets)</span><br />
             └── <span class="file">history.json</span>
           </div>
         </div>
