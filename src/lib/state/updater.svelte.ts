@@ -1,5 +1,9 @@
 import { relaunchApp } from '../ipc.ts';
 
+declare const __APP_VERSION__: string | undefined;
+
+export const DEFAULT_APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.13.4';
+
 export type UpdateStatus =
   | 'idle'
   | 'checking'
@@ -29,7 +33,7 @@ export class UpdaterState {
   isModalOpen = $state(false);
   hasUpdateNotification = $state(false);
 
-  currentVersion = $state('0.12.0');
+  currentVersion = $state(DEFAULT_APP_VERSION);
   availableVersion = $state<string | null>(null);
   releaseDate = $state<string | null>(null);
   releaseNotes = $state<string | null>(null);
@@ -47,9 +51,27 @@ export class UpdaterState {
     return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   }
 
+  async syncCurrentVersion(): Promise<string> {
+    if (this.isTauri) {
+      try {
+        const { getVersion } = await import('@tauri-apps/api/app');
+        const ver = await getVersion();
+        if (ver) {
+          this.currentVersion = ver;
+          return ver;
+        }
+      } catch (err) {
+        console.warn('[Updater] Failed to get app version', err);
+      }
+    }
+    return this.currentVersion;
+  }
+
   async init() {
     if (this.isInitialized) return;
     this.isInitialized = true;
+
+    await this.syncCurrentVersion();
 
     if (this.isTauri) {
       try {
@@ -95,6 +117,8 @@ export class UpdaterState {
       if (options.manual) this.isModalOpen = true;
       return;
     }
+
+    await this.syncCurrentVersion();
 
     this.status = 'checking';
     this.errorMessage = null;

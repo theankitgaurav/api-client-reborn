@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.4] — 2026-11-13
+
+### Fixed
+
+- Dynamically synchronize application version from native Tauri runtime so the in-app updater and titlebar reflect the true running binary version instead of remaining pinned to `v0.12.0`.
+- Automatically synchronize running version upon updater initialization and checks, including when the application is already on the latest release.
+
 ## [0.13.3] — 2026-11-13
 
 ### Added

@@ -14,8 +14,8 @@ test('formatBytes formats byte counts correctly', async () => {
   assert.equal(formatBytes(1024 * 1024 * 1024 * 2.3), '2.3 GB');
 });
 
-test('UpdaterState initializes with default idle state', async () => {
-  const { UpdaterState } = await import('../src/lib/state/updater.svelte.ts');
+test('UpdaterState initializes with default idle state and current version', async () => {
+  const { UpdaterState, DEFAULT_APP_VERSION } = await import('../src/lib/state/updater.svelte.ts');
   const updater = new UpdaterState();
   assert.equal(updater.status, 'idle');
   assert.equal(updater.isModalOpen, false);
@@ -23,6 +23,11 @@ test('UpdaterState initializes with default idle state', async () => {
   assert.equal(updater.downloadProgress, 0);
   assert.equal(updater.errorMessage, null);
   assert.equal(typeof updater.currentVersion, 'string');
+  assert.equal(updater.currentVersion, DEFAULT_APP_VERSION);
+  assert.match(updater.currentVersion, /^\d+\.\d+\.\d+/);
+
+  const synced = await updater.syncCurrentVersion();
+  assert.equal(synced, updater.currentVersion);
 });
 
 test('UpdaterState controls modal and notification visibility', async () => {
