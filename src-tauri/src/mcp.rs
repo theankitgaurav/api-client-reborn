@@ -543,16 +543,14 @@ async fn execute_http_bounded(
         .environment
         .clone();
 
-    let mut parsed = parse_curl_command(&resolve_variables(&command, &updated_vars))
+    let mut parsed = crate::parser::curl::parse_curl_command_with_timeout(
+        &resolve_variables(&command, &updated_vars),
+        meta.timeout_ms,
+    )
         .map_err(|e| AppError::CurlParserError(e.to_string()))?;
 
     if let Ok(state) = state.lock() {
         parsed.headers = state.headers.clone();
-    }
-
-    // Apply timeout from directive or fallback to default 30s
-    if parsed.timeout_ms.is_none() {
-        parsed.timeout_ms = meta.timeout_ms.or(Some(30_000));
     }
 
     let response = execute_http_request_collect(parsed, cancel_token.clone(), max_response_bytes).await?;

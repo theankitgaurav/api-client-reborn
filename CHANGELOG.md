@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.2] — 2026-11-14
+
+### Improved
+
+- Made the gRPC and SSE example endpoints configurable through environment variables, including migration of unchanged examples in existing workspaces.
+- Switched gRPC examples to ConnectRPC and Google's interoperability service after grpcb.in became unreachable.
+
+### Fixed
+
+- Applied HTTP `@timeout` directives when executing saved requests, while preserving explicit cURL timeout flags.
+
 ## [0.14.1] — 2026-11-14
 
 ### Added

@@ -900,6 +900,18 @@ async fn test_process_http_execution_cancellation_and_size_limits() {
     assert_eq!(exec_res["tests"][0]["name"], "Status is 200");
     assert_eq!(exec_res["tests"][0]["passed"], true);
 
+    fs::write(
+        root.join("timeout.curl"),
+        format!("# @timeout 100\ncurl \"http://{}/slow\"", http_addr),
+    ).unwrap();
+    proc.send_request(json!(35), "tools/call", json!({
+        "name": "execute_request",
+        "arguments": { "path": "timeout.curl" }
+    })).await;
+    let timeout_resp = proc.read_response().await;
+    assert_eq!(timeout_resp["result"]["isError"], true);
+    assert!(timeout_resp["result"]["content"][0]["text"].as_str().unwrap().contains("timed out"));
+
     // 3. HTTP Cancellation
     let slow_cmd = format!("curl \"http://{}/slow\"", http_addr);
     proc.send_request(json!(33), "tools/call", json!({

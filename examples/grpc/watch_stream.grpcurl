@@ -1,10 +1,10 @@
-# @name gRPC Lots of Replies (TLS, Local Proto, Server Stream)
-# @description Receives server-streamed replies from grpcb.in over verified TLS using the bundled proto file.
+# @name gRPC Introduce (TLS, Local Proto, Server Stream)
+# @description Receives server-streamed replies from ConnectRPC using the bundled proto file.
 # @timeout 30000
 
 grpcurl \
   -import-path 'examples/grpc' \
-  -proto 'hello.proto' \
-  -d '{"greeting": "Hello server streaming"}' \
-  'grpcb.in:9001' \
-  'hello.HelloService/LotsOfReplies'
+  -proto 'eliza.proto' \
+  -d '{"name": "API Client Reborn"}' \
+  '{{grpc_host}}:{{grpc_port}}' \
+  'connectrpc.eliza.v1.ElizaService/Introduce'

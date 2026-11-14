@@ -1,8 +1,8 @@
-# @name gRPC Say Hello (TLS, Reflection, Unary)
-# @description Calls grpcb.in's public TLS-enabled HelloService using server reflection.
+# @name gRPC Say (TLS, Reflection, Unary)
+# @description Calls ConnectRPC's public ElizaService using server reflection.
 # @timeout 30000
 
 grpcurl \
-  -d '{"greeting": "Hello from API Client Reborn"}' \
-  'grpcb.in:9001' \
-  'hello.HelloService/SayHello'
+  -d '{"sentence": "Hello from API Client Reborn"}' \
+  '{{grpc_host}}:{{grpc_port}}' \
+  'connectrpc.eliza.v1.ElizaService/Say'

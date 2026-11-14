@@ -207,7 +207,7 @@ The resulting distribution packages will be generated in `src-tauri/target/relea
 
 ### Manual Capability Checks
 
-The **Examples** collection is seeded into `~/.api-client-reborn/examples` and includes requests for manual feature checks. The HTTP examples use `https://httpbin.org`; the finite SSE example uses HTTPCan's `/sse/5` endpoint, so these checks require an internet connection.
+The **Examples** collection is seeded into `~/.api-client-reborn/examples` and includes requests for manual feature checks. HTTP examples use `https://httpbin.org`; gRPC examples use ConnectRPC (`grpc_host`/`grpc_port`) and Google's interoperability service (`grpc_interop_host`/`grpc_interop_port`); the SSE example uses HTTPCan (`sse_base_url`). These checks require an internet connection.
 
 | Example folder | What to try |
 | :--- | :--- |

@@ -4,7 +4,7 @@ use crate::env::resolver::resolve_variables;
 use crate::error::{AppError, Result};
 use crate::ipc::types::ResponseChunk;
 use crate::parser::comment_meta::extract_comments_and_command;
-use crate::parser::curl::{parse_curl_command, ParsedCurlRequest};
+use crate::parser::curl::{parse_curl_command_with_timeout, ParsedCurlRequest};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::ipc::Channel;
@@ -19,7 +19,7 @@ pub async fn execute_request(
     cancel_mgr: State<'_, CancellationManager>,
 ) -> Result<()> {
     // 1. Separate leading comment directives from executable command
-    let (_meta, command_body) = extract_comments_and_command(&raw_content);
+    let (meta, command_body) = extract_comments_and_command(&raw_content);
 
     // 2. Perform variable interpolation
     let resolved_command = resolve_variables(&command_body, &variables);
@@ -31,7 +31,7 @@ pub async fn execute_request(
     let cancel_mgr_clone = cancel_mgr.inner().clone();
 
     // 4. Parse as standard cURL command into typed AST
-    let parsed = parse_curl_command(&resolved_command)?;
+    let parsed = parse_curl_command_with_timeout(&resolved_command, meta.timeout_ms)?;
 
     // 5. Spawn HTTP execution
     tokio::spawn(async move {
@@ -55,8 +55,8 @@ pub fn cancel_request(
 
 #[tauri::command]
 pub fn parse_curl_preview(raw_content: String) -> Result<ParsedCurlRequest> {
-    let (_meta, command_body) = extract_comments_and_command(&raw_content);
-    parse_curl_command(&command_body)
+    let (meta, command_body) = extract_comments_and_command(&raw_content);
+    parse_curl_command_with_timeout(&command_body, meta.timeout_ms)
 }
 
 #[tauri::command]

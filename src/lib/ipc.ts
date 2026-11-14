@@ -549,9 +549,9 @@ export async function saveWorkspaceEnvironment(
 }
 
 let mockEnvironments: EnvironmentItem[] = [
-  { name: 'default', file_path: '/environments/default.env.json', variables: [['base_url', 'https://httpbin.org']] },
-  { name: 'development', file_path: '/environments/development.env.json', variables: [['api_host', 'httpbin.org'], ['port', '443']] },
-  { name: 'production', file_path: '/environments/production.env.json', variables: [['api_host', 'api.production.com'], ['port', '443']] },
+  { name: 'default', file_path: '/environments/default.env.json', variables: [['base_url', 'https://httpbin.org'], ['grpc_host', 'demo.connectrpc.com'], ['grpc_port', '443'], ['grpc_interop_host', 'grpc-test.sandbox.googleapis.com'], ['grpc_interop_port', '443'], ['sse_base_url', 'https://httpcan.org']] },
+  { name: 'development', file_path: '/environments/development.env.json', variables: [['api_host', 'httpbin.org'], ['port', '443'], ['grpc_host', 'demo.connectrpc.com'], ['grpc_port', '443'], ['grpc_interop_host', 'grpc-test.sandbox.googleapis.com'], ['grpc_interop_port', '443'], ['sse_base_url', 'https://httpcan.org']] },
+  { name: 'production', file_path: '/environments/production.env.json', variables: [['api_host', 'api.production.com'], ['port', '443'], ['grpc_host', 'demo.connectrpc.com'], ['grpc_port', '443'], ['grpc_interop_host', 'grpc-test.sandbox.googleapis.com'], ['grpc_interop_port', '443'], ['sse_base_url', 'https://httpcan.org']] },
 ];
 let mockWorkspaceSecrets: Record<string, string> = {
   auth_token: 'secret_dev_token_88419',

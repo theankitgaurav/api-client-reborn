@@ -1,8 +1,10 @@
-# @name gRPC Lots of Greetings (TLS, Client Stream)
-# @description Sends multiple request messages to grpcb.in over verified TLS.
+# @name gRPC Streaming Input (TLS, Client Stream)
+# @description Sends multiple payloads to Google's gRPC interoperability server and receives their total size.
 # @timeout 30000
 
-printf '%s\n' '{"greeting":"First greeting"}' '{"greeting":"Second greeting"}' | grpcurl \
+printf '%s\n' '{"payload":{"body":"aGVsbG8="}}' '{"payload":{"body":"d29ybGQ="}}' | grpcurl \
+  -import-path 'examples/grpc' \
+  -proto 'interop.proto' \
   -d @ \
-  'grpcb.in:9001' \
-  'hello.HelloService/LotsOfGreetings'
+  '{{grpc_interop_host}}:{{grpc_interop_port}}' \
+  'grpc.testing.TestService/StreamingInputCall'

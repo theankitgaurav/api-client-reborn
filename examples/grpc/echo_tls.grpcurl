@@ -1,9 +1,11 @@
-# @name gRPC Metadata (TLS, Reflection)
-# @description Sends metadata to grpcb.in's public TLS-enabled HeadersUnary method and inspects its echoed headers.
+# @name gRPC Metadata (TLS, Local Proto)
+# @description Sends metadata to Google's gRPC interoperability server and inspects its echoed response headers.
 # @timeout 30000
 
 grpcurl \
-  -H 'x-manual-check: api-client-reborn' \
+  -import-path 'examples/grpc' \
+  -proto 'interop.proto' \
+  -H 'x-grpc-test-echo-initial: api-client-reborn' \
   -d '{}' \
-  'grpcb.in:9001' \
-  'grpcbin.GRPCBin/HeadersUnary'
+  '{{grpc_interop_host}}:{{grpc_interop_port}}' \
+  'grpc.testing.TestService/UnaryCall'

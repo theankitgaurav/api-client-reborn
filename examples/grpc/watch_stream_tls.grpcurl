@@ -1,8 +1,8 @@
-# @name gRPC Lots of Replies (TLS, Reflection, Verified Server Stream)
-# @description Receives server-streamed replies from grpcb.in over verified TLS using server reflection.
+# @name gRPC Introduce (TLS, Reflection, Server Stream)
+# @description Receives server-streamed replies from ConnectRPC using server reflection.
 # @timeout 30000
 
 grpcurl \
-  -d '{"greeting": "Hello server streaming with reflection"}' \
-  'grpcb.in:9001' \
-  'hello.HelloService/LotsOfReplies'
+  -d '{"name": "API Client Reborn"}' \
+  '{{grpc_host}}:{{grpc_port}}' \
+  'connectrpc.eliza.v1.ElizaService/Introduce'

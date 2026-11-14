@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package grpc.testing;
+
+service TestService {
+  rpc UnaryCall(SimpleRequest) returns (SimpleResponse);
+  rpc StreamingInputCall(stream StreamingInputCallRequest) returns (StreamingInputCallResponse);
+}
+
+message SimpleRequest {}
+message SimpleResponse {}
+message Payload { bytes body = 2; }
+message StreamingInputCallRequest { Payload payload = 1; }
+message StreamingInputCallResponse { int32 aggregated_payload_size = 1; }

@@ -104,6 +104,13 @@ impl Default for ParsedCurlRequest {
 }
 
 pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
+    parse_curl_command_with_timeout(command_text, None)
+}
+
+pub fn parse_curl_command_with_timeout(
+    command_text: &str,
+    directive_timeout_ms: Option<u64>,
+) -> Result<ParsedCurlRequest> {
     let tokens = tokenize_command(command_text)?;
     if tokens.is_empty() {
         return Err(AppError::CurlParserError("Empty command".to_string()));
@@ -287,7 +294,7 @@ pub fn parse_curl_command(command_text: &str) -> Result<ParsedCurlRequest> {
         body,
         form_fields,
         basic_auth,
-        timeout_ms: timeout_ms.or(Some(30000)),
+        timeout_ms: timeout_ms.or(directive_timeout_ms).or(Some(30000)),
         follow_redirects,
         insecure,
         proxy,
@@ -351,5 +358,27 @@ mod tests {
         assert!(parsed.insecure);
         assert!(parsed.follow_redirects);
         assert_eq!(parsed.timeout_ms, Some(15000));
+    }
+
+    #[test]
+    fn curl_timeout_flag_takes_precedence_over_directive() {
+        assert_eq!(
+            parse_curl_command_with_timeout("curl https://example.com", Some(1000))
+                .unwrap()
+                .timeout_ms,
+            Some(1000)
+        );
+        assert_eq!(
+            parse_curl_command_with_timeout("curl -m 5 https://example.com", Some(1000))
+                .unwrap()
+                .timeout_ms,
+            Some(5000)
+        );
+        assert_eq!(
+            parse_curl_command_with_timeout("curl https://example.com", None)
+                .unwrap()
+                .timeout_ms,
+            Some(30000)
+        );
     }
 }

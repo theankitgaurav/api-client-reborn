@@ -3,6 +3,7 @@ use crate::error::{AppError, Result};
 use crate::ipc::types::WorkspaceFileItem;
 use crate::parser::comment_meta::extract_comments_and_command;
 use crate::parser::curl::parse_curl_command;
+use serde_json::{Map, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -34,14 +35,24 @@ const DEFAULT_DEV_ENV: &str = r#"{
   "api_host": "httpbin.org",
   "port": "443",
   "base_url": "https://httpbin.org",
-  "tenant_id": "dev-tenant-101"
+  "tenant_id": "dev-tenant-101",
+  "grpc_host": "demo.connectrpc.com",
+  "grpc_port": "443",
+  "grpc_interop_host": "grpc-test.sandbox.googleapis.com",
+  "grpc_interop_port": "443",
+  "sse_base_url": "https://httpcan.org"
 }"#;
 
 const DEFAULT_PROD_ENV: &str = r#"{
   "api_host": "api.example.com",
   "port": "443",
   "base_url": "https://api.example.com",
-  "tenant_id": "prod-enterprise"
+  "tenant_id": "prod-enterprise",
+  "grpc_host": "demo.connectrpc.com",
+  "grpc_port": "443",
+  "grpc_interop_host": "grpc-test.sandbox.googleapis.com",
+  "grpc_interop_port": "443",
+  "sse_base_url": "https://httpcan.org"
 }"#;
 
 const LEGACY_SSE_EXAMPLE: &str = "# @name SSE - Live Demo Events\n# @description Connects to a public SSE demo. Let a few events arrive, then press Cancel to close the live stream.\n# @timeout 60000\n\ncurl -N \"https://sse.dev/test\" \\\n  -H \"Accept: text/event-stream\"\n";
@@ -56,7 +67,86 @@ const LEGACY_TLS_ECHO_EXAMPLE: &str = "# @name gRPC Say Hello (TLS, Reflection)\
 const LEGACY_TLS_STREAM_EXAMPLE: &str = "# @name gRPC Lots of Replies (TLS, Server Stream)\n# @description Tests server streaming over verified TLS against grpcb.in using server reflection.\n# @timeout 30000\n\ngrpcurl \\\n  -d '{\"greeting\": \"Streaming over verified TLS\"}' \\\n  'grpcb.in:9001' \\\n  'hello.HelloService/LotsOfReplies'\n";
 const LEGACY_TLS_BYPASS_EXAMPLE: &str = "# @name gRPC Lots of Replies (TLS, Certificate Bypass)\n# @description Tests server streaming over TLS against grpcb.in while bypassing certificate verification.\n# @timeout 30000\n\ngrpcurl \\\n  -insecure \\\n  -d '{\"greeting\": \"Streaming with certificate bypass\"}' \\\n  'grpcb.in:9001' \\\n  'hello.HelloService/LotsOfReplies'\n";
 
+const LEGACY_GRPCB_EXAMPLES: &[(&str, &str)] = &[
+    ("grpc/echo.grpcurl", r#"# @name gRPC Say Hello (TLS, Reflection, Unary)
+# @description Calls grpcb.in's public TLS-enabled HelloService using server reflection.
+# @timeout 30000
+
+grpcurl \
+  -d '{"greeting": "Hello from API Client Reborn"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/SayHello'
+"#),
+    ("grpc/echo_local_proto.grpcurl", r#"# @name gRPC Say Hello (TLS, Local Proto)
+# @description Calls grpcb.in's public TLS-enabled HelloService using the bundled proto file.
+# @timeout 30000
+
+grpcurl \
+  -import-path 'examples/grpc' \
+  -proto 'hello.proto' \
+  -d '{"greeting": "Hello local proto"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/SayHello'
+"#),
+    ("grpc/echo_tls.grpcurl", r#"# @name gRPC Metadata (TLS, Reflection)
+# @description Sends metadata to grpcb.in's public TLS-enabled HeadersUnary method and inspects its echoed headers.
+# @timeout 30000
+
+grpcurl \
+  -H 'x-manual-check: api-client-reborn' \
+  -d '{}' \
+  'grpcb.in:9001' \
+  'grpcbin.GRPCBin/HeadersUnary'
+"#),
+    ("grpc/watch_stream.grpcurl", r#"# @name gRPC Lots of Replies (TLS, Local Proto, Server Stream)
+# @description Receives server-streamed replies from grpcb.in over verified TLS using the bundled proto file.
+# @timeout 30000
+
+grpcurl \
+  -import-path 'examples/grpc' \
+  -proto 'hello.proto' \
+  -d '{"greeting": "Hello server streaming"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfReplies'
+"#),
+    ("grpc/watch_stream_tls.grpcurl", r#"# @name gRPC Lots of Replies (TLS, Reflection, Verified Server Stream)
+# @description Receives server-streamed replies from grpcb.in over verified TLS using server reflection.
+# @timeout 30000
+
+grpcurl \
+  -d '{"greeting": "Hello server streaming with reflection"}' \
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfReplies'
+"#),
+    ("grpc/client_stream_tls.grpcurl", r#"# @name gRPC Lots of Greetings (TLS, Client Stream)
+# @description Sends multiple request messages to grpcb.in over verified TLS.
+# @timeout 30000
+
+printf '%s\n' '{"greeting":"First greeting"}' '{"greeting":"Second greeting"}' | grpcurl \
+  -d @ \
+  'grpcb.in:9001' \
+  'hello.HelloService/LotsOfGreetings'
+"#),
+    ("grpc/bidi_stream_tls.grpcurl", r#"# @name gRPC Bidi Hello (TLS, Bidirectional Stream)
+# @description Exchanges multiple messages with grpcb.in over a verified TLS bidirectional stream.
+# @timeout 30000
+
+printf '%s\n' '{"greeting":"First message"}' '{"greeting":"Second message"}' | grpcurl \
+  -d @ \
+  'grpcb.in:9001' \
+  'hello.HelloService/BidiHello'
+"#),
+];
+
 const STARTER_EXAMPLES: &[(&str, &str)] = &[
+    (
+        "grpc/eliza.proto",
+        include_str!("../../../examples/grpc/eliza.proto"),
+    ),
+    (
+        "grpc/interop.proto",
+        include_str!("../../../examples/grpc/interop.proto"),
+    ),
     (
         "grpc/hello.proto",
         include_str!("../../../examples/grpc/hello.proto"),
@@ -338,6 +428,46 @@ fn migrate_legacy_workspace_contents(app_dir: &Path, workspace: &Path) -> Result
     Ok(())
 }
 
+fn ensure_environment_file(path: &Path, defaults: &str) -> Result<()> {
+    let defaults = serde_json::from_str::<Map<String, Value>>(defaults)
+        .map_err(|e| AppError::FsError(format!("Invalid bundled environment defaults: {e}")))?;
+    if !path.exists() {
+        let content = serde_json::to_string_pretty(&defaults).map_err(|e| {
+            AppError::FsError(format!("Failed to serialize environment defaults: {e}"))
+        })?;
+        return fs::write(path, content)
+            .map_err(|e| AppError::FsError(format!("Failed to write {}: {e}", path.display())));
+    }
+
+    let content = fs::read_to_string(path)
+        .map_err(|e| AppError::FsError(format!("Failed to read {}: {e}", path.display())))?;
+    let mut variables = serde_json::from_str::<Map<String, Value>>(&content).map_err(|e| {
+        AppError::FsError(format!("Invalid environment file {}: {e}", path.display()))
+    })?;
+    let mut changed = false;
+    if variables.get("grpc_host").and_then(Value::as_str) == Some("grpcb.in")
+        && variables.get("grpc_port").and_then(Value::as_str) == Some("9001")
+    {
+        variables.insert("grpc_host".into(), defaults["grpc_host"].clone());
+        variables.insert("grpc_port".into(), defaults["grpc_port"].clone());
+        changed = true;
+    }
+    for key in ["grpc_host", "grpc_port", "grpc_interop_host", "grpc_interop_port", "sse_base_url"] {
+        if !variables.contains_key(key) {
+            variables.insert(key.to_string(), defaults[key].clone());
+            changed = true;
+        }
+    }
+    if changed {
+        let content = serde_json::to_string_pretty(&variables).map_err(|e| {
+            AppError::FsError(format!("Failed to serialize {}: {e}", path.display()))
+        })?;
+        fs::write(path, content)
+            .map_err(|e| AppError::FsError(format!("Failed to update {}: {e}", path.display())))?;
+    }
+    Ok(())
+}
+
 /// Ensures the workspace root directory exists and contains default environments and sample requests.
 pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
     if !dir.exists() {
@@ -355,19 +485,13 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
     }
 
     let dev_env_file = env_dir.join("development.env.json");
-    if !dev_env_file.exists() {
-        let _ = fs::write(&dev_env_file, DEFAULT_DEV_ENV);
-    }
+    ensure_environment_file(&dev_env_file, DEFAULT_DEV_ENV)?;
 
     let prod_env_file = env_dir.join("production.env.json");
-    if !prod_env_file.exists() {
-        let _ = fs::write(&prod_env_file, DEFAULT_PROD_ENV);
-    }
+    ensure_environment_file(&prod_env_file, DEFAULT_PROD_ENV)?;
 
     let default_env_file = env_dir.join("default.env.json");
-    if !default_env_file.exists() {
-        let _ = fs::write(&default_env_file, DEFAULT_DEV_ENV);
-    }
+    ensure_environment_file(&default_env_file, DEFAULT_DEV_ENV)?;
 
     // 2. Secret file directory
     let apiclient_dir = dir.join(".apiclient");
@@ -393,6 +517,23 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
             && fs::read_to_string(&path)
                 .map(|existing| existing == LEGACY_SSE_EXAMPLE)
                 .unwrap_or(false);
+        let is_unmodified_httpcan_sse_example = *name == "streaming/sse_events.curl"
+            && fs::read_to_string(&path)
+                .map(|existing| {
+                    existing == content.replace("{{sse_base_url}}", "https://httpcan.org")
+                })
+                .unwrap_or(false);
+        let is_unmodified_grpcb_in_example = LEGACY_GRPCB_EXAMPLES
+            .iter()
+            .find(|(legacy_name, _)| legacy_name == name)
+            .is_some_and(|(_, legacy)| {
+                fs::read_to_string(&path)
+                    .map(|existing| {
+                        existing == *legacy
+                            || existing == legacy.replace("grpcb.in:9001", "{{grpc_host}}:{{grpc_port}}")
+                    })
+                    .unwrap_or(false)
+            });
         let is_legacy_local_grpc_example = name.starts_with("grpc/")
             && fs::read_to_string(&path)
                 .map(|existing| {
@@ -428,6 +569,8 @@ pub fn ensure_workspace_initialized(dir: &Path) -> Result<()> {
         };
         if !path.exists()
             || is_unchanged_legacy_sse_example
+            || is_unmodified_httpcan_sse_example
+            || is_unmodified_grpcb_in_example
             || is_legacy_local_grpc_example
             || is_legacy_postman_grpc_example
             || is_legacy_postman_grpc_proto
@@ -677,8 +820,28 @@ mod tests {
             let path = grpc_examples.join(request);
             assert!(path.is_file(), "missing gRPC example: {request}");
             let content = fs::read_to_string(path).unwrap();
-            assert!(content.contains("grpcb.in:9001"), "wrong gRPC host in {request}");
-            assert!(!content.contains("grpc.postman-echo.com"), "legacy host in {request}");
+            let target = if matches!(request, "echo_tls.grpcurl" | "client_stream_tls.grpcurl") {
+                "{{grpc_interop_host}}:{{grpc_interop_port}}"
+            } else {
+                "{{grpc_host}}:{{grpc_port}}"
+            };
+            assert!(content.contains(target), "gRPC target should use environment variables in {request}");
+            assert!(
+                !content.contains("grpc.postman-echo.com"),
+                "legacy host in {request}"
+            );
+        }
+
+        for environment in ["default", "development", "production"] {
+            let path = temp_dir
+                .join("environments")
+                .join(format!("{environment}.env.json"));
+            let vars = serde_json::from_str::<Value>(&fs::read_to_string(path).unwrap()).unwrap();
+            assert_eq!(vars["grpc_host"], "demo.connectrpc.com");
+            assert_eq!(vars["grpc_port"], "443");
+            assert_eq!(vars["grpc_interop_host"], "grpc-test.sandbox.googleapis.com");
+            assert_eq!(vars["grpc_interop_port"], "443");
+            assert_eq!(vars["sse_base_url"], "https://httpcan.org");
         }
 
         // Must not contain `target`, `icons`, `gen`, or `src-tauri` or `src` or `docs`
@@ -730,20 +893,104 @@ mod tests {
 
         ensure_workspace_initialized(&temp_dir).unwrap();
         let migrated = fs::read_to_string(request_path).unwrap();
-        assert!(migrated.contains("grpcb.in:9001"));
+        assert!(migrated.contains("{{grpc_host}}:{{grpc_port}}"));
         assert!(!migrated.contains("grpc.postman-echo.com"));
         assert_eq!(fs::read_to_string(custom_request_path).unwrap(), custom_request);
-        assert!(fs::read_to_string(stream_request_path).unwrap().contains("grpcb.in:9001"));
+        assert!(fs::read_to_string(stream_request_path)
+            .unwrap()
+            .contains("{{grpc_host}}:{{grpc_port}}"));
         let migrated_proto = fs::read_to_string(proto_path).unwrap();
         assert!(migrated_proto.contains("package hello;"));
         assert!(migrated_proto.contains("rpc BidiHello"));
         let migrated_echo_tls =
             fs::read_to_string(temp_dir.join("examples/grpc/echo_tls.grpcurl")).unwrap();
-        assert!(migrated_echo_tls.contains("grpcbin.GRPCBin/HeadersUnary"));
+        assert!(migrated_echo_tls.contains("grpc.testing.TestService/UnaryCall"));
         let migrated_stream_tls =
             fs::read_to_string(temp_dir.join("examples/grpc/watch_stream_tls.grpcurl")).unwrap();
-        assert!(migrated_stream_tls.contains("TLS, Reflection, Verified Server Stream"));
+        assert!(migrated_stream_tls.contains("TLS, Reflection, Server Stream"));
         assert!(!migrated_stream_tls.contains("-insecure"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn existing_examples_and_environments_are_updated_without_overwriting_custom_values() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("parameterized_examples_{}", uuid::Uuid::new_v4()));
+        let examples_dir = temp_dir.join("examples");
+        let env_dir = temp_dir.join("environments");
+        fs::create_dir_all(examples_dir.join("grpc")).unwrap();
+        fs::create_dir_all(&env_dir).unwrap();
+
+        for (name, content) in LEGACY_GRPCB_EXAMPLES {
+            fs::write(examples_dir.join(name), content).unwrap();
+        }
+        let custom_request_path = examples_dir.join("grpc/echo_local_proto.grpcurl");
+        let custom_request = format!("{}# customized\n", LEGACY_GRPCB_EXAMPLES[1].1);
+        fs::write(&custom_request_path, &custom_request).unwrap();
+        fs::create_dir_all(temp_dir.join("examples/streaming")).unwrap();
+        let sse_content = STARTER_EXAMPLES
+            .iter()
+            .find(|(name, _)| *name == "streaming/sse_events.curl")
+            .unwrap()
+            .1;
+        fs::write(
+            temp_dir.join("examples/streaming/sse_events.curl"),
+            sse_content.replace("{{sse_base_url}}", "https://httpcan.org"),
+        )
+        .unwrap();
+        fs::write(
+            env_dir.join("default.env.json"),
+            r#"{"base_url":"https://custom.example.com","grpc_host":"custom.grpc.example","custom":"keep"}"#,
+        )
+        .unwrap();
+        fs::write(
+            env_dir.join("development.env.json"),
+            r#"{"custom_dev":"keep","grpc_host":"grpcb.in","grpc_port":"9001"}"#,
+        )
+        .unwrap();
+        fs::write(
+            env_dir.join("production.env.json"),
+            r#"{"sse_base_url":"https://custom-sse.example"}"#,
+        )
+        .unwrap();
+
+        ensure_workspace_initialized(&temp_dir).unwrap();
+
+        for (name, _) in LEGACY_GRPCB_EXAMPLES {
+            let content = fs::read_to_string(examples_dir.join(name)).unwrap();
+            if name.ends_with("echo_local_proto.grpcurl") {
+                assert_eq!(content, custom_request);
+            } else {
+                let expected = STARTER_EXAMPLES.iter().find(|(path, _)| path == name).unwrap().1;
+                assert_eq!(content, expected);
+            }
+        }
+        let sse = fs::read_to_string(temp_dir.join("examples/streaming/sse_events.curl")).unwrap();
+        assert!(sse.contains("{{sse_base_url}}/sse/5"));
+        let default = serde_json::from_str::<Value>(
+            &fs::read_to_string(env_dir.join("default.env.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(default["base_url"], "https://custom.example.com");
+        assert_eq!(default["grpc_host"], "custom.grpc.example");
+        assert_eq!(default["grpc_port"], "443");
+        assert_eq!(default["grpc_interop_host"], "grpc-test.sandbox.googleapis.com");
+        assert_eq!(default["sse_base_url"], "https://httpcan.org");
+        assert_eq!(default["custom"], "keep");
+        let development = serde_json::from_str::<Value>(
+            &fs::read_to_string(env_dir.join("development.env.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(development["grpc_host"], "demo.connectrpc.com");
+        assert_eq!(development["grpc_port"], "443");
+        assert_eq!(development["custom_dev"], "keep");
+        let production = serde_json::from_str::<Value>(
+            &fs::read_to_string(env_dir.join("production.env.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(production["grpc_port"], "443");
+        assert_eq!(production["sse_base_url"], "https://custom-sse.example");
 
         let _ = fs::remove_dir_all(temp_dir);
     }
