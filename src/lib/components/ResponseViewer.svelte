@@ -68,10 +68,10 @@
 
   function getStatusBadge(status: number | null) {
     if (!status) return 'bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border)]';
-    if (status >= 200 && status < 300) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25';
-    if (status >= 300 && status < 400) return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25';
-    if (status >= 400 && status < 500) return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25';
-    return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25';
+    if (status >= 200 && status < 300) return 'ui-status-success';
+    if (status >= 300 && status < 400) return 'ui-status-info';
+    if (status >= 400 && status < 500) return 'ui-status-warning';
+    return 'ui-status-danger';
   }
 
   function formatBytes(bytes: number) {
@@ -100,8 +100,8 @@
       {/if}
 
       {#if responseState.isStreaming && responseState.isExecuting}
-        <span class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 animate-pulse">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+        <span class="ui-status-success flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium animate-pulse">
+          <span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-ping"></span>
           Streaming live
         </span>
       {/if}
@@ -160,9 +160,9 @@
           {@const allPassed = responseState.testResults.every((t) => t.passed)}
           {@const passCount = responseState.testResults.filter((t) => t.passed).length}
           <span
-            class="px-1 py-0.2 rounded text-[9px] font-mono font-bold {allPassed
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}"
+            class="px-1 py-0.2 rounded text-[10px] font-mono font-bold {allPassed
+              ? 'ui-status-success'
+              : 'ui-status-danger'}"
           >
             {passCount}/{responseState.testResults.length}
           </span>
@@ -196,7 +196,7 @@
       {#if responseState.activeTab === 'body'}
         <div class="h-full flex flex-col">
         {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}
-          <div class="px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-[11px] text-[var(--warning)]">
+          <div class="ui-status-warning border-b px-3 py-1.5 text-[11px]">
             <span>
               {#if responseState.isBodyTruncated}
                 ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
@@ -267,7 +267,7 @@
         {:else}
           {@const allPassed = responseState.testResults.every((t) => t.passed)}
           {@const passCount = responseState.testResults.filter((t) => t.passed).length}
-          <div class="p-2.5 rounded-md border flex items-center justify-between text-xs {allPassed ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 border-rose-500/20 text-rose-700 dark:text-rose-300'}">
+          <div class="p-2.5 rounded-md border flex items-center justify-between text-xs {allPassed ? 'ui-status-success' : 'ui-status-danger'}">
             <span class="font-semibold">
               {allPassed ? 'All Tests Passed' : `${responseState.testResults.length - passCount} Test(s) Failed`}
             </span>

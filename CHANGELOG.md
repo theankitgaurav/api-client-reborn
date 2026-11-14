@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.3] — 2026-11-14
+
+### Improved
+
+- Refreshed the app's visual design, onboarding screen, and promotional website.
+- Simplified sidebar navigation and added reveal controls for Basic Auth passwords and collection secrets.
+
+### Fixed
+
+- Corrected request and history search icon alignment and made the request filter shortcut open the sidebar when needed.
+
 ## [0.14.2] — 2026-11-14
 
 ### Improved

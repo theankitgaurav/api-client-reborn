@@ -33,6 +33,7 @@
   let postResponseScript = $state('');
   let copiedCurl = $state(false);
   let copyResetTimeout: ReturnType<typeof setTimeout> | null = null;
+  let showBasicPassword = $state(false);
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
   let tooltipVariables = $state<Record<string, string>>({});
@@ -40,6 +41,11 @@
   let tooltipCollectionSecrets = $state<Set<string>>(new Set());
 
   let isMac = $derived(shortcutsState.isMac);
+
+  $effect(() => {
+    workspaceState.activeTabId;
+    showBasicPassword = false;
+  });
 
   $effect(() => {
     registerBeautifyHandler(() => {
@@ -248,17 +254,17 @@
   function getMethodColor(m: string) {
     switch (m.toUpperCase()) {
       case 'GET':
-        return 'text-blue-500 font-bold';
+        return 'method-get-text font-bold';
       case 'POST':
-        return 'text-emerald-500 font-bold';
+        return 'method-post-text font-bold';
       case 'PUT':
-        return 'text-amber-500 font-bold';
+        return 'method-put-text font-bold';
       case 'DELETE':
-        return 'text-rose-500 font-bold';
+        return 'method-delete-text font-bold';
       case 'PATCH':
-        return 'text-purple-500 font-bold';
+        return 'method-patch-text font-bold';
       case 'GRPC':
-        return 'text-cyan-500 font-bold';
+        return 'method-grpc-text font-bold';
       default:
         return 'text-[var(--text-muted)] font-bold';
     }
@@ -431,10 +437,10 @@
         onchange={handleRequestMethodChange}
         class="ui-select h-8 px-2.5 font-mono text-xs cursor-pointer font-bold {getMethodColor(model.method)}"
       >
-        <option value="GET" class="text-blue-500 font-bold">GET</option>
-        <option value="POST" class="text-emerald-500 font-bold">POST</option>
-        <option value="PUT" class="text-amber-500 font-bold">PUT</option>
-        <option value="DELETE" class="text-rose-500 font-bold">DELETE</option>
+        <option value="GET" class="method-get-text font-bold">GET</option>
+        <option value="POST" class="method-post-text font-bold">POST</option>
+        <option value="PUT" class="method-put-text font-bold">PUT</option>
+        <option value="DELETE" class="method-delete-text font-bold">DELETE</option>
         <option value="PATCH" class="text-purple-500 font-bold">PATCH</option>
         <option value="HEAD" class="text-[var(--text-muted)] font-bold">HEAD</option>
         <option value="OPTIONS" class="text-[var(--text-muted)] font-bold">OPTIONS</option>
@@ -919,17 +925,28 @@
               <label for="basic-password-input" class="block text-[var(--text-muted)] text-xs font-semibold mb-1">
                 Password
               </label>
-              <input
-                id="basic-password-input"
-                type="password"
-                placeholder="Password"
-                bind:value={model.basicPass}
-                oninput={syncToWorkspace}
-                onmousemove={(e) => handleVarHover(e, model.basicPass)}
-                onmouseleave={handleVarLeave}
-                onblur={handleVarLeave}
-                class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none"
-              />
+              <div class="relative">
+                <input
+                  id="basic-password-input"
+                  type={showBasicPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  bind:value={model.basicPass}
+                  oninput={syncToWorkspace}
+                  onmousemove={(e) => handleVarHover(e, model.basicPass)}
+                  onmouseleave={handleVarLeave}
+                  onblur={handleVarLeave}
+                  class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 py-1.5 pr-9 font-mono text-xs text-[var(--text-strong)] outline-none"
+                />
+                <button
+                  type="button"
+                  onclick={() => (showBasicPassword = !showBasicPassword)}
+                  aria-label={showBasicPassword ? 'Hide password' : 'Reveal password'}
+                  title={showBasicPassword ? 'Hide password' : 'Reveal password'}
+                  class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                >
+                  {#if showBasicPassword}<EyeOff size={14} />{:else}<Eye size={14} />{/if}
+                </button>
+              </div>
             </div>
           </div>
         {:else}

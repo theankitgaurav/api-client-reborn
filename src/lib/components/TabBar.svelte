@@ -41,7 +41,7 @@
 
 <svelte:window onclick={closeContextMenu} />
 
-<div class="flex h-8.5 shrink-0 items-center overflow-x-auto border-b border-[var(--border)] bg-[var(--surface-muted)] text-xs select-none">
+<div class="flex h-9 shrink-0 items-center overflow-x-auto border-b border-[var(--border)] bg-[var(--surface-muted)] text-xs select-none">
   <div class="flex items-center h-full">
     {#each workspaceState.tabs as tab (tab.id)}
       {@const isActive = tab.id === workspaceState.activeTabId}

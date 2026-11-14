@@ -3,6 +3,7 @@ export { default as Play } from './Play.svelte';
 export { default as Square } from './Square.svelte';
 export { default as KeyRound } from './KeyRound.svelte';
 export { default as Layers } from './Layers.svelte';
+export { default as PanelLeft } from './PanelLeft.svelte';
 export { default as Folder } from './Folder.svelte';
 export { default as FolderOpen } from './FolderOpen.svelte';
 export { default as FileCode } from './FileCode.svelte';

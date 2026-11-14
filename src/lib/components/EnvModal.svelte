@@ -229,6 +229,7 @@
                     type="button"
                     onclick={() => toggleReveal(item.id)}
                     title={revealed[item.id] ? 'Hide Secret' : 'Reveal Secret'}
+                    aria-label={revealed[item.id] ? 'Hide secret' : 'Reveal secret'}
                     class="absolute right-1.5 top-1 text-[var(--text-muted)] hover:text-[var(--text-strong)]"
                   >
                     {#if revealed[item.id]}<EyeOff size={12} />{:else}<Eye size={12} />{/if}
@@ -239,7 +240,9 @@
                 {item.scope === 'workspace' ? 'Workspace' : envState.activeEnvName}
               </span>
               <div class="col-span-1 text-center">
-                <input type="checkbox" bind:checked={item.isSecret} class="rounded accent-[var(--accent)]" />
+                <input type="checkbox" bind:checked={item.isSecret} onchange={(event) => {
+                  if (!event.currentTarget.checked) delete revealed[item.id];
+                }} class="rounded accent-[var(--accent)]" />
               </div>
               <div class="col-span-1 text-right">
                 <button
@@ -319,13 +322,28 @@
                   bind:value={item.key}
                   class="col-span-5 bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2 py-1 font-mono text-xs text-[var(--text-strong)] outline-none"
                 />
-                <input
-                  type={item.isSecret ? 'password' : 'text'}
-                  bind:value={item.value}
-                  class="col-span-5 bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2 py-1 font-mono text-xs text-[var(--text-strong)] outline-none"
-                />
+                <div class="col-span-5 relative">
+                  <input
+                    type={item.isSecret && !revealed[item.id] ? 'password' : 'text'}
+                    bind:value={item.value}
+                    class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2 py-1 pr-6 font-mono text-xs text-[var(--text-strong)] outline-none"
+                  />
+                  {#if item.isSecret}
+                    <button
+                      type="button"
+                      onclick={() => toggleReveal(item.id)}
+                      title={revealed[item.id] ? 'Hide Secret' : 'Reveal Secret'}
+                      aria-label={revealed[item.id] ? 'Hide secret' : 'Reveal secret'}
+                      class="absolute right-1.5 top-1 text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                    >
+                      {#if revealed[item.id]}<EyeOff size={12} />{:else}<Eye size={12} />{/if}
+                    </button>
+                  {/if}
+                </div>
                 <div class="col-span-1 text-center">
-                  <input type="checkbox" bind:checked={item.isSecret} class="rounded accent-[var(--accent)]" />
+                  <input type="checkbox" bind:checked={item.isSecret} onchange={(event) => {
+                    if (!event.currentTarget.checked) delete revealed[item.id];
+                  }} class="rounded accent-[var(--accent)]" />
                 </div>
                 <div class="col-span-1 text-right">
                   <button
