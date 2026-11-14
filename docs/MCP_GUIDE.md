@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Guide for API Client Reborn
 
-The **API Client Reborn MCP Server** exposes your local, Git-versioned API collections and environments to modern AI coding assistants (Claude Desktop, Cursor, Antigravity, VS Code Copilot, Zed).
+The **API Client Reborn MCP Server** exposes your local, Git-versioned API collections and environments to modern AI coding assistants (Claude Desktop, Cursor, Antigravity, Github Copilot, Zed).
 
 The MCP server is implemented natively in Rust inside the `api_client_reborn` binary. Users do not need Node.js, `npx`, a repository checkout, or any external runtimes in the workspace.
 
