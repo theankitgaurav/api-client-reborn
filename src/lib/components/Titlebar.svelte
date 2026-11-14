@@ -124,7 +124,7 @@
 
 <header
   data-tauri-drag-region
-  class="flex h-9 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 select-none text-xs"
+  class="flex h-10 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 select-none text-xs"
 >
   <!-- Left: Traffic Lights Offset & Workspace Selector -->
   <div class="flex items-center gap-2 {isMac ? 'pl-[70px]' : 'pl-1'}">
@@ -132,7 +132,7 @@
       type="button"
       onclick={() => updaterState.checkForUpdates({ manual: true })}
       title="API Client Reborn v{updaterState.currentVersion} • Check for updates"
-      class="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-[var(--text-strong)] transition-colors hover:text-[var(--accent)]"
+      class="flex items-center gap-2 text-xs font-semibold tracking-tight text-[var(--text-strong)] transition-colors hover:text-[var(--accent)]"
     >
       <Layers size={13} class="text-[var(--accent)]" />
       <span>API Client Reborn</span>
@@ -221,7 +221,7 @@
       type="button"
       onclick={() => uiState.openCommandPalette()}
       title="Search and commands ({isMac ? '⌘K' : 'Ctrl+K'})"
-      class="flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--surface-muted)] px-2.5 py-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:border-[var(--border-strong)] transition-all select-none"
+      class="flex items-center gap-2 rounded border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:border-[var(--border-strong)] transition-all select-none"
     >
       <Search size={11} class="text-[var(--text-subtle)]" />
       <span class="font-normal">Search or command…</span>

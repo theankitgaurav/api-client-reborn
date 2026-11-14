@@ -44,7 +44,7 @@
 <div class="flex-1 min-h-0 flex flex-col text-xs">
   <div class="p-2 border-b border-[var(--border)] flex items-center gap-1.5">
     <div class="relative w-full">
-      <Search size={12} class="absolute left-2 top-2 text-[var(--text-subtle)]" />
+      <Search size={12} class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
       <input
         id="history-filter-input"
         type="text"
@@ -53,7 +53,7 @@
         oninput={(event) => {
           historyState.searchQuery = (event.currentTarget as HTMLInputElement).value;
         }}
-        class="w-full bg-[var(--surface)] border border-[var(--border)] rounded pl-6.5 pr-2 py-1 text-[11px] text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none focus:border-[var(--focus)] transition-colors"
+        class="w-full bg-[var(--surface)] border border-[var(--border)] rounded pl-7 pr-2 py-1 text-[11px] text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none focus:border-[var(--focus)] transition-colors"
       />
     </div>
     {#if isConfirmingClear}

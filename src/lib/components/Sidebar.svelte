@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { historyState } from '$lib/state/history.svelte';
   import { envState } from '$lib/state/env.svelte';
@@ -6,7 +7,6 @@
   import { uiState } from '$lib/state/ui.svelte';
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
-  import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
   import Kbd from '$lib/components/ui/Kbd.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
   import { COLLECTION_EXPORT_LABEL } from '$lib/utils/collection-exporter';
@@ -24,13 +24,17 @@
     Check,
     MoreVertical,
     Clock,
-    Layers,
+    PanelLeft,
     X,
   } from '$lib/components/icons';
 
   let isMac = $derived(shortcutsState.isMac);
   let searchQuery = $state('');
   let activeSidebarTab = $state<'requests' | 'history'>('requests');
+  let sidebarTabs = $derived([
+    { id: 'requests' as const, label: 'Requests', count: countRequests(workspaceState.tree) },
+    { id: 'history' as const, label: 'History', count: historyState.entries.length },
+  ]);
   let collapsedFolderPaths = $state<string[]>([]);
   let hasInitializedFolderDefaults = false;
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
@@ -53,7 +57,32 @@
       if (!item.is_dir) count++;
       if (item.children) count += countRequests(item.children);
     }
+
     return count;
+  }
+
+  function handleSidebarTabKeydown(event: KeyboardEvent) {
+    let index = sidebarTabs.findIndex((tab) => tab.id === activeSidebarTab);
+    if (event.key === 'ArrowRight') index = (index + 1) % sidebarTabs.length;
+    else if (event.key === 'ArrowLeft') index = (index - 1 + sidebarTabs.length) % sidebarTabs.length;
+    else if (event.key === 'Home') index = 0;
+    else if (event.key === 'End') index = sidebarTabs.length - 1;
+    else return;
+    event.preventDefault();
+    activeSidebarTab = sidebarTabs[index].id;
+    const tablist = (event.currentTarget as HTMLElement).parentElement;
+    tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
+  }
+
+  export async function focusRequestFilter() {
+    uiState.setSidebarCollapsed(false);
+    activeSidebarTab = 'requests';
+    await tick();
+    const input = document.getElementById('sidebar-filter-input');
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      input.select();
+    }
   }
 
   function filterItems(items: WorkspaceFileItem[]): WorkspaceFileItem[] {
@@ -271,7 +300,8 @@
 <svelte:window onclick={closeContextMenu} />
 
 <aside
-  class="{uiState.sidebarCollapsed ? 'w-12' : 'w-60'} flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs transition-[width] duration-150 overflow-hidden"
+  aria-label="Workspace navigation"
+  class="{uiState.sidebarCollapsed ? 'w-12' : 'w-[258px]'} flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs transition-[width] duration-150 overflow-hidden"
 >
   {#if uiState.sidebarCollapsed}
     <!-- Collapsed Minimal Rail -->
@@ -283,7 +313,7 @@
         title="Expand workspace sidebar ({isMac ? '⌘\\' : 'Ctrl+\\'})"
         onclick={() => uiState.setSidebarCollapsed(false)}
       >
-        <Layers size={14} />
+        <PanelLeft size={16} direction="expand" />
       </button>
       <div class="my-0.5 h-px w-5 bg-[var(--border)]"></div>
       <button
@@ -298,14 +328,11 @@
       <button
         type="button"
         class="ui-icon-button"
-        aria-label="Search requests"
-        title="Search requests ({isMac ? '⌘F' : 'Ctrl+F'})"
-        onclick={() => {
-          uiState.setSidebarCollapsed(false);
-          requestAnimationFrame(() => document.getElementById('sidebar-filter-input')?.focus());
-        }}
+        aria-label="Show requests"
+        title="Show requests ({isMac ? '⌘F' : 'Ctrl+F'})"
+        onclick={focusRequestFilter}
       >
-        <Search size={14} />
+        <Folder size={14} />
       </button>
       <button
         type="button"
@@ -322,17 +349,36 @@
     </div>
   {:else}
     <!-- Top Tabs: Requests & History -->
-    <div class="p-2 pb-1.5 flex items-center justify-between border-b border-[var(--border)]">
-      <SegmentedControl
-        items={[
-          { id: 'requests', label: 'Requests', count: countRequests(workspaceState.tree) },
-          { id: 'history', label: 'History', count: historyState.entries.length },
-        ]}
-        activeId={activeSidebarTab}
-        onchange={(id) => (activeSidebarTab = id as 'requests' | 'history')}
-        size="sm"
-        class="w-full justify-center"
-      />
+    <div class="flex items-center gap-1 border-b border-[var(--border)] px-2">
+      <div role="tablist" aria-label="Workspace navigation" class="flex min-w-0 flex-1 items-stretch">
+        {#each sidebarTabs as tab (tab.id)}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSidebarTab === tab.id}
+            tabindex={activeSidebarTab === tab.id ? 0 : -1}
+            onclick={() => (activeSidebarTab = tab.id)}
+            onkeydown={handleSidebarTabKeydown}
+            class="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-1 text-[11px] font-medium transition-colors {activeSidebarTab === tab.id
+              ? 'border-[var(--accent)] text-[var(--text-strong)]'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
+          >
+            <span>{tab.label}</span>
+            {#if tab.count > 0}
+              <span class="font-mono text-[10px] text-[var(--text-muted)]">{tab.count}</span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <button
+        type="button"
+        class="ui-icon-button shrink-0"
+        aria-label="Collapse workspace sidebar"
+        title="Collapse sidebar ({isMac ? '⌘\\' : 'Ctrl+\\'})"
+        onclick={() => uiState.setSidebarCollapsed(true)}
+      >
+        <PanelLeft size={16} direction="collapse" />
+      </button>
     </div>
 
     {#if activeSidebarTab === 'requests'}
@@ -386,20 +432,20 @@
       <!-- Filter / Search Input -->
       <div class="p-2 border-b border-[var(--border)]">
         <div class="relative w-full">
-          <Search size={12} class="absolute left-2 top-2 text-[var(--text-subtle)]" />
+          <Search size={12} class="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
           <input
             id="sidebar-filter-input"
             type="text"
             placeholder="Filter requests… ({isMac ? '⌘F' : 'Ctrl+F'})"
             bind:value={searchQuery}
-            class="w-full bg-[var(--surface)] border border-[var(--border)] rounded pl-6.5 pr-2 py-1 text-[11px] text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none focus:border-[var(--focus)] transition-colors"
+            class="w-full bg-[var(--surface)] border border-[var(--border)] rounded pl-7 pr-7 py-1 text-[11px] text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] focus:border-[var(--focus)] transition-colors"
           />
           {#if searchQuery}
             <button
               type="button"
               onclick={() => (searchQuery = '')}
               aria-label="Clear filter"
-              class="absolute right-1.5 top-1.5 text-[var(--text-subtle)] hover:text-[var(--text-strong)]"
+              class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] hover:text-[var(--text-strong)]"
             >
               <X size={12} />
             </button>

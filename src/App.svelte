@@ -24,6 +24,8 @@
   import { updaterState } from '$lib/state/updater.svelte';
   import { uiState } from '$lib/state/ui.svelte';
 
+  let sidebar: ReturnType<typeof Sidebar>;
+
   onMount(() => {
     updaterState.init();
     return () => updaterState.destroy();
@@ -56,13 +58,7 @@
         el.select();
       }
     },
-    focusFilterInput: () => {
-      const el = document.getElementById('sidebar-filter-input') as HTMLInputElement | null;
-      if (el) {
-        el.focus();
-        el.select();
-      }
-    },
+    focusFilterInput: () => { void sidebar.focusRequestFilter(); },
     toggleCommandPalette: () => uiState.toggleCommandPalette(),
     toggleSidebar: () => uiState.toggleSidebar(),
     toggleVariablesModal: () => {
@@ -116,7 +112,7 @@
   <!-- Main Workspace Layout -->
   <div class="flex-1 flex overflow-hidden">
     <!-- Left Sidebar: Collections & Files -->
-    <Sidebar />
+    <Sidebar bind:this={sidebar} />
 
     <!-- Content Area: Full-width TabBar on top, parallel Request & Response panes below -->
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden">

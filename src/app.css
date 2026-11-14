@@ -4,48 +4,62 @@
 
 :root {
   color-scheme: light;
-  --bg: #fbfbfc;
+  --bg: #f7f8fa;
   --surface: #ffffff;
-  --surface-muted: #f4f5f7;
+  --surface-muted: #f1f3f6;
   --surface-raised: #ffffff;
-  --surface-hover: #eceef2;
-  --border: #e6e8eb;
-  --border-subtle: #f0f2f5;
-  --border-strong: #d1d5db;
-  --text-strong: #121316;
-  --text: #373c43;
-  --text-muted: #68717d;
-  --text-subtle: #949ca8;
-  --accent: #5e6ad2;
-  --accent-strong: #4b55b8;
-  --focus: #5e6ad2;
-  --danger: #e5484d;
-  --danger-hover: #dc3e42;
-  --success: #30a46c;
-  --warning: #f59e0b;
+  --surface-hover: #eef0f4;
+  --border: #e3e6eb;
+  --border-subtle: #edf0f3;
+  --border-strong: #cbd1da;
+  --text-strong: #17191d;
+  --text: #414752;
+  --text-muted: #68707d;
+  --text-subtle: #9aa1ac;
+  --accent: #6658d9;
+  --accent-strong: #5648c5;
+  --accent-foreground: #ffffff;
+  --focus: #6658d9;
+  --danger: #d94b58;
+  --danger-hover: #c93c4a;
+  --success: #218b63;
+  --warning: #b97716;
+  --method-get: #3974c6;
+  --method-post: #218b63;
+  --method-put: #b97716;
+  --method-delete: #c64858;
+  --method-patch: #7356bd;
+  --method-grpc: #167f91;
 }
 
 html.dark {
   color-scheme: dark;
-  --bg: #0d0e11;
-  --surface: #141518;
-  --surface-muted: #101114;
-  --surface-raised: #1a1b1f;
-  --surface-hover: #202127;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text-strong: #ededef;
-  --text: #c2c4cb;
-  --text-muted: #80838d;
-  --text-subtle: #5a5d67;
-  --accent: #707be4;
-  --accent-strong: #828ced;
-  --focus: #707be4;
-  --danger: #f2555a;
-  --danger-hover: #fa656a;
-  --success: #46a758;
-  --warning: #f5b740;
+  --bg: #0d0f12;
+  --surface: #13161b;
+  --surface-muted: #101318;
+  --surface-raised: #191d24;
+  --surface-hover: #20252d;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-strong: #e7e9ee;
+  --text: #c8ccd5;
+  --text-muted: #9299a6;
+  --text-subtle: #626975;
+  --accent: #9b8cff;
+  --accent-strong: #b2a7ff;
+  --accent-foreground: #15121f;
+  --focus: #b2a7ff;
+  --danger: #f16f79;
+  --danger-hover: #f7828a;
+  --success: #49d39b;
+  --warning: #f2b866;
+  --method-get: #81aef0;
+  --method-post: #70d7a8;
+  --method-put: #edc276;
+  --method-delete: #f1848d;
+  --method-patch: #b4a0f1;
+  --method-grpc: #6bc6d5;
 }
 
 body {
@@ -79,11 +93,11 @@ textarea:focus-visible,
 
 /* Button Component Styles */
 .ui-button {
-  @apply inline-flex items-center justify-center gap-1.5 rounded text-[11px] font-medium transition-all duration-100 select-none disabled:pointer-events-none disabled:opacity-45;
+  @apply inline-flex items-center justify-center gap-1.5 rounded text-xs font-medium transition-all duration-100 select-none disabled:pointer-events-none disabled:opacity-45;
 }
 .ui-button-primary {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-foreground);
 }
 .ui-button-primary:hover {
   background: var(--accent-strong);
@@ -146,7 +160,7 @@ textarea:focus-visible,
 
 /* Badge Styles */
 .ui-badge {
-  @apply inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold leading-none;
+  @apply inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold leading-none;
   border: 1px solid transparent;
 }
 .ui-badge-neutral {
@@ -155,9 +169,9 @@ textarea:focus-visible,
   border-color: var(--border);
 }
 .ui-badge-blue {
-  background: color-mix(in srgb, #5e6ad2 12%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
-  border-color: color-mix(in srgb, #5e6ad2 25%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 .ui-badge-green {
   background: color-mix(in srgb, var(--success) 12%, transparent);
@@ -175,51 +189,79 @@ textarea:focus-visible,
   border-color: color-mix(in srgb, var(--danger) 25%, transparent);
 }
 .ui-badge-purple {
-  background: color-mix(in srgb, #8b5cf6 12%, transparent);
-  color: #a78bfa;
-  border-color: color-mix(in srgb, #8b5cf6 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 .ui-badge-cyan {
-  background: color-mix(in srgb, #06b6d4 12%, transparent);
-  color: #22d3ee;
-  border-color: color-mix(in srgb, #06b6d4 25%, transparent);
+  background: color-mix(in srgb, var(--method-grpc) 12%, transparent);
+  color: var(--method-grpc);
+  border-color: color-mix(in srgb, var(--method-grpc) 25%, transparent);
 }
 
 /* Method Badges */
 .badge-get {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: color-mix(in srgb, var(--method-get) 12%, transparent);
+  color: var(--method-get);
+  border: 1px solid color-mix(in srgb, var(--method-get) 25%, transparent);
 }
 .badge-post {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: color-mix(in srgb, var(--method-post) 12%, transparent);
+  color: var(--method-post);
+  border: 1px solid color-mix(in srgb, var(--method-post) 25%, transparent);
 }
 .badge-put {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: color-mix(in srgb, var(--method-put) 12%, transparent);
+  color: var(--method-put);
+  border: 1px solid color-mix(in srgb, var(--method-put) 25%, transparent);
 }
 .badge-delete {
-  background: rgba(244, 63, 94, 0.1);
-  color: #f43f5e;
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background: color-mix(in srgb, var(--method-delete) 12%, transparent);
+  color: var(--method-delete);
+  border: 1px solid color-mix(in srgb, var(--method-delete) 25%, transparent);
 }
 .badge-patch {
-  background: rgba(139, 92, 246, 0.1);
-  color: #8b5cf6;
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: color-mix(in srgb, var(--method-patch) 12%, transparent);
+  color: var(--method-patch);
+  border: 1px solid color-mix(in srgb, var(--method-patch) 25%, transparent);
 }
 .badge-grpc {
-  background: rgba(6, 182, 212, 0.1);
-  color: #06b6d4;
-  border: 1px solid rgba(6, 182, 212, 0.25);
+  background: color-mix(in srgb, var(--method-grpc) 12%, transparent);
+  color: var(--method-grpc);
+  border: 1px solid color-mix(in srgb, var(--method-grpc) 25%, transparent);
 }
 .badge-request {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.method-get-text { color: var(--method-get); }
+.method-post-text { color: var(--method-post); }
+.method-put-text { color: var(--method-put); }
+.method-delete-text { color: var(--method-delete); }
+.method-patch-text { color: var(--method-patch); }
+.method-grpc-text { color: var(--method-grpc); }
+
+.ui-status-success {
+  border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+.ui-status-info {
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.ui-status-warning {
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--warning);
+}
+.ui-status-danger {
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
 }
 
 /* Panel Header */

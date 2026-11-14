@@ -3,28 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#101512" />
+    <meta name="theme-color" content="#0d0f12" />
     <meta name="description" content="A local-first HTTP and gRPC API client. Keep requests as readable files, switch environments, and inspect streamed responses with a bounded preview." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="API Client Reborn — APIs, on your terms" />
     <meta property="og:description" content="A local-first HTTP and gRPC API client with Git-friendly requests, environment support, and disk-spooled streaming responses." />
     <meta property="og:url" content="https://theankitgaurav.github.io/api-client-reborn/" />
-    <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-screenshot.svg" />
+    <meta property="og:image" content="https://theankitgaurav.github.io/api-client-reborn/app-screenshot-dark.svg" />
     <meta name="twitter:card" content="summary_large_image" />
     <title>API Client Reborn — APIs, on your terms</title>
     <link rel="icon" href="app-icon.svg" type="image/svg+xml" />
     <style>
       :root {
         color-scheme: dark;
-        --bg: #101512;
-        --panel: #171e19;
-        --panel-2: #1d2620;
-        --line: rgba(230, 246, 233, .12);
-        --text: #f1f6f1;
-        --muted: #aab7ab;
-        --lime: #c5f36b;
-        --green: #3ce0a1;
-        --blue: #74a9ff;
+        --bg: #0d0f12;
+        --surface: #13161b;
+        --surface-muted: #101318;
+        --surface-raised: #191d24;
+        --surface-hover: #20252d;
+        --border: rgba(255,255,255,.09);
+        --border-strong: rgba(255,255,255,.16);
+        --text-strong: #e7e9ee;
+        --text: #c8ccd5;
+        --text-muted: #9299a6;
+        --accent: #9b8cff;
+        --accent-strong: #b2a7ff;
+        --success: #49d39b;
       }
       * { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
@@ -36,63 +40,62 @@
       }
       a { color: inherit; text-decoration: none; }
       .shell { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
-      .nav { display:flex; align-items:center; justify-content:space-between; height:78px; border-bottom:1px solid var(--line); }
+      .nav { display:flex; align-items:center; justify-content:space-between; height:78px; border-bottom:1px solid var(--border); }
       .brand { display:flex; align-items:center; gap:12px; font-weight:700; letter-spacing:-.02em; }
       .brand img { width:32px; height:32px; }
-      .nav-links { display:flex; gap:28px; align-items:center; color:var(--muted); font-size:14px; }
-      .nav-links a:hover { color:var(--text); }
-      .nav-links .nav-cta { color:var(--bg); background:var(--lime); padding:10px 15px; border-radius:999px; font-weight:700; }
+      .nav-links { display:flex; gap:28px; align-items:center; color:var(--text-muted); font-size:14px; }
+      .nav-links a:hover { color:var(--text-strong); }
+      .nav-links .nav-cta { color:var(--bg); background:var(--accent); padding:10px 15px; border-radius:6px; font-weight:700; }
       .hero { display:grid; grid-template-columns: .92fr 1.08fr; align-items:center; gap:54px; padding:82px 0 96px; }
-      .eyebrow { display:inline-flex; gap:8px; align-items:center; border:1px solid rgba(197,243,107,.3); background:rgba(197,243,107,.08); border-radius:999px; color:var(--lime); padding:6px 11px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
-      .eyebrow i { width:7px; height:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 14px var(--lime); }
+      .eyebrow { display:inline-flex; gap:8px; align-items:center; border:1px solid color-mix(in srgb,var(--accent) 30%,transparent); background:color-mix(in srgb,var(--accent) 8%,transparent); border-radius:6px; color:var(--accent-strong); padding:6px 10px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+      .eyebrow i { width:6px; height:6px; border-radius:50%; background:var(--accent); }
       h1 { max-width:620px; margin:20px 0 18px; font-size:clamp(44px, 6vw, 72px); line-height:.99; letter-spacing:-.065em; }
-      h1 span { color:var(--lime); }
-      .hero-copy { max-width:500px; color:var(--muted); font-size:18px; }
+      h1 span { color:var(--accent-strong); }
+      .hero-copy { max-width:500px; color:var(--text-muted); font-size:18px; }
       .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; }
-      .button { display:inline-flex; align-items:center; gap:9px; padding:13px 18px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-weight:700; transition:transform .18s, border-color .18s, background .18s; }
-      .button:hover { transform:translateY(-2px); border-color:rgba(197,243,107,.55); }
-      .button.primary { background:var(--lime); border-color:var(--lime); color:#131a0d; }
-      .button.secondary { background:rgba(255,255,255,.035); }
+      .button { display:inline-flex; align-items:center; gap:9px; padding:12px 16px; border:1px solid var(--border); border-radius:6px; font-size:14px; font-weight:700; transition:border-color .18s, background .18s; }
+      .button:hover { border-color:color-mix(in srgb,var(--accent) 55%,transparent); }
+      .button.primary { background:var(--accent); border-color:var(--accent); color:#15121f; }
+      .button.secondary { background:var(--surface); }
       .button svg { width:17px; height:17px; }
-      .microcopy { margin-top:16px; color:#839087; font-size:12px; }
+      .microcopy { margin-top:16px; color:var(--text-muted); font-size:12px; }
       .app-preview { position:relative; margin:0; padding:12px 0 34px; }
-      .app-preview::before { content:""; position:absolute; inset:6% -6% 2% 8%; z-index:0; background:radial-gradient(ellipse, rgba(95,126,255,.25), rgba(95,214,148,.12) 38%, transparent 72%); filter:blur(32px); }
-      .preview-stack { position:relative; z-index:1; width:100%; aspect-ratio:1.62; }
-      .preview-window { position:absolute; display:block; width:87%; height:auto; border:1px solid rgba(230,246,233,.28); border-radius:12px; background:#151820; box-shadow:0 28px 80px rgba(0,0,0,.44); }
-      .preview-window.light { top:0; left:0; z-index:1; transform:rotate(-2.4deg); }
-      .preview-window.dark { right:0; bottom:0; z-index:2; transform:rotate(1.8deg); box-shadow:0 34px 90px rgba(0,0,0,.58),0 0 0 1px rgba(116,169,255,.16); }
-      .app-preview figcaption { position:relative; z-index:3; margin-top:6px; color:#a6b2aa; font-size:12px; text-align:center; }
-      .proof { display:flex; flex-wrap:wrap; justify-content:center; gap:0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
-      .proof div { flex:1; min-width:170px; padding:23px 18px; text-align:center; color:var(--muted); font-size:13px; }
-      .proof div+div { border-left:1px solid var(--line); }
-      .proof strong { display:block; color:var(--text); font-size:15px; }
+      .app-preview::before { content:""; position:absolute; inset:8% -4% 4% 6%; z-index:0; background:radial-gradient(ellipse, color-mix(in srgb,var(--accent) 12%,transparent), transparent 70%); filter:blur(28px); }
+      .preview-stack { position:relative; z-index:1; width:100%; aspect-ratio:2 / 1; }
+      .preview-window { position:absolute; display:block; width:100%; height:auto; border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); box-shadow:0 24px 60px rgba(0,0,0,.34); }
+      .preview-window.dark { top:0; right:auto; bottom:auto; left:0; z-index:2; transform:none; }
+      .app-preview figcaption { position:relative; z-index:3; margin-top:10px; color:var(--text-muted); font-size:12px; text-align:center; }
+      .proof { display:flex; flex-wrap:wrap; justify-content:center; gap:0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+      .proof div { flex:1; min-width:170px; padding:23px 18px; text-align:center; color:var(--text-muted); font-size:13px; }
+      .proof div+div { border-left:1px solid var(--border); }
+      .proof strong { display:block; color:var(--text-strong); font-size:15px; }
       section.content { padding:96px 0; }
       .section-heading { max-width:660px; margin:0 auto 44px; text-align:center; }
       .section-heading h2 { margin:0 0 12px; font-size:clamp(30px,4vw,46px); line-height:1.06; letter-spacing:-.05em; }
-      .section-heading p { margin:0; color:var(--muted); }
+      .section-heading p { margin:0; color:var(--text-muted); }
       .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
-      .card { min-height:205px; padding:23px; border:1px solid var(--line); border-radius:12px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); }
-      .card-icon { display:grid; place-items:center; width:36px; height:36px; margin-bottom:22px; border:1px solid rgba(197,243,107,.2); border-radius:9px; background:rgba(197,243,107,.08); color:var(--lime); }
+      .card { min-height:190px; padding:22px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+      .card-icon { display:grid; place-items:center; width:34px; height:34px; margin-bottom:20px; border:1px solid color-mix(in srgb,var(--accent) 24%,transparent); border-radius:6px; background:color-mix(in srgb,var(--accent) 8%,transparent); color:var(--accent-strong); }
       .card-icon svg { width:18px; height:18px; }
       .card h3 { margin:0 0 8px; font-size:16px; letter-spacing:-.02em; }
-      .card p { margin:0; color:var(--muted); font-size:13px; }
-      .workflow { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; padding:28px; border:1px solid var(--line); border-radius:15px; background:var(--panel); }
+      .card p { margin:0; color:var(--text-muted); font-size:13px; }
+      .workflow { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; padding:28px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
       .workflow h2 { margin:8px 0 12px; font-size:34px; line-height:1.07; letter-spacing:-.05em; }
-      .workflow p { color:var(--muted); font-size:14px; }
-      .file-tree { padding:20px; border:1px solid var(--line); border-radius:10px; background:#101512; color:#c5d0c7; font:12px/2 ui-monospace,monospace; }
-      .file-tree .dim { color:#6e7e72; }.file-tree .accent { color:var(--lime); }.file-tree .file { color:#87c9ff; }
-      .stream-box { position:relative; overflow:hidden; padding:23px; border:1px solid rgba(60,224,161,.2); border-radius:12px; background:linear-gradient(145deg,rgba(60,224,161,.08),rgba(23,30,25,.5)); }
+      .workflow p { color:var(--text-muted); font-size:14px; }
+      .file-tree { padding:20px; border:1px solid var(--border); border-radius:6px; background:var(--surface-muted); color:var(--text); font:12px/2 ui-monospace,monospace; }
+      .file-tree .dim { color:var(--text-muted); }.file-tree .accent { color:var(--accent-strong); }.file-tree .file { color:var(--text-strong); }
+      .stream-box { position:relative; overflow:hidden; padding:23px; border:1px solid color-mix(in srgb,var(--success) 22%,transparent); border-radius:8px; background:color-mix(in srgb,var(--success) 5%,var(--surface-muted)); }
       .stream-top { display:flex; justify-content:space-between; margin-bottom:19px; font-size:12px; }
-      .live { color:var(--green); font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
-      .stream-row { display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--line); color:#b6c4b8; font:10px ui-monospace,monospace; }
-      .stream-row i { width:6px; height:6px; border-radius:50%; background:var(--green); }
-      .spool-note { display:flex; align-items:center; gap:8px; margin-top:15px; padding:10px; border-radius:6px; background:rgba(0,0,0,.18); color:#9caaa0; font-size:10px; }
-      .spool-note strong { color:var(--lime); }
-      .download { padding:72px 28px; border:1px solid rgba(197,243,107,.22); border-radius:16px; background:radial-gradient(ellipse at 50% 120%,rgba(197,243,107,.13),transparent 60%),var(--panel); text-align:center; }
+      .live { color:var(--success); font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
+      .stream-row { display:flex; gap:10px; align-items:center; padding:10px 0; border-top:1px solid var(--border); color:var(--text); font:11px ui-monospace,monospace; }
+      .stream-row i { width:6px; height:6px; border-radius:50%; background:var(--success); }
+      .spool-note { display:flex; align-items:center; gap:8px; margin-top:15px; padding:10px; border-radius:6px; background:var(--surface-raised); color:var(--text-muted); font-size:11px; }
+      .spool-note strong { color:var(--success); }
+      .download { padding:72px 28px; border:1px solid color-mix(in srgb,var(--accent) 22%,transparent); border-radius:10px; background:radial-gradient(ellipse at 50% 120%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 60%),var(--surface); text-align:center; }
       .download h2 { margin:0 0 12px; font-size:clamp(30px,4vw,44px); line-height:1; letter-spacing:-.05em; }
-      .download p { margin:0 auto 24px; color:var(--muted); }
+      .download p { margin:0 auto 24px; color:var(--text-muted); }
       .download .actions { justify-content:center; margin-top:0; }
-      .footer { display:flex; justify-content:space-between; gap:18px; padding:25px 0 34px; border-top:1px solid var(--line); color:#849187; font-size:12px; }
+      .footer { display:flex; justify-content:space-between; gap:18px; padding:25px 0 34px; border-top:1px solid var(--border); color:var(--text-muted); font-size:12px; }
       .footer-links { display:flex; gap:18px; }.footer a:hover{color:var(--text)}
       @media (max-width: 900px) {
         .hero { grid-template-columns:1fr; gap:52px; padding:64px 0 72px; }
@@ -104,13 +107,14 @@
         .nav { height:65px; }.brand { font-size:14px; }.brand img { width:28px;height:28px; }
         .nav-links { gap:12px; }.nav-links a:not(.nav-cta) { display:none; }.nav-links .nav-cta { padding:9px 12px; font-size:12px; }
         .hero { padding:52px 0 60px; gap:42px; }.hero-copy { font-size:16px; }
-        .proof div { min-width:45%; padding:17px 8px; }.proof div+div { border-left:0; }.proof div:nth-child(even) { border-left:1px solid var(--line); }
+        .proof div { min-width:45%; padding:17px 8px; }.proof div+div { border-left:0; }.proof div:nth-child(even) { border-left:1px solid var(--border); }
         section.content { padding:70px 0; }.cards { grid-template-columns:1fr; }.card { min-height:0; }
         .workflow { grid-template-columns:1fr; gap:20px; padding:18px; }.workflow h2 { font-size:29px; }
         .file-tree { padding:14px; font-size:10px; }.download { padding:52px 18px; }
         .footer { flex-direction:column; }.footer-links { flex-wrap:wrap; }
       }
       @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
+      a:focus-visible { outline:2px solid var(--accent-strong); outline-offset:4px; border-radius:3px; }
     </style>
   </head>
   <body>
@@ -138,11 +142,10 @@
         </div>
 
         <figure class="app-preview">
-          <div class="preview-stack" role="group" aria-label="API Client Reborn shown in light and dark themes">
-            <img class="preview-window light" src="app-screenshot.svg" alt="Light theme: API Client Reborn with a request collection, REST request editor, and response pane." />
-            <img class="preview-window dark" src="app-screenshot-dark.svg" alt="Dark theme: the same request workspace, layered in front and slightly lower." />
+          <div class="preview-stack" role="group" aria-label="API Client Reborn request workspace">
+            <img class="preview-window dark" src="app-screenshot-dark.svg" alt="API Client Reborn with a request collection, HTTP editor, and response pane in one workspace." />
           </div>
-          <figcaption>One workspace, in light and dark. Choose the look that fits.</figcaption>
+          <figcaption>Compose the request. Inspect the response. Keep both in view.</figcaption>
         </figure>
       </section>
 
@@ -175,26 +178,6 @@
             <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
             <h3>Streams without the memory pileup</h3>
             <p>Inspect live events and streaming responses while response data is spooled to disk.</p>
-          </article>
-          <article class="card">
-            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
-            <h3>Environments and secrets</h3>
-            <p>Import Postman environments, switch context, and store secrets separately with Git ignore rules.</p>
-          </article>
-          <article class="card">
-            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>
-            <h3>AI-native with MCP</h3>
-            <p>Connect Cursor, Claude Desktop, and Antigravity to your API workspace via standard Model Context Protocol.</p>
-          </article>
-          <article class="card">
-            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 8 4 12l4 4M16 8l4 4-4 4M14 5l-4 14"/></svg></div>
-            <h3>CLI when you need it</h3>
-            <p>Copy commands or export shell scripts. HTTP exports require cURL; gRPC exports additionally require grpcurl.</p>
-          </article>
-          <article class="card">
-            <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></div>
-            <h3>Bring your Postman collections</h3>
-            <p>Import v2.1 collections and use supported Postman-style scripts and assertions.</p>
           </article>
         </div>
       </section>

@@ -4,106 +4,106 @@
   <defs>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="5" stdDeviation="10" flood-color="#0b1220" flood-opacity=".16"/></filter>
   </defs>
-  <rect width="1440" height="720" rx="16" fill="#191c23"/>
-  <rect width="1440" height="48" rx="16" fill="#222630"/>
-  <path d="M0 48h1440" stroke="#393d47"/>
+  <rect width="1440" height="720" rx="16" fill="#0d0f12"/>
+  <rect width="1440" height="48" rx="16" fill="#13161b"/>
+  <path d="M0 48h1440" stroke="#343942"/>
   <g fill="#c4cad5" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
-    <path d="M34 18l12-7 12 7v14l-12 7-12-7V18Zm4 2v10l8 5 8-5V20l-8-5-8 5Z" fill="#3478ff"/>
-    <text x="70" y="31" font-size="18" font-weight="650" fill="#eef0f5">API Client Reborn</text>
+    <path d="M34 18l12-7 12 7v14l-12 7-12-7V18Zm4 2v10l8 5 8-5V20l-8-5-8 5Z" fill="#9b8cff"/>
+    <text x="70" y="31" font-size="18" font-weight="650" fill="#e7e9ee">API Client Reborn</text>
     <text x="1212" y="29" font-size="12" fill="#c4cad5">⌘</text>
     <circle cx="1262" cy="24" r="9" fill="none" stroke="#c4cad5" stroke-width="2"/>
     <path d="M1262 18v6l4 3" fill="none" stroke="#c4cad5" stroke-width="1.5"/>
   </g>
-  <rect x="1290" y="7" width="130" height="34" rx="9" fill="#191c23" stroke="#414652"/>
-  <text x="1303" y="29" fill="#2463eb" font-family="monospace" font-size="14" font-weight="700">{x}</text>
-  <text x="1331" y="29" fill="#d5d9e1" font-family="Inter, sans-serif" font-size="13">Vars · default</text>
-  <text x="1403" y="29" fill="#a8afbd" font-family="Inter, sans-serif" font-size="13">3</text>
+  <rect x="1290" y="7" width="130" height="34" rx="6" fill="#0d0f12" stroke="#343942"/>
+  <text x="1303" y="29" fill="#9b8cff" font-family="monospace" font-size="14" font-weight="700">{x}</text>
+  <text x="1331" y="29" fill="#c8ccd5" font-family="Inter, sans-serif" font-size="13">Vars · default</text>
+  <text x="1403" y="29" fill="#9299a6" font-family="Inter, sans-serif" font-size="13">3</text>
 
-  <rect y="48" width="255" height="672" fill="#1b1e26"/>
-  <path d="M255 48v672M0 124h255M0 165h255" stroke="#343843"/>
-  <rect x="0" y="48" width="127" height="76" fill="#222630"/>
-  <path d="M0 122h127" stroke="#3478ff" stroke-width="3"/>
+  <rect y="48" width="255" height="672" fill="#101318"/>
+  <path d="M255 48v672M0 124h255M0 165h255" stroke="#343942"/>
+  <rect x="0" y="48" width="127" height="76" fill="#13161b"/>
+  <path d="M0 122h127" stroke="#9b8cff" stroke-width="2"/>
   <text x="30" y="91" font-family="Inter, sans-serif" font-size="15" fill="#2262ee">Requests</text>
-  <text x="103" y="91" font-family="Inter, sans-serif" font-size="12" fill="#a8afbd">5</text>
-  <text x="157" y="91" font-family="Inter, sans-serif" font-size="14" fill="#a8afbd">◷ History</text>
-  <rect x="12" y="132" width="70" height="27" rx="6" fill="#2865ed"/>
+  <text x="103" y="91" font-family="Inter, sans-serif" font-size="12" fill="#9299a6">5</text>
+  <text x="157" y="91" font-family="Inter, sans-serif" font-size="14" fill="#9299a6">◷ History</text>
+  <rect x="12" y="132" width="70" height="27" rx="6" fill="#9b8cff"/>
   <text x="23" y="150" font-family="Inter, sans-serif" font-size="13" fill="#fff">＋ New</text>
-  <g fill="none" stroke="#a8afbd" stroke-width="1.8">
+  <g fill="none" stroke="#9299a6" stroke-width="1.8">
     <path d="M190 141h15v14h-15zM194 137h8"/><path d="M215 154v-16m-5 5 5-5 5 5m15 1a9 9 0 1 0 2-6m-3-2v7h7"/>
   </g>
-  <rect x="12" y="174" width="231" height="34" rx="6" fill="#191c23" stroke="#3a3f4a"/>
-  <circle cx="27" cy="191" r="6" fill="none" stroke="#9da4b2" stroke-width="1.5"/>
-  <path d="m31 195 5 5" stroke="#9da4b2" stroke-width="1.5"/>
-  <text x="44" y="196" font-family="Inter, sans-serif" font-size="13" fill="#9da4b2">Filter requests... (⌘F)</text>
+  <rect x="12" y="174" width="231" height="34" rx="6" fill="#0d0f12" stroke="#343942"/>
+  <circle cx="27" cy="191" r="6" fill="none" stroke="#9299a6" stroke-width="1.5"/>
+  <path d="m31 195 5 5" stroke="#9299a6" stroke-width="1.5"/>
+  <text x="44" y="196" font-family="Inter, sans-serif" font-size="13" fill="#9299a6">Filter requests... (⌘F)</text>
   <g font-family="Inter, sans-serif" font-size="13">
-    <text x="16" y="236" fill="#a8afbd">▱</text><text x="34" y="236" fill="#c4cad5" font-weight="600">examples</text>
-    <rect x="14" y="247" width="228" height="31" rx="5" fill="#191c23" stroke="#343843"/>
-    <rect x="22" y="256" width="33" height="15" rx="4" fill="#e8f0ff" stroke="#385b91"/>
-    <text x="27" y="267" fill="#2865ed" font-size="10" font-weight="700">GET</text><text x="64" y="268" fill="#215ee7">Get All Users</text>
+    <text x="16" y="236" fill="#9299a6">▱</text><text x="34" y="236" fill="#c8ccd5" font-weight="600">examples</text>
+    <rect x="14" y="247" width="228" height="31" rx="5" fill="#13161b" stroke="#343942"/>
+    <rect x="22" y="256" width="33" height="15" rx="4" fill="#28243d" stroke="#514b70"/>
+    <text x="27" y="267" fill="#9b8cff" font-size="10" font-weight="700">GET</text><text x="64" y="268" fill="#b2a7ff">Get All Users</text>
     <rect x="22" y="289" width="41" height="15" rx="4" fill="#193d36" stroke="#2e6c5c"/>
-    <text x="26" y="300" fill="#159466" font-size="10" font-weight="700">POST</text><text x="72" y="301" fill="#d5d9e1">Create User Profile</text>
+    <text x="26" y="300" fill="#70d7a8" font-size="10" font-weight="700">POST</text><text x="72" y="301" fill="#c8ccd5">Create User Profile</text>
     <rect x="22" y="322" width="33" height="15" rx="4" fill="#e8f0ff" stroke="#385b91"/>
-    <text x="27" y="333" fill="#2865ed" font-size="10" font-weight="700">GET</text><text x="64" y="334" fill="#d5d9e1">Stream Live SSE Events</text>
-    <text x="16" y="377" fill="#888">▱</text><text x="34" y="377" fill="#bac0cc" font-size="12">methods</text>
-    <text x="16" y="413" fill="#888">▱</text><text x="34" y="413" fill="#bac0cc" font-size="12">responses</text>
+    <text x="27" y="333" fill="#9b8cff" font-size="10" font-weight="700">GET</text><text x="64" y="334" fill="#c8ccd5">Stream Live SSE Events</text>
+    <text x="16" y="377" fill="#626975">▱</text><text x="34" y="377" fill="#9299a6" font-size="12">methods</text>
+    <text x="16" y="413" fill="#626975">▱</text><text x="34" y="413" fill="#9299a6" font-size="12">responses</text>
   </g>
 
-  <rect x="255" y="48" width="1185" height="42" fill="#242832"/>
-  <path d="M255 90h1185" stroke="#3a3f49"/>
-  <rect x="255" y="48" width="242" height="42" fill="#191c23" stroke="#393e48"/>
-  <path d="M255 49h242" stroke="#3976ff" stroke-width="2"/>
-  <rect x="269" y="62" width="28" height="16" rx="4" fill="#1d3153"/>
-  <text x="274" y="74" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#2463eb">GET</text>
-  <text x="307" y="76" font-family="Inter, sans-serif" font-size="13" font-style="italic" fill="#eef0f5">Get All Users</text>
-  <text x="475" y="76" font-family="Inter, sans-serif" font-size="14" fill="#9da4b2">×</text>
-  <text x="514" y="76" font-family="Inter, sans-serif" font-size="20" fill="#a8afbd">＋</text>
+  <rect x="255" y="48" width="1185" height="42" fill="#191d24"/>
+  <path d="M255 90h1185" stroke="#343942"/>
+  <rect x="255" y="48" width="242" height="42" fill="#0d0f12" stroke="#343942"/>
+  <path d="M255 49h242" stroke="#9b8cff" stroke-width="2"/>
+  <rect x="269" y="62" width="28" height="16" rx="4" fill="#28243d"/>
+  <text x="274" y="74" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#9b8cff">GET</text>
+  <text x="307" y="76" font-family="Inter, sans-serif" font-size="13" font-style="italic" fill="#e7e9ee">Get All Users</text>
+  <text x="475" y="76" font-family="Inter, sans-serif" font-size="14" fill="#626975">×</text>
+  <text x="514" y="76" font-family="Inter, sans-serif" font-size="20" fill="#9299a6">＋</text>
 
-  <rect x="255" y="90" width="590" height="630" fill="#191c23"/>
-  <path d="M845 90v630" stroke="#3a3f49"/>
-  <rect x="255" y="90" width="590" height="46" fill="#1b1e26"/>
-  <path d="M255 136h590" stroke="#343843"/>
-  <text x="276" y="119" font-family="Inter, sans-serif" font-size="15" font-weight="600" fill="#eef0f5">Get All Users</text>
-  <rect x="758" y="98" width="71" height="30" rx="6" fill="#191c23" stroke="#3a3f4a"/>
+  <rect x="255" y="90" width="590" height="630" fill="#0d0f12"/>
+  <path d="M845 90v630" stroke="#343942"/>
+  <rect x="255" y="90" width="590" height="46" fill="#101318"/>
+  <path d="M255 136h590" stroke="#343942"/>
+  <text x="276" y="119" font-family="Inter, sans-serif" font-size="15" font-weight="600" fill="#e7e9ee">Get All Users</text>
+  <rect x="758" y="98" width="71" height="30" rx="6" fill="#0d0f12" stroke="#343942"/>
   <text x="768" y="118" font-family="Inter, sans-serif" font-size="12" fill="#c4cad5">▢ cURL</text>
-  <rect x="270" y="150" width="74" height="37" rx="6" fill="#292d36" stroke="#3a3f4a"/>
-  <text x="288" y="174" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#2872ff">GET</text>
-  <text x="330" y="174" font-family="Inter, sans-serif" font-size="14" fill="#2872ff">⌄</text>
-  <rect x="353" y="150" width="289" height="37" rx="6" fill="#191c23" stroke="#3a3f4a"/>
-  <text x="367" y="174" font-family="Menlo, monospace" font-size="13" fill="#eef0f5">https://httpbin.org/get</text>
-  <rect x="650" y="150" width="101" height="37" rx="6" fill="#2865ed"/>
-  <text x="666" y="174" font-family="Inter, sans-serif" font-size="14" fill="#fff">▶ Send</text>
-  <rect x="759" y="150" width="70" height="37" rx="6" fill="#191c23" stroke="#3a3f4a"/>
+  <rect x="270" y="150" width="74" height="37" rx="6" fill="#20252d" stroke="#343942"/>
+  <text x="288" y="174" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#9b8cff">GET</text>
+  <text x="330" y="174" font-family="Inter, sans-serif" font-size="14" fill="#9b8cff">⌄</text>
+  <rect x="353" y="150" width="289" height="37" rx="6" fill="#0d0f12" stroke="#343942"/>
+  <text x="367" y="174" font-family="Menlo, monospace" font-size="13" fill="#e7e9ee">https://httpbin.org/get</text>
+  <rect x="650" y="150" width="101" height="37" rx="6" fill="#9b8cff"/>
+  <text x="666" y="174" font-family="Inter, sans-serif" font-size="14" fill="#15121f">▶ Send</text>
+  <rect x="759" y="150" width="70" height="37" rx="6" fill="#0d0f12" stroke="#343942"/>
   <text x="770" y="174" font-family="Inter, sans-serif" font-size="12" fill="#c4cad5">Import</text>
-  <path d="M255 198h590" stroke="#343843"/>
+  <path d="M255 198h590" stroke="#343942"/>
   <g font-family="Inter, sans-serif" font-size="13">
-    <text x="295" y="220" fill="#2463eb">Params</text><text x="365" y="220" fill="#9da4b2">2</text>
-    <text x="394" y="220" fill="#bac0cc">Headers</text><text x="457" y="220" fill="#9da4b2">2</text>
-    <text x="493" y="220" fill="#bac0cc">Body</text><text x="543" y="220" fill="#bac0cc">Auth</text><text x="600" y="220" fill="#bac0cc">Scripts</text>
+    <text x="295" y="220" fill="#b2a7ff">Params</text><text x="365" y="220" fill="#626975">2</text>
+    <text x="394" y="220" fill="#9299a6">Headers</text><text x="457" y="220" fill="#626975">2</text>
+    <text x="493" y="220" fill="#9299a6">Body</text><text x="543" y="220" fill="#9299a6">Auth</text><text x="600" y="220" fill="#9299a6">Scripts</text>
   </g>
-  <path d="M270 231h98" stroke="#3976ff" stroke-width="2"/>
-  <path d="M255 232h590" stroke="#343843"/>
-  <text x="270" y="258" font-family="Inter, sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="#a8afbd">QUERY PARAMETERS</text>
-  <text x="310" y="285" font-family="Inter, sans-serif" font-size="12" fill="#9da4b2">Key</text>
-  <text x="455" y="285" font-family="Inter, sans-serif" font-size="12" fill="#9da4b2">Value</text>
-  <path d="M270 296h558M270 330h558M270 364h558" stroke="#343944"/>
-  <g font-family="Menlo, monospace" font-size="13" fill="#eef0f5">
-    <rect x="284" y="306" width="13" height="13" rx="2" fill="#2865ed"/><path d="m287 312 3 3 5-6" fill="none" stroke="#fff" stroke-width="1.5"/>
+  <path d="M270 231h98" stroke="#9b8cff" stroke-width="2"/>
+  <path d="M255 232h590" stroke="#343942"/>
+  <text x="270" y="258" font-family="Inter, sans-serif" font-size="12" font-weight="700" letter-spacing="1" fill="#9299a6">QUERY PARAMETERS</text>
+  <text x="310" y="285" font-family="Inter, sans-serif" font-size="12" fill="#9299a6">Key</text>
+  <text x="455" y="285" font-family="Inter, sans-serif" font-size="12" fill="#9299a6">Value</text>
+  <path d="M270 296h558M270 330h558M270 364h558" stroke="#343942"/>
+  <g font-family="Menlo, monospace" font-size="13" fill="#e7e9ee">
+    <rect x="284" y="306" width="13" height="13" rx="2" fill="#9b8cff"/><path d="m287 312 3 3 5-6" fill="none" stroke="#15121f" stroke-width="1.5"/>
     <text x="310" y="319">page</text><text x="455" y="319">1</text>
-    <rect x="284" y="340" width="13" height="13" rx="2" fill="#2865ed"/><path d="m287 346 3 3 5-6" fill="none" stroke="#fff" stroke-width="1.5"/>
+    <rect x="284" y="340" width="13" height="13" rx="2" fill="#9b8cff"/><path d="m287 346 3 3 5-6" fill="none" stroke="#15121f" stroke-width="1.5"/>
     <text x="310" y="353">limit</text><text x="455" y="353">20</text>
   </g>
-  <text x="270" y="393" font-family="Inter, sans-serif" font-size="13" fill="#2865ed">＋ Add Parameter</text>
+  <text x="270" y="393" font-family="Inter, sans-serif" font-size="13" fill="#b2a7ff">＋ Add Parameter</text>
 
-  <rect x="846" y="90" width="594" height="46" fill="#1b1e26"/>
-  <path d="M846 136h594" stroke="#343843"/>
-  <text x="870" y="119" font-family="Inter, sans-serif" font-size="14" fill="#a8afbd">No response yet</text>
-  <rect x="1148" y="99" width="273" height="29" rx="6" fill="#242832" stroke="#d2d2d7"/>
-  <rect x="1152" y="102" width="65" height="23" rx="5" fill="#191c23"/>
-  <text x="1168" y="118" font-family="Inter, sans-serif" font-size="12" fill="#eef0f5">Body</text>
-  <text x="1232" y="118" font-family="Inter, sans-serif" font-size="12" fill="#c4cad5">Headers (0)</text>
-  <text x="1340" y="118" font-family="Inter, sans-serif" font-size="12" fill="#c4cad5">Tests</text>
-  <path d="M846 170h594" stroke="#343944"/>
-  <text x="870" y="195" font-family="Menlo, monospace" font-size="13" fill="#eef0f5">// No response body</text>
+  <rect x="846" y="90" width="594" height="46" fill="#101318"/>
+  <path d="M846 136h594" stroke="#343942"/>
+  <text x="870" y="119" font-family="Inter, sans-serif" font-size="14" fill="#9299a6">No response yet</text>
+  <rect x="1148" y="99" width="273" height="29" rx="6" fill="#191d24" stroke="#343942"/>
+  <rect x="1152" y="102" width="65" height="23" rx="5" fill="#0d0f12"/>
+  <text x="1168" y="118" font-family="Inter, sans-serif" font-size="12" fill="#e7e9ee">Body</text>
+  <text x="1232" y="118" font-family="Inter, sans-serif" font-size="12" fill="#c8ccd5">Headers (0)</text>
+  <text x="1340" y="118" font-family="Inter, sans-serif" font-size="12" fill="#c8ccd5">Tests</text>
+  <path d="M846 170h594" stroke="#343942"/>
+  <text x="870" y="195" font-family="Menlo, monospace" font-size="13" fill="#e7e9ee">// No response body</text>
 
-  <rect x="0.5" y="0.5" width="1439" height="719" rx="15.5" fill="none" stroke="#d8d8dd" filter="url(#shadow)"/>
+  <rect x="0.5" y="0.5" width="1439" height="719" rx="15.5" fill="none" stroke="#343942" filter="url(#shadow)"/>
 </svg>
