@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.6] — 2026-11-15
+
+### Fixed
+
+- Allow the updater's Open GitHub Releases button to open the releases page and show a useful error if it cannot.
+- Keep releases unpublished until all platform updater assets and signatures are available.
+
 ## [0.14.5] — 2026-11-15
 
 ### Improved

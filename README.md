@@ -277,7 +277,8 @@ A GitHub Actions automated release pipeline is configured in [`.github/workflows
    - Build Windows installer (`.exe`, `.msi`).
    - Build Linux packages (`.deb`, `.AppImage`).
    - Run verification checks and test suites.
-   - Publish a release on GitHub with all binaries attached.
+   - Keep the release as a draft until every platform succeeds and the signed updater metadata and assets are validated, then publish it.
+   - If a build or validation fails, leave the draft unpublished; fix the failure and rerun the workflow.
 
 ---
 

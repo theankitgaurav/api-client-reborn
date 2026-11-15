@@ -9,18 +9,30 @@
     Layers,
   } from '$lib/components/icons';
 
+  const releasesUrl = 'https://github.com/theankitgaurav/api-client-reborn/releases';
+  let releaseOpenError = $state('');
+
   async function openGitHubReleases() {
-    const url = 'https://github.com/theankitgaurav/api-client-reborn/releases';
+    releaseOpenError = '';
     if (updaterState.isTauri) {
       try {
         const { open } = await import('@tauri-apps/plugin-shell');
-        await open(url);
+        await open(releasesUrl);
         return;
       } catch (err) {
-        console.warn('Failed to open shell URL:', err);
+        console.error('Failed to open GitHub Releases:', err);
+        releaseOpenError = `Could not open GitHub Releases: ${err instanceof Error ? err.message : String(err)}`;
+        return;
       }
     }
-    window.open(url, '_blank');
+    try {
+      const opened = window.open(releasesUrl, '_blank');
+      if (!opened) throw new Error('Pop-up blocked');
+      opened.opener = null;
+    } catch (err) {
+      console.error('Failed to open GitHub Releases:', err);
+      releaseOpenError = 'Could not open GitHub Releases. Allow pop-ups or open the address below.';
+    }
   }
 </script>
 
@@ -247,6 +259,11 @@
               </div>
             </div>
 
+            {#if releaseOpenError}
+              <p role="alert" class="text-[11px] text-[var(--danger)]">
+                {releaseOpenError} <span class="select-text break-all">{releasesUrl}</span>
+              </p>
+            {/if}
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-[var(--border)]">
               <button
                 onclick={openGitHubReleases}

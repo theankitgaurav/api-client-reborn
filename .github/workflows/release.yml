@@ -5,12 +5,72 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  prepare:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.draft.outputs.release_id }}
+      release_notes: ${{ steps.draft.outputs.release_notes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create or reuse draft release
+        id: draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if [ -z "$(tr -d '[:space:]' < "$RUNNER_TEMP/release-notes.md")" ]; then
+            echo "Missing changelog entry for $RELEASE_TAG" >&2
+            exit 1
+          fi
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | jq --arg tag "$RELEASE_TAG" '[.[][] | select(.tag_name == $tag) | {databaseId: .id, isDraft: .draft}]' \
+            > "$RUNNER_TEMP/matching-releases.json"
+          count="$(jq 'length' "$RUNNER_TEMP/matching-releases.json")"
+          if [ "$count" -gt 1 ]; then
+            echo "Multiple releases found for $RELEASE_TAG; resolve them before retrying." >&2
+            exit 1
+          elif [ "$count" -eq 1 ]; then
+            jq '.[0]' "$RUNNER_TEMP/matching-releases.json" > "$RUNNER_TEMP/release.json"
+            if [ "$(jq -r '.isDraft' "$RUNNER_TEMP/release.json")" != "true" ]; then
+              echo "Release $RELEASE_TAG is already published; refusing to replace its assets." >&2
+              exit 1
+            fi
+          else
+            gh release create "$RELEASE_TAG" --draft --verify-tag \
+              --title "API Client Reborn $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+            gh release view "$RELEASE_TAG" --json databaseId,isDraft > "$RUNNER_TEMP/release.json"
+          fi
+          echo "release_id=$(jq -r '.databaseId' "$RUNNER_TEMP/release.json")" >> "$GITHUB_OUTPUT"
+          {
+            echo 'release_notes<<RELEASE_NOTES_EOF'
+            cat "$RUNNER_TEMP/release-notes.md"
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
   release:
+    needs: prepare
     permissions:
       contents: write
     strategy:
       fail-fast: false
+      # The action reads and replaces a shared latest.json; serialize its writers.
+      max-parallel: 1
       matrix:
         include:
           - platform: 'macos-latest'
@@ -35,28 +95,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Extract release notes from changelog
-        id: release-notes
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        shell: bash
-        run: |
-          version="${RELEASE_TAG#v}"
-          notes="$(awk -v heading="## [$version]" '
-            index($0, heading) == 1 { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md)"
-          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
-            echo "Missing changelog entry for $RELEASE_TAG" >&2
-            exit 1
-          fi
-          {
-            echo "body<<CHANGELOG_EOF"
-            printf '%s\n' "$notes"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -91,8 +129,32 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'API Client Reborn ${{ github.ref_name }}'
-          releaseBody: ${{ steps.release-notes.outputs.body }}
-          releaseDraft: false
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          releaseBody: ${{ needs.prepare.outputs.release_notes }}
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  publish:
+    needs: release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate updater metadata and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" --json tagName,isDraft,assets > "$RUNNER_TEMP/release.json"
+          mkdir "$RUNNER_TEMP/updater-assets"
+          gh release download "$RELEASE_TAG" --pattern latest.json --pattern '*.sig' --dir "$RUNNER_TEMP/updater-assets"
+          node .github/scripts/validate-release.mjs "$RELEASE_TAG" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/updater-assets" "$RUNNER_TEMP/release.json"
+          gh release edit "$RELEASE_TAG" --draft=false
