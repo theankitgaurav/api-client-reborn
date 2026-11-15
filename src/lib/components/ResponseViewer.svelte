@@ -209,7 +209,10 @@
           </div>
         {/if}
         <div class="px-3 py-1 bg-[var(--surface-muted)] border-b border-[var(--border)] flex justify-end gap-2">
-          <button type="button" aria-pressed={wordWrap} onclick={() => (wordWrap = !wordWrap)} class="ui-button ui-button-secondary h-6 px-2 text-[10px]">Word wrap {wordWrap ? 'On' : 'Off'}</button>
+          <label class="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer select-none">
+            <input type="checkbox" bind:checked={wordWrap} class="rounded accent-[var(--accent)]" />
+            <span>Word wrap</span>
+          </label>
           {#if responseIsFile() && responseState.current.status && !responseState.current.isExecuting && responseState.current.spoolFilePath}
             <button
               onclick={saveResponseFile}

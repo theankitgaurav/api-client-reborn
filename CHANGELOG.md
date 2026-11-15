@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.7] — 2026-11-15
+
+### Improved
+
+- Made Word wrap controls in the response Body and Stream tabs checkboxes, matching Auto-scroll.
+
 ## [0.14.6] — 2026-11-15
 
 ### Fixed
