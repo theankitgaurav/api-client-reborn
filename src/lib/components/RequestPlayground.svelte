@@ -399,14 +399,14 @@
         <button
           onclick={copyCurl}
           title="Copy as cURL"
-          class="ui-button ui-button-secondary h-6.5 px-2.5 text-[11px]"
+          class="ui-button ui-button-secondary h-6 px-2 text-[10px]"
         >
           {#if copiedCurl}<Check size={11} class="text-[var(--success)]" /><span>Copied</span>{:else}<Copy size={11} /><span>cURL</span>{/if}
         </button>
         {#if workspaceState.isDirty || !workspaceState.activeTab?.filePath}
           <button
             onclick={() => workspaceState.saveActiveFile()}
-            class="ui-button ui-button-primary h-6.5 px-2.5 text-[11px]"
+            class="ui-button ui-button-primary h-6 px-2 text-[10px]"
           >
             <Save size={11} />
             <span>Save ({isMac ? '⌘S' : 'Ctrl+S'})</span>

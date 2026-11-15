@@ -20,7 +20,6 @@
 
   function startDragging(event: PointerEvent) {
     if (event.button !== 0) return;
-    event.preventDefault();
     (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
     isDragging = true;
     updateSplit(event.clientX);
@@ -70,6 +69,8 @@
       onpointermove={(event) => isDragging && updateSplit(event.clientX)}
       onpointerup={stopDragging}
       onpointercancel={stopDragging}
+      ondblclick={() => uiState.resetSplitRatio()}
+      title="Double-click to reset split"
       onkeydown={handleResizeKeydown}
       class="ui-resize-handle {isDragging ? 'is-dragging' : ''}"
       style="grid-column: 2; grid-row: 2 / 4"
@@ -90,6 +91,8 @@
       onpointermove={(event) => isDragging && updateSplit(event.clientX)}
       onpointerup={stopDragging}
       onpointercancel={stopDragging}
+      ondblclick={() => uiState.resetSplitRatio()}
+      title="Double-click to reset split"
       onkeydown={handleResizeKeydown}
       class="ui-resize-handle {isDragging ? 'is-dragging' : ''}"
       style="grid-column: 2; grid-row: 1"

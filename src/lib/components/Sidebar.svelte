@@ -5,6 +5,7 @@
   import { envState } from '$lib/state/env.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { uiState } from '$lib/state/ui.svelte';
+  import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from '$lib/utils/panel-layout';
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
   import Modal from './ui/Modal.svelte';
@@ -51,6 +52,44 @@
   let draggedItem = $state<WorkspaceFileItem | null>(null);
   let dropTarget = $state<string | null>(null);
   let dragError = $state('');
+  let isResizingSidebar = $state(false);
+  let sidebarResizeStartX = 0;
+  let sidebarResizeStartWidth = 0;
+
+  function startSidebarResize(event: PointerEvent) {
+    if (event.button !== 0 || !(event.currentTarget instanceof HTMLElement)) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    sidebarResizeStartX = event.clientX;
+    sidebarResizeStartWidth = uiState.sidebarWidth;
+    isResizingSidebar = true;
+  }
+
+  function resizeSidebar(event: PointerEvent) {
+    if (isResizingSidebar) {
+      uiState.setSidebarWidth(sidebarResizeStartWidth + event.clientX - sidebarResizeStartX);
+    }
+  }
+
+  function stopSidebarResize() {
+    isResizingSidebar = false;
+  }
+
+  function handleSidebarResizeKeydown(event: KeyboardEvent) {
+    const increment = event.shiftKey ? 40 : 10;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      uiState.setSidebarWidth(uiState.sidebarWidth - increment);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      uiState.setSidebarWidth(uiState.sidebarWidth + increment);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      uiState.setSidebarWidth(SIDEBAR_WIDTH_MIN);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      uiState.setSidebarWidth(SIDEBAR_WIDTH_MAX);
+    }
+  }
 
   function startDrag(event: DragEvent, item: WorkspaceFileItem) {
     draggedItem = item;
@@ -365,20 +404,21 @@
 <svelte:window onclick={closeContextMenu} />
 
 <aside
+  style={`width: ${uiState.sidebarCollapsed ? 48 : uiState.sidebarWidth}px`}
   aria-label="Workspace navigation"
-  class="{uiState.sidebarCollapsed ? 'w-12' : 'w-[258px]'} flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs transition-[width] duration-150 overflow-hidden"
+  class="flex h-full shrink-0 select-none flex-col border-r border-[var(--border)] bg-[var(--surface-muted)] text-xs {isResizingSidebar ? 'transition-none' : 'transition-[width] duration-150'} overflow-hidden"
 >
   {#if uiState.sidebarCollapsed}
     <!-- Collapsed Minimal Rail -->
     <div class="flex flex-col items-center gap-2 py-2.5">
       <button
         type="button"
-        class="ui-icon-button bg-[var(--surface)] text-[var(--accent)] shadow-sm"
+        class="ui-icon-button text-[var(--text-subtle)]"
         aria-label="Expand workspace sidebar"
         title="Expand workspace sidebar ({isMac ? '⌘\\' : 'Ctrl+\\'})"
         onclick={() => uiState.setSidebarCollapsed(false)}
       >
-        <PanelLeft size={16} direction="expand" />
+        <PanelLeft size={14} direction="expand" />
       </button>
       <div class="my-0.5 h-px w-5 bg-[var(--border)]"></div>
       <button
@@ -437,12 +477,12 @@
       </div>
       <button
         type="button"
-        class="ui-icon-button shrink-0"
+        class="ui-icon-button shrink-0 text-[var(--text-subtle)]"
         aria-label="Collapse workspace sidebar"
         title="Collapse sidebar ({isMac ? '⌘\\' : 'Ctrl+\\'})"
         onclick={() => uiState.setSidebarCollapsed(true)}
       >
-        <PanelLeft size={16} direction="collapse" />
+        <PanelLeft size={14} direction="collapse" />
       </button>
     </div>
 
@@ -454,7 +494,7 @@
             type="button"
             onclick={() => workspaceState.createNewRequest()}
             title="New Request ({isMac ? '⌘N' : 'Ctrl+N'})"
-            class="inline-flex items-center gap-1 rounded bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white px-2 py-0.5 text-[10px] font-medium transition-all active:scale-[0.98]"
+            class="ui-button ui-button-primary h-6 px-2 text-[10px]"
           >
             <Plus size={11} />
             <span>New Request</span>
@@ -531,7 +571,7 @@
                 ondragstart={(event) => startDrag(event, item)}
                 ondragend={endDrag}
                 oncontextmenu={(e) => handleItemContextMenu(e, item)}
-                class="group flex h-6.5 items-center justify-between px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-hover)] rounded transition-colors {dropTarget === item.path ? 'ring-1 ring-inset ring-[var(--accent)]' : ''}"
+                class="group flex h-7 items-center justify-between px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-hover)] rounded transition-colors {dropTarget === item.path ? 'ring-1 ring-inset ring-[var(--accent)]' : ''}"
               >
                 <button
                   type="button"
@@ -549,7 +589,7 @@
                   {:else}
                     <Folder size={12} class="text-[var(--text-muted)] shrink-0" />
                   {/if}
-                  <span class="truncate normal-case text-[11px] font-medium text-[var(--text-strong)]">{item.name}</span>
+                  <span class="truncate normal-case text-xs font-medium text-[var(--text-strong)]">{item.name}</span>
                 </button>
 
                 <div class="flex items-center gap-0.5 transition-opacity {itemContextMenu?.visible && itemContextMenu.item.path === item.path ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}">
@@ -601,7 +641,7 @@
                 ondblclick={() => workspaceState.openRequest(item.path, true)}
                 oncontextmenu={(e) => handleItemContextMenu(e, item)}
                 onkeydown={(e) => e.key === 'Enter' && workspaceState.openRequest(item.path, false)}
-                class="group flex h-6.5 items-center justify-between px-1.5 py-0.5 rounded transition-all cursor-pointer text-left {workspaceState.activeFilePath === item.path
+                class="group flex h-7 items-center justify-between px-1.5 py-0.5 rounded transition-all cursor-pointer text-left {workspaceState.activeFilePath === item.path
                   ? 'bg-[var(--surface)] text-[var(--accent)] font-medium shadow-sm border border-[var(--border)]'
                   : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}"
               >
@@ -611,7 +651,7 @@
                   >
                     {item.kind === 'grpc' ? 'gRPC' : item.method || 'REQ'}
                   </span>
-                  <span class="truncate text-[11px]">{item.display_name || item.name}</span>
+                  <span class="truncate text-xs">{item.display_name || item.name}</span>
                 </div>
 
                 <button
@@ -644,6 +684,27 @@
     {/if}
   {/if}
 </aside>
+
+{#if !uiState.sidebarCollapsed}
+  <div
+    role="slider"
+    aria-orientation="vertical"
+    aria-label="Resize workspace sidebar"
+    aria-valuemin={SIDEBAR_WIDTH_MIN}
+    aria-valuemax={SIDEBAR_WIDTH_MAX}
+    aria-valuenow={uiState.sidebarWidth}
+    aria-valuetext="{uiState.sidebarWidth}px sidebar width"
+    title="Double-click to reset sidebar width"
+    tabindex="0"
+    onpointerdown={startSidebarResize}
+    onpointermove={resizeSidebar}
+    onpointerup={stopSidebarResize}
+    onpointercancel={stopSidebarResize}
+    onkeydown={handleSidebarResizeKeydown}
+    ondblclick={() => uiState.resetSidebarWidth()}
+    class="ui-resize-handle w-[6px] shrink-0 {isResizingSidebar ? 'is-dragging' : ''}"
+  ></div>
+{/if}
 
 <Modal isOpen={!!renameTarget} title="Rename {renameTarget?.is_dir ? 'Folder' : 'Request'}" onclose={() => { if (!isRenaming) renameTarget = null; }}>
   <form class="p-4 space-y-3" onsubmit={(event) => { event.preventDefault(); void submitRename(); }}>
