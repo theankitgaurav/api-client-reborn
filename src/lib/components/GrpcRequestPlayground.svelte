@@ -11,6 +11,7 @@
   import { getTooltipPosition, getVariableAtPosition, getVariableInfo, type VariableInfo } from '$lib/utils/variable-tooltip';
   import VariableTooltip from './VariableTooltip.svelte';
 
+  let { stacked = false }: { stacked?: boolean } = $props();
   let config = $state<GrpcRequestConfig>(createDefaultGrpcRequest());
   let services = $state<GrpcServiceInfo[]>([]);
   let isDiscovering = $state(false);
@@ -276,7 +277,7 @@
     </div>
   </div>
 
-  <div class="col-start-1 row-start-2 flex gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3 text-xs">
+  <div class="{stacked ? 'col-span-3' : 'col-start-1'} row-start-2 flex gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3 text-xs">
     {#each [{ key: 'connection', label: 'Connection' }, { key: 'message', label: 'Message' }, { key: 'metadata', label: 'Metadata' }] as section}
       <button
         onclick={() => (selectedSection = section.key as typeof selectedSection)}
@@ -285,7 +286,7 @@
     {/each}
   </div>
 
-  <div class="col-start-1 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)] p-3">
+  <div class="{stacked ? 'col-span-3' : 'col-start-1'} row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)] p-3">
     {#if selectedSection === 'message'}
       <div class="h-full flex flex-col gap-2">
         <div class="flex justify-between text-[10px] text-[var(--text-subtle)]">

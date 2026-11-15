@@ -1,7 +1,9 @@
 import {
   persistSidebarWidth,
+  persistSplitLayout,
   persistSplitRatio,
   readSidebarWidth,
+  readSplitOrientation,
   resetSidebarWidth as resetStoredSidebarWidth,
   resetSplitRatio as resetStoredSplitRatio,
   SIDEBAR_WIDTH_DEFAULT,
@@ -42,6 +44,7 @@ export class UiState {
   sidebarCollapsed = $state(readBoolean('ui_sidebar_collapsed', false));
   sidebarWidth = $state(readSidebarWidth(getStorage()));
   splitRatio = $state(readRatio(SPLIT_RATIO_STORAGE_KEY, SPLIT_RATIO_DEFAULT));
+  splitOrientation = $state(readSplitOrientation(getStorage()));
   isCommandPaletteOpen = $state(false);
   commandQuery = $state('');
   commandIndex = $state(0);
@@ -71,6 +74,13 @@ export class UiState {
 
   resetSplitRatio() {
     this.splitRatio = resetStoredSplitRatio(getStorage());
+  }
+
+  toggleSplitOrientation() {
+    const orientation = this.splitOrientation === 'vertical' ? 'horizontal' : 'vertical';
+    const layout = persistSplitLayout(getStorage(), orientation);
+    this.splitOrientation = layout.orientation;
+    this.splitRatio = layout.ratio;
   }
 
   openCommandPalette() {

@@ -13,6 +13,10 @@ export const SPLIT_RATIO_DEFAULT = 0.5;
 export const SPLIT_RATIO_MIN = 0.3;
 export const SPLIT_RATIO_MAX = 0.7;
 
+export type SplitOrientation = 'vertical' | 'horizontal';
+export const SPLIT_ORIENTATION_STORAGE_KEY = 'ui_split_orientation';
+export const SPLIT_ORIENTATION_DEFAULT: SplitOrientation = 'vertical';
+
 export function clampSidebarWidth(width: number): number {
   if (!Number.isFinite(width)) return SIDEBAR_WIDTH_DEFAULT;
   return Math.round(Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, width)));
@@ -55,4 +59,21 @@ export function persistSplitRatio(
 
 export function resetSplitRatio(storage: Pick<LayoutStorage, 'setItem'> | undefined): number {
   return persistSplitRatio(storage, SPLIT_RATIO_DEFAULT);
+}
+
+export function readSplitOrientation(
+  storage: Pick<LayoutStorage, 'getItem'> | undefined
+): SplitOrientation {
+  return storage?.getItem(SPLIT_ORIENTATION_STORAGE_KEY) === 'horizontal'
+    ? 'horizontal'
+    : SPLIT_ORIENTATION_DEFAULT;
+}
+
+export function persistSplitLayout(
+  storage: Pick<LayoutStorage, 'setItem'> | undefined,
+  orientation: SplitOrientation
+): { orientation: SplitOrientation; ratio: number } {
+  storage?.setItem(SPLIT_ORIENTATION_STORAGE_KEY, orientation);
+  const ratio = resetSplitRatio(storage);
+  return { orientation, ratio };
 }

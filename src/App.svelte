@@ -126,13 +126,13 @@
         <ResizableSplit>
           {#snippet request()}
             {#if workspaceState.activeTab?.requestType === 'grpc'}
-              <GrpcRequestPlayground />
+              <GrpcRequestPlayground stacked={uiState.splitOrientation === 'horizontal'} />
             {:else}
-              <RequestPlayground />
+              <RequestPlayground stacked={uiState.splitOrientation === 'horizontal'} />
             {/if}
           {/snippet}
           {#snippet response()}
-            <ResponseViewer />
+            <ResponseViewer stacked={uiState.splitOrientation === 'horizontal'} />
           {/snippet}
         </ResizableSplit>
       {/if}

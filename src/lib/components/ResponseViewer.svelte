@@ -11,6 +11,7 @@
     Download,
   } from '$lib/components/icons';
 
+  let { stacked = false }: { stacked?: boolean } = $props();
   let copied = $state(false);
   let wordWrap = $state(false);
 
@@ -87,7 +88,7 @@
 
 <div class="contents text-xs">
   <!-- Response Top Metric Bar -->
-  <div class="col-start-3 row-start-2 flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+  <div class="{stacked ? 'col-span-3 row-start-1' : 'col-start-3 row-start-2'} flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
     <div class="flex min-w-0 shrink items-center gap-2 overflow-hidden whitespace-nowrap">
       {#if responseState.current.status}
         <span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] {getStatusBadge(responseState.current.status)}">
@@ -181,7 +182,7 @@
     </div>
   </div>
 
-  <div class="col-start-3 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
+  <div class="{stacked ? 'col-span-3 row-start-2' : 'col-start-3 row-start-3'} flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
     <!-- Error Alert if present -->
     {#if responseState.current.error}
       <div class="flex items-start gap-2 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-[var(--danger)]">

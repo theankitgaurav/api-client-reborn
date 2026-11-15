@@ -29,6 +29,7 @@
   } from '$lib/components/icons';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
 
+  let { stacked = false }: { stacked?: boolean } = $props();
   let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts'>('params');
   let scriptSubTab = $state<'pre' | 'post'>('pre');
   let preRequestScript = $state('');
@@ -471,7 +472,7 @@
   </div>
 
   <!-- Playground Tabs (Params | Headers | Body | Auth | Scripts) -->
-  <div class="col-start-1 row-start-2 flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3 text-xs">
+  <div class="{stacked ? 'col-span-3' : 'col-start-1'} row-start-2 flex select-none items-center gap-1 border-b border-[var(--border)] bg-[var(--surface)] px-3 text-xs">
     <button
       onclick={() => (activeTab = 'params')}
       class="px-2.5 py-2 font-medium border-b-2 transition-colors {activeTab === 'params'
@@ -534,7 +535,7 @@
   </div>
 
   <!-- Tab Content Body -->
-  <div class="col-start-1 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
+  <div class="{stacked ? 'col-span-3' : 'col-start-1'} row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
     <!-- 1. PARAMS TAB -->
     {#if activeTab === 'params'}
       <div class="flex-1 overflow-y-auto p-3">

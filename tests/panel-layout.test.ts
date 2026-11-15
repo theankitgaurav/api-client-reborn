@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   persistSidebarWidth,
+  persistSplitLayout,
   persistSplitRatio,
+  readSplitOrientation,
   readSidebarWidth,
   resetSidebarWidth,
   resetSplitRatio,
@@ -11,6 +13,8 @@ import {
   SIDEBAR_WIDTH_MIN,
   SIDEBAR_WIDTH_STORAGE_KEY,
   SPLIT_RATIO_DEFAULT,
+  SPLIT_ORIENTATION_DEFAULT,
+  SPLIT_ORIENTATION_STORAGE_KEY,
   SPLIT_RATIO_STORAGE_KEY,
 } from '../src/lib/utils/panel-layout.ts';
 
@@ -50,4 +54,20 @@ test('request and response split ratio persists clamped values and resets to 50/
   assert.equal(storage.getItem(SPLIT_RATIO_STORAGE_KEY), '0.7');
   assert.equal(resetSplitRatio(storage), SPLIT_RATIO_DEFAULT);
   assert.equal(storage.getItem(SPLIT_RATIO_STORAGE_KEY), '0.5');
+});
+
+test('split layout persists orientation and resets the ratio when orientation changes', () => {
+  const storage = createStorage();
+  assert.equal(readSplitOrientation(storage), SPLIT_ORIENTATION_DEFAULT);
+  persistSplitRatio(storage, 0.65);
+
+  assert.deepEqual(persistSplitLayout(storage, 'horizontal'), {
+    orientation: 'horizontal',
+    ratio: SPLIT_RATIO_DEFAULT,
+  });
+  assert.equal(readSplitOrientation(storage), 'horizontal');
+  assert.equal(storage.getItem(SPLIT_ORIENTATION_STORAGE_KEY), 'horizontal');
+  assert.equal(storage.getItem(SPLIT_RATIO_STORAGE_KEY), String(SPLIT_RATIO_DEFAULT));
+  storage.setItem(SPLIT_ORIENTATION_STORAGE_KEY, 'diagonal');
+  assert.equal(readSplitOrientation(storage), SPLIT_ORIENTATION_DEFAULT);
 });

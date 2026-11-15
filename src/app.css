@@ -273,9 +273,12 @@ textarea:focus-visible,
 
 /* Resizable Splitter Handle */
 .ui-resize-handle {
-  @apply relative z-10 block cursor-col-resize touch-none select-none;
+  @apply z-10 block cursor-col-resize touch-none select-none;
   background: var(--border);
   transition: background 150ms ease;
+}
+.ui-resize-handle[aria-orientation='horizontal'] {
+  cursor: row-resize;
 }
 .ui-resize-handle:hover,
 .ui-resize-handle.is-dragging {
