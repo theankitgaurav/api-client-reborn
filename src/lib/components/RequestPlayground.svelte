@@ -246,7 +246,7 @@
 
 
   async function handleSend() {
-    if (responseState.isExecuting) {
+    if (responseState.current.isExecuting) {
       await responseState.cancel();
     } else {
       await responseState.runCurrentRequest();
@@ -454,11 +454,11 @@
     <!-- Send Button -->
     <button
       onclick={handleSend}
-      class="ui-button h-8 px-4 text-xs font-semibold text-white shadow-sm transition-all active:scale-[0.98] {responseState.isExecuting
+      class="ui-button h-8 px-4 text-xs font-semibold text-white shadow-sm transition-all active:scale-[0.98] {responseState.current.isExecuting
         ? 'bg-[var(--danger)] hover:bg-[var(--danger-hover)]'
         : 'bg-[var(--accent)] hover:bg-[var(--accent-strong)]'}"
     >
-      {#if responseState.isExecuting}
+      {#if responseState.current.isExecuting}
         <Square size={12} fill="currentColor" />
         <span>Cancel</span>
       {:else}

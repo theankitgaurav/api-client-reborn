@@ -15,7 +15,7 @@
   let wordWrap = $state(false);
 
   function downloadFilename() {
-    const disposition = responseState.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
+    const disposition = responseState.current.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
     const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
     if (encodedName) {
       try {
@@ -32,22 +32,23 @@
   }
 
   function responseIsFile() {
-    const disposition = responseState.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
+    const disposition = responseState.current.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
     if (/attachment/i.test(disposition) || /filename\s*\*?=/i.test(disposition)) return true;
-    const contentType = responseState.headers.find((header) => header.key.toLowerCase() === 'content-type')?.value.toLowerCase() || '';
+    const contentType = responseState.current.headers.find((header) => header.key.toLowerCase() === 'content-type')?.value.toLowerCase() || '';
     if (!contentType) return false;
     return !(/^(text\/|application\/(json|[^;]*xml|javascript|x-www-form-urlencoded)|image\/svg\+xml)/i.test(contentType));
   }
 
   async function saveResponseFile() {
     const filename = downloadFilename();
+    const response = responseState.current;
     try {
       if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const path = await save({ defaultPath: filename });
-        if (path) await responseState.exportStream(path);
+        if (path) await response.exportStream(path);
       } else {
-        await responseState.exportStream(filename);
+        await response.exportStream(filename);
       }
     } catch (error) {
       alert(`Could not save response file: ${error instanceof Error ? error.message : String(error)}`);
@@ -60,7 +61,7 @@
   });
 
   function copyBody() {
-    navigator.clipboard.writeText(responseState.bodyText);
+    navigator.clipboard.writeText(responseState.current.bodyText);
     copied = true;
     setTimeout(() => {
       copied = false;
@@ -88,11 +89,11 @@
   <!-- Response Top Metric Bar -->
   <div class="col-start-3 row-start-2 flex min-w-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
     <div class="flex min-w-0 shrink items-center gap-2 overflow-hidden whitespace-nowrap">
-      {#if responseState.status}
-        <span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] {getStatusBadge(responseState.status)}">
-          {responseState.status} {responseState.statusText}
+      {#if responseState.current.status}
+        <span class="px-2 py-0.5 rounded font-mono font-bold text-[11px] {getStatusBadge(responseState.current.status)}">
+          {responseState.current.status} {responseState.current.statusText}
         </span>
-      {:else if responseState.isExecuting}
+      {:else if responseState.current.isExecuting}
         <span class="px-2 py-0.5 rounded font-mono text-[11px] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] animate-pulse font-medium">
           Sending…
         </span>
@@ -100,24 +101,24 @@
         <span class="truncate text-[11px] text-[var(--text-subtle)]" title="No response yet">No response yet</span>
       {/if}
 
-      {#if responseState.isStreaming && responseState.isExecuting}
+      {#if responseState.current.isStreaming && responseState.current.isExecuting}
         <span class="ui-status-success flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium animate-pulse">
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-ping"></span>
           Streaming live
         </span>
       {/if}
 
-      {#if responseState.durationMs !== null}
+      {#if responseState.current.durationMs !== null}
         <span class="flex items-center gap-1 text-[var(--text-muted)] text-[11px] font-mono">
           <Clock size={11} class="text-[var(--text-subtle)]" />
-          {responseState.durationMs}ms
+          {responseState.current.durationMs}ms
         </span>
       {/if}
 
-      {#if responseState.totalBytes > 0}
+      {#if responseState.current.totalBytes > 0}
         <span class="flex items-center gap-1 text-[var(--text-muted)] text-[11px] font-mono">
           <HardDrive size={11} class="text-[var(--text-subtle)]" />
-          {formatBytes(responseState.totalBytes)}
+          {formatBytes(responseState.current.totalBytes)}
         </span>
       {/if}
     </div>
@@ -125,53 +126,53 @@
     <!-- Tab Selector -->
     <div class="flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto text-xs">
       <button
-        onclick={() => (responseState.activeTab = 'body')}
-        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.activeTab === 'body'
+        onclick={() => (responseState.current.activeTab = 'body')}
+        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.current.activeTab === 'body'
           ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
           : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
       >
         Body
       </button>
       <button
-        onclick={() => (responseState.activeTab = 'headers')}
-        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.activeTab === 'headers'
+        onclick={() => (responseState.current.activeTab = 'headers')}
+        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.current.activeTab === 'headers'
           ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
           : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
       >
-        Headers ({responseState.headers.length})
+        Headers ({responseState.current.headers.length})
       </button>
-      {#if responseState.isStreaming}
+      {#if responseState.current.isStreaming}
         <button
-          onclick={() => (responseState.activeTab = 'stream')}
-          class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.activeTab === 'stream'
+          onclick={() => (responseState.current.activeTab = 'stream')}
+          class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.current.activeTab === 'stream'
             ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
             : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
         >
-          Stream ({responseState.streamMessages.length})
+          Stream ({responseState.current.streamMessages.length})
         </button>
       {/if}
       <button
-        onclick={() => (responseState.activeTab = 'tests')}
-        class="flex shrink-0 items-center gap-1 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.activeTab === 'tests'
+        onclick={() => (responseState.current.activeTab = 'tests')}
+        class="flex shrink-0 items-center gap-1 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.current.activeTab === 'tests'
           ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
           : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
       >
         <span>Tests</span>
-        {#if responseState.testResults.length > 0}
-          {@const allPassed = responseState.testResults.every((t) => t.passed)}
-          {@const passCount = responseState.testResults.filter((t) => t.passed).length}
+        {#if responseState.current.testResults.length > 0}
+          {@const allPassed = responseState.current.testResults.every((t) => t.passed)}
+          {@const passCount = responseState.current.testResults.filter((t) => t.passed).length}
           <span
             class="px-1 py-0.2 rounded text-[10px] font-mono font-bold {allPassed
               ? 'ui-status-success'
               : 'ui-status-danger'}"
           >
-            {passCount}/{responseState.testResults.length}
+            {passCount}/{responseState.current.testResults.length}
           </span>
         {/if}
       </button>
       <button
-        onclick={() => (responseState.activeTab = 'raw')}
-        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.activeTab === 'raw'
+        onclick={() => (responseState.current.activeTab = 'raw')}
+        class="shrink-0 border-b-2 px-2.5 py-1.5 font-medium transition-colors {responseState.current.activeTab === 'raw'
           ? 'border-[var(--accent)] text-[var(--text-strong)] font-semibold'
           : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-strong)]'}"
       >
@@ -182,34 +183,34 @@
 
   <div class="col-start-3 row-start-3 flex min-h-0 flex-col overflow-hidden bg-[var(--surface)]">
     <!-- Error Alert if present -->
-    {#if responseState.error}
+    {#if responseState.current.error}
       <div class="flex items-start gap-2 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] p-3 text-[var(--danger)]">
         <AlertTriangle size={15} class="mt-0.5 shrink-0" />
         <div>
           <p class="text-xs font-semibold">Request Failed</p>
-          <p class="mt-0.5 font-mono text-[11px] break-all">{responseState.error}</p>
+          <p class="mt-0.5 font-mono text-[11px] break-all">{responseState.current.error}</p>
         </div>
       </div>
     {/if}
 
     <!-- Tab Content -->
     <div class="relative min-h-0 flex-1 overflow-hidden bg-[var(--surface)]">
-      {#if responseState.activeTab === 'body'}
+      {#if responseState.current.activeTab === 'body'}
         <div class="h-full flex flex-col">
-        {#if responseState.isBodyTruncated || (responseState.isStreaming && responseState.spoolFilePath)}
+        {#if responseState.current.isBodyTruncated || (responseState.current.isStreaming && responseState.current.spoolFilePath)}
           <div class="ui-status-warning border-b px-3 py-1.5 text-[11px]">
             <span>
-              {#if responseState.isBodyTruncated}
-                ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.totalBytes)}</strong>).
+              {#if responseState.current.isBodyTruncated}
+                ⚠️ Large response preview truncated at 2.0 MB (Total payload: <strong>{formatBytes(responseState.current.totalBytes)}</strong>).
               {:else}
-                Full streaming response is saved to disk ({formatBytes(responseState.totalBytes)}).
+                Full streaming response is saved to disk ({formatBytes(responseState.current.totalBytes)}).
               {/if}
             </span>
           </div>
         {/if}
         <div class="px-3 py-1 bg-[var(--surface-muted)] border-b border-[var(--border)] flex justify-end gap-2">
           <button type="button" aria-pressed={wordWrap} onclick={() => (wordWrap = !wordWrap)} class="ui-button ui-button-secondary h-6 px-2 text-[10px]">Word wrap {wordWrap ? 'On' : 'Off'}</button>
-          {#if responseIsFile() && responseState.status && !responseState.isExecuting && responseState.spoolFilePath}
+          {#if responseIsFile() && responseState.current.status && !responseState.current.isExecuting && responseState.current.spoolFilePath}
             <button
               onclick={saveResponseFile}
               title="Save response as file"
@@ -233,9 +234,9 @@
             {/if}
           </button>
         </div>
-        <pre class="flex-1 {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.bodyText || '// No response body'}</pre>
+        <pre class="flex-1 {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.current.bodyText || '// No response body'}</pre>
         </div>
-      {:else if responseState.activeTab === 'headers'}
+      {:else if responseState.current.activeTab === 'headers'}
         <div class="h-full overflow-y-auto p-3">
         <table class="w-full text-left font-mono text-[11px]">
           <thead>
@@ -245,7 +246,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-[var(--border-subtle)]">
-            {#each responseState.headers as h}
+            {#each responseState.current.headers as h}
               <tr class="hover:bg-[var(--surface-hover)] transition-colors">
                 <td class="py-1 text-[var(--accent)] font-medium select-text">{h.key}</td>
                 <td class="py-1 text-[var(--text)] select-text break-all">{h.value}</td>
@@ -253,31 +254,31 @@
             {/each}
           </tbody>
         </table>
-        {#if responseState.headers.length === 0}
+        {#if responseState.current.headers.length === 0}
           <div class="text-center py-8 text-[11px] text-[var(--text-subtle)]">No response headers</div>
         {/if}
         </div>
-      {:else if responseState.activeTab === 'stream'}
+      {:else if responseState.current.activeTab === 'stream'}
         <StreamLog bind:wordWrap />
-      {:else if responseState.activeTab === 'tests'}
+      {:else if responseState.current.activeTab === 'tests'}
         <div class="h-full flex flex-col p-4 overflow-y-auto space-y-3">
-        {#if responseState.testResults.length === 0}
+        {#if responseState.current.testResults.length === 0}
           <div class="text-center py-10 text-[var(--text-subtle)] text-xs">
             No test assertions executed yet.<br />
             <span class="text-[11px] text-[var(--text-muted)]">Add assertions in the <strong>Scripts &gt; Post-response</strong> tab and send again.</span>
           </div>
         {:else}
-          {@const allPassed = responseState.testResults.every((t) => t.passed)}
-          {@const passCount = responseState.testResults.filter((t) => t.passed).length}
+          {@const allPassed = responseState.current.testResults.every((t) => t.passed)}
+          {@const passCount = responseState.current.testResults.filter((t) => t.passed).length}
           <div class="p-2.5 rounded-md border flex items-center justify-between text-xs {allPassed ? 'ui-status-success' : 'ui-status-danger'}">
             <span class="font-semibold">
-              {allPassed ? 'All Tests Passed' : `${responseState.testResults.length - passCount} Test(s) Failed`}
+              {allPassed ? 'All Tests Passed' : `${responseState.current.testResults.length - passCount} Test(s) Failed`}
             </span>
-            <span class="font-mono font-bold">{passCount} / {responseState.testResults.length} PASS</span>
+            <span class="font-mono font-bold">{passCount} / {responseState.current.testResults.length} PASS</span>
           </div>
 
           <div class="space-y-1.5">
-            {#each responseState.testResults as test}
+            {#each responseState.current.testResults as test}
               <div class="p-2.5 rounded border border-[var(--border)] bg-[var(--surface-muted)] text-xs">
                 <div class="flex items-center gap-2">
                   {#if test.passed}
@@ -300,21 +301,21 @@
           </div>
         {/if}
 
-        {#if responseState.scriptLogs.length > 0}
+        {#if responseState.current.scriptLogs.length > 0}
           <div class="pt-3 border-t border-[var(--border)]">
             <div class="text-[10px] font-semibold text-[var(--text-subtle)] uppercase tracking-wider mb-1.5">
               Console Output
             </div>
             <div class="bg-[var(--surface-muted)] text-[var(--text-strong)] border border-[var(--border)] font-mono text-[11px] p-2.5 rounded space-y-1">
-              {#each responseState.scriptLogs as log}
+              {#each responseState.current.scriptLogs as log}
                 <div class="break-all">{log}</div>
               {/each}
             </div>
           </div>
         {/if}
         </div>
-      {:else if responseState.activeTab === 'raw'}
-        <pre class="h-full whitespace-pre-wrap break-words p-3 m-0 font-mono text-xs overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.bodyText || '// No response'}</pre>
+      {:else if responseState.current.activeTab === 'raw'}
+        <pre class="h-full whitespace-pre-wrap break-words p-3 m-0 font-mono text-xs overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.current.bodyText || '// No response'}</pre>
       {/if}
     </div>
   </div>

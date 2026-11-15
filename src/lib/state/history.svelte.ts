@@ -1,5 +1,6 @@
 import { appendRequestHistory, clearRequestHistory, getRequestHistory } from '../ipc';
 import type { RequestHistoryEntry } from '../types';
+import { workspaceState } from './workspace.svelte';
 
 export class HistoryState {
   entries = $state<RequestHistoryEntry[]>([]);
@@ -52,9 +53,11 @@ export class HistoryState {
   }
 
   async record(workspacePath: string, entry: RequestHistoryEntry) {
-    this.loadGeneration++;
-    this.isLoading = false;
-    this.entries = [entry, ...this.entries.filter((existing) => existing.id !== entry.id)];
+    if (workspacePath === workspaceState.workspacePath) {
+      this.loadGeneration++;
+      this.isLoading = false;
+      this.entries = [entry, ...this.entries.filter((existing) => existing.id !== entry.id)];
+    }
     try {
       await this.enqueuePersistence(() => appendRequestHistory(workspacePath, entry));
     } catch (error) {

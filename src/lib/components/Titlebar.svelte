@@ -3,7 +3,6 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { themeState } from '$lib/state/theme.svelte';
   import { shortcutsState } from '$lib/state/shortcuts.svelte';
-  import { responseState } from '$lib/state/response.svelte';
   import { historyState } from '$lib/state/history.svelte';
   import { updaterState } from '$lib/state/updater.svelte';
   import { uiState } from '$lib/state/ui.svelte';
@@ -94,7 +93,6 @@
         dirtyHandled = true;
       }
 
-      await responseState.cancel();
       const changed = await workspaceState.switchWorkspace(selected, dirtyHandled);
       if (changed) {
         await envState.refresh();

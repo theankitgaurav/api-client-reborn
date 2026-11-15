@@ -77,6 +77,7 @@ Use the command palette with <kbd>⌘</kbd>+<kbd>K</kbd> (Windows/Linux: <kbd>Ct
 - **Full HTTP/REST Support**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS`.
 - **Multipart File Uploads**: Attach files to form-data requests and send them with other multipart fields.
 - **Response File Downloads**: Save file responses directly to disk from the response panel.
+- **Concurrent Request Tabs**: Run HTTP and gRPC requests in parallel; closing a tab cancels its request.
 
 ### 🔌 gRPC Request Engine
 - **Unary and Streaming RPCs**: Send unary, client-streaming, server-streaming, and bidirectional calls with JSON messages and request metadata.

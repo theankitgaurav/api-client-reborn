@@ -11,11 +11,27 @@ import {
 } from '../utils/stream-buffer';
 import { envState } from './env.svelte';
 import { historyState } from './history.svelte';
-import { workspaceState, type TabResponseData } from './workspace.svelte';
+import { workspaceState, type TabResponseData, type TabItem } from './workspace.svelte';
 
 export { MAX_BODY_TEXT_BYTES, MAX_STREAM_MESSAGES, type StreamItem };
 
-export class ResponseState {
+type RequestTransport = {
+  executeRequest: typeof executeRequest;
+  executeGrpcRequest: typeof executeGrpcRequest;
+  cancelRequest: typeof cancelRequest;
+};
+
+interface Execution {
+  id: string;
+  cancelled: boolean;
+  registered: boolean;
+  settled: boolean;
+  cancelHistory: RequestHistoryEntry | null;
+}
+
+const defaultTransport: RequestTransport = { executeRequest, executeGrpcRequest, cancelRequest };
+
+class TabResponseState {
   isExecuting = $state(false);
   isStreaming = $state(false);
   activeRequestId = $state<string | null>(null);
@@ -40,20 +56,20 @@ export class ResponseState {
   testResults = $state<TestResultItem[]>([]);
   scriptLogs = $state<string[]>([]);
 
-  private currentExecutingTabId: string | null = null;
   private currentHistoryEntry: RequestHistoryEntry | null = null;
   private historyRecordedForRequest = false;
   private currentRequestVariables: Record<string, string> = {};
+  private execution: Execution | null = null;
+  private retired = false;
 
-  // Sync state whenever the active tab in workspace changes
-  loadTab(tabId: string | null) {
-    if (!tabId) {
-      this.clear();
-      return;
-    }
-    const tab = workspaceState.tabs.find((t) => t.id === tabId);
-    if (tab && tab.response) {
-      const r = tab.response;
+  constructor(
+    private tabId: string | null,
+    private workspacePath: string,
+    private transport: RequestTransport,
+    response?: TabResponseData,
+  ) {
+    if (response) {
+      const r = response;
       this.status = r.status;
       this.statusText = r.statusText;
       this.protocol = r.protocol;
@@ -71,14 +87,14 @@ export class ResponseState {
       this.activeTab = !this.isStreaming && r.activeTab === 'stream' ? 'body' : r.activeTab;
       this.testResults = r.testResults;
       this.scriptLogs = r.scriptLogs;
-    } else if (tab && !this.isExecuting) {
-      this.clear();
     }
   }
 
-  private saveToActiveTab() {
-    if (!workspaceState.activeTab) return;
-    workspaceState.activeTab.response = {
+  private saveToTab() {
+    if (this.retired) return;
+    const tab = workspaceState.tabs.find((item) => item.id === this.tabId);
+    if (!tab) return;
+    tab.response = {
       status: this.status,
       statusText: this.statusText,
       protocol: this.protocol,
@@ -99,8 +115,8 @@ export class ResponseState {
     };
   }
 
-  private recordHistory(errorOverride?: string | null) {
-    if (!this.currentHistoryEntry || this.historyRecordedForRequest) return;
+  private takeHistory(errorOverride?: string | null): RequestHistoryEntry | null {
+    if (!this.currentHistoryEntry || this.historyRecordedForRequest) return null;
 
     this.historyRecordedForRequest = true;
     const responseBody = this.bodyText || (
@@ -108,7 +124,7 @@ export class ResponseState {
         ? JSON.stringify(this.streamMessages, null, 2)
         : ''
     );
-    const entry: RequestHistoryEntry = {
+    return {
       ...this.currentHistoryEntry,
       status: this.status,
       status_text: this.statusText,
@@ -122,8 +138,11 @@ export class ResponseState {
       total_events_count: this.totalEventsCount,
       error: errorOverride ?? this.error,
     };
+  }
 
-    void historyState.record(workspaceState.workspacePath, entry);
+  private recordHistory(errorOverride?: string | null) {
+    const entry = this.takeHistory(errorOverride);
+    if (entry) void historyState.record(this.workspacePath, entry);
   }
 
   private clear() {
@@ -147,127 +166,115 @@ export class ResponseState {
   }
 
   async runCurrentRequest() {
-    const tab = workspaceState.activeTab;
-    if (!tab) return;
+    const tab = workspaceState.tabs.find((item) => item.id === this.tabId);
+    if (!tab || this.isExecuting || this.retired) return;
 
     this.isExecuting = true;
-    this.isStreaming = false;
     this.clear();
-    this.currentExecutingTabId = tab.id;
-
-    // Flush reactive state to the DOM so the Send button immediately
-    // switches to Cancel (color change) before any synchronous work.
-    await tick();
-
-    let requestVariables = await envState.variablesForRequest(tab.filePath);
-    this.currentRequestVariables = requestVariables;
-
-    // 1. Run Pre-request script if present
-    let rawContent = tab.rawContent;
-    if (tab.sidecar?.pre_request_script?.trim()) {
-      const scriptResult = runScript(tab.sidecar.pre_request_script, {
-        environment: requestVariables,
-        request: {
-          url: tab.filePath || '',
-          method: tab.method,
-          headers: [],
-        },
-      });
-
-      if (scriptResult.logs.length > 0) {
-        this.scriptLogs.push(...scriptResult.logs);
-      }
-
-      if (scriptResult.error) {
-        this.scriptLogs.push(`[Pre-request Error] ${scriptResult.error}`);
-      }
-
-      // Sync modified environment variables
-      for (const [k, v] of Object.entries(scriptResult.updatedEnvironment)) {
-        if (requestVariables[k] !== v) {
-          await envState.setVariable(k, v);
-        }
-      }
-      requestVariables = await envState.variablesForRequest(tab.filePath);
-      this.currentRequestVariables = requestVariables;
-    }
-
-    const requestId = crypto.randomUUID();
-    this.activeRequestId = requestId;
-    if (tab.requestType === 'grpc') {
-      const grpcConfig = resolveGrpcVariables(parseGrpcRequest(rawContent), requestVariables);
-      this.currentHistoryEntry = {
-        id: requestId,
-        timestamp: new Date().toISOString(),
-        request_name: grpcConfig.name || tab.name,
-        request_path: tab.filePath,
-        method: [grpcConfig.service, grpcConfig.method].filter(Boolean).join('/'),
-        url: grpcConfig.endpoint,
-        raw_command: rawContent,
-        status: null,
-        status_text: '',
-        headers: [],
-        response_body: '',
-        duration_ms: null,
-        total_bytes: 0,
-        is_streaming: false,
-        error: null,
-      };
-      this.historyRecordedForRequest = false;
-      try {
-        await executeGrpcRequest(
-          requestId,
-          grpcConfig,
-          workspaceState.workspacePath,
-          (chunk: ResponseChunk) => this.handleChunk(chunk)
-        );
-      } catch (e: any) {
-        this.error = e.toString();
-        this.isExecuting = false;
-        this.saveToActiveTab();
-        this.recordHistory();
-      }
-      return;
-    }
-
-    const requestModel = parseCurlToPlayground(rawContent);
-    this.currentHistoryEntry = {
-      id: requestId,
-      timestamp: new Date().toISOString(),
-      request_name: tab.name,
-      request_path: tab.filePath,
-      method: tab.method,
-      url: requestModel.url,
-      raw_command: rawContent,
-      status: null,
-      status_text: '',
-      headers: [],
-      response_body: '',
-      duration_ms: null,
-      total_bytes: 0,
-      is_streaming: false,
-      error: null,
-    };
+    this.currentHistoryEntry = null;
     this.historyRecordedForRequest = false;
+    const execution: Execution = { id: crypto.randomUUID(), cancelled: false, registered: false, settled: false, cancelHistory: null };
+    this.execution = execution;
+    this.activeRequestId = execution.id;
+    const rawContent = tab.rawContent;
+    const requestTab = { ...tab };
 
     try {
-      await executeRequest(
-        requestId,
-        rawContent,
-        requestVariables,
-        (chunk: ResponseChunk) => {
-          this.handleChunk(chunk);
+      await tick();
+      if (execution.cancelled) return;
+      let requestVariables = await envState.variablesForRequest(requestTab.filePath);
+      if (execution.cancelled) return;
+      this.currentRequestVariables = requestVariables;
+
+      if (requestTab.sidecar?.pre_request_script?.trim()) {
+        const scriptResult = runScript(requestTab.sidecar.pre_request_script, {
+          environment: requestVariables,
+          request: {
+            url: requestTab.filePath || '',
+            method: requestTab.method,
+            headers: [],
+          },
+        });
+
+        if (scriptResult.logs.length > 0) {
+          this.scriptLogs.push(...scriptResult.logs);
         }
-      );
-    } catch (e: any) {
-      this.error = e.toString();
+
+        if (scriptResult.error) {
+          this.scriptLogs.push(`[Pre-request Error] ${scriptResult.error}`);
+        }
+
+        for (const [k, v] of Object.entries(scriptResult.updatedEnvironment)) {
+          if (requestVariables[k] !== v) {
+            await envState.setVariable(k, v);
+            if (execution.cancelled) return;
+          }
+        }
+        requestVariables = await envState.variablesForRequest(requestTab.filePath);
+        if (execution.cancelled) return;
+        this.currentRequestVariables = requestVariables;
+      }
+
+      const requestId = execution.id;
+      if (requestTab.requestType === 'grpc') {
+        const grpcConfig = resolveGrpcVariables(parseGrpcRequest(rawContent), requestVariables);
+        this.currentHistoryEntry = {
+          id: requestId,
+          timestamp: new Date().toISOString(),
+          request_name: grpcConfig.name || requestTab.name,
+          request_path: requestTab.filePath,
+          method: [grpcConfig.service, grpcConfig.method].filter(Boolean).join('/'),
+          url: grpcConfig.endpoint,
+          raw_command: rawContent,
+          status: null,
+          status_text: '',
+          headers: [],
+          response_body: '',
+          duration_ms: null,
+          total_bytes: 0,
+          is_streaming: false,
+          error: null,
+        };
+        await this.transport.executeGrpcRequest(requestId, grpcConfig, this.workspacePath, (chunk) => this.handleChunk(execution, requestTab, chunk));
+      } else {
+        const requestModel = parseCurlToPlayground(rawContent);
+        this.currentHistoryEntry = {
+          id: requestId,
+          timestamp: new Date().toISOString(),
+          request_name: requestTab.name,
+          request_path: requestTab.filePath,
+          method: requestTab.method,
+          url: requestModel.url,
+          raw_command: rawContent,
+          status: null,
+          status_text: '',
+          headers: [],
+          response_body: '',
+          duration_ms: null,
+          total_bytes: 0,
+          is_streaming: false,
+          error: null,
+        };
+        await this.transport.executeRequest(requestId, rawContent, requestVariables, (chunk) => this.handleChunk(execution, requestTab, chunk));
+      }
+      execution.registered = true;
+      if (execution.cancelled) await this.cancelBackend(execution);
+    } catch (error) {
+      if (execution.cancelled) {
+        this.finishCancellation(execution, `Failed to start request: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
+      if (execution.settled || this.execution !== execution) return;
+      execution.settled = true;
+      this.error = error instanceof Error ? error.message : String(error);
       this.isExecuting = false;
-      this.saveToActiveTab();
+      this.saveToTab();
       this.recordHistory();
     }
   }
 
-  handleChunk(chunk: ResponseChunk) {
+  private handleChunk(execution: Execution, tab: TabItem, chunk: ResponseChunk) {
+    if (execution.cancelled || execution.settled || this.execution !== execution || this.retired) return;
     switch (chunk.type) {
       case 'HeaderReceived':
         this.status = chunk.payload.status;
@@ -341,28 +348,29 @@ export class ResponseState {
         break;
 
       case 'Finished':
+        execution.settled = true;
         this.durationMs = chunk.payload.total_duration_ms;
         this.totalBytes = chunk.payload.total_bytes;
         this.spoolFilePath = chunk.payload.spool_file_path || null;
         this.isExecuting = false;
 
         // 2. Run Post-response script (Tests) if present
-        this.runPostResponseScript();
-        this.saveToActiveTab();
+        this.runPostResponseScript(tab);
+        this.saveToTab();
         this.recordHistory(null);
         break;
 
       case 'Failed':
+        execution.settled = true;
         this.error = chunk.payload.error;
         this.isExecuting = false;
-        this.saveToActiveTab();
+        this.saveToTab();
         this.recordHistory();
         break;
     }
   }
 
-  private runPostResponseScript() {
-    const tab = workspaceState.activeTab;
+  private runPostResponseScript(tab: TabItem) {
     if (!tab || !tab.sidecar?.post_response_script?.trim()) return;
 
     const scriptResult = runScript(tab.sidecar.post_response_script, {
@@ -429,13 +437,85 @@ export class ResponseState {
   }
 
   async cancel() {
-    if (this.activeRequestId && this.isExecuting) {
-      await cancelRequest(this.activeRequestId);
+    const execution = this.execution;
+    if (execution && this.isExecuting && !execution.cancelled) {
+      execution.cancelled = true;
       this.isExecuting = false;
       this.error = 'Request cancelled';
-      this.saveToActiveTab();
-      this.recordHistory(this.error);
+      this.saveToTab();
+      execution.cancelHistory = this.takeHistory(this.error);
+      if (execution.registered) await this.cancelBackend(execution);
     }
+  }
+
+  private finishCancellation(execution: Execution, error?: string) {
+    if (error) {
+      console.error(error);
+      if (!this.retired && this.execution === execution) {
+        this.error = error;
+        this.saveToTab();
+      }
+    }
+    if (execution.cancelHistory) {
+      void historyState.record(this.workspacePath, {
+        ...execution.cancelHistory,
+        error: error ?? execution.cancelHistory.error,
+      });
+      execution.cancelHistory = null;
+    }
+  }
+
+  private async cancelBackend(execution: Execution) {
+    try {
+      const cancelled = await this.transport.cancelRequest(execution.id);
+      if (!cancelled) throw new Error('Request is no longer registered');
+    } catch (error) {
+      this.finishCancellation(execution, `Failed to cancel request: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+    this.finishCancellation(execution);
+  }
+
+  retire() {
+    void this.cancel();
+    this.retired = true;
+  }
+}
+
+export class ResponseState {
+  private contexts = $state<Record<string, TabResponseState>>({});
+  private empty: TabResponseState;
+
+  constructor(private transport: RequestTransport = defaultTransport) {
+    this.empty = new TabResponseState(null, '', transport);
+    workspaceState.onTabsRetired = (ids) => {
+      for (const id of ids) {
+        this.contexts[id]?.retire();
+        delete this.contexts[id];
+      }
+    };
+  }
+
+  get current(): TabResponseState {
+    const id = workspaceState.activeTabId;
+    return (id && this.contexts[id]) || this.empty;
+  }
+
+  loadTab(tabId: string | null) {
+    const tab = workspaceState.tabs.find((item) => item.id === tabId);
+    if (tab && !this.contexts[tab.id]) {
+      this.contexts[tab.id] = new TabResponseState(tab.id, workspaceState.workspacePath, this.transport, tab.response);
+    }
+  }
+
+  async runCurrentRequest() {
+    const tabId = workspaceState.activeTabId;
+    this.loadTab(tabId);
+    if (tabId) await this.contexts[tabId]?.runCurrentRequest();
+  }
+
+  async cancel() {
+    await this.current.cancel();
   }
 }
 

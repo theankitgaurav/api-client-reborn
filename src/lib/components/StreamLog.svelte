@@ -16,12 +16,12 @@
   }
 
   function clearStream() {
-    responseState.streamMessages = [];
+    responseState.current.streamMessages = [];
   }
 
   // Auto-scroll to bottom on new messages if autoScroll is enabled
   $effect(() => {
-    if (autoScroll && scrollContainer && responseState.streamMessages.length > 0) {
+    if (autoScroll && scrollContainer && responseState.current.streamMessages.length > 0) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   });
@@ -31,15 +31,15 @@
   <!-- Top Stream Toolbar -->
   <div class="p-2 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between text-[var(--text-muted)]">
     <div class="flex items-center gap-2 font-medium">
-      <Radio size={13} class={responseState.isExecuting ? 'text-[var(--success)] animate-pulse' : 'text-[var(--text-subtle)]'} />
+      <Radio size={13} class={responseState.current.isExecuting ? 'text-[var(--success)] animate-pulse' : 'text-[var(--text-subtle)]'} />
       <span class="text-[var(--text-strong)] font-semibold">
-        {responseState.isExecuting ? 'Receiving Live Stream…' : 'Stream Event Log'}
+        {responseState.current.isExecuting ? 'Receiving Live Stream…' : 'Stream Event Log'}
       </span>
       <span class="bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold">
-        {#if responseState.totalEventsCount > responseState.streamMessages.length}
-          {responseState.streamMessages.length} / {responseState.totalEventsCount.toLocaleString()} events
+        {#if responseState.current.totalEventsCount > responseState.current.streamMessages.length}
+          {responseState.current.streamMessages.length} / {responseState.current.totalEventsCount.toLocaleString()} events
         {:else}
-          {responseState.streamMessages.length} events
+          {responseState.current.streamMessages.length} events
         {/if}
       </span>
     </div>
@@ -50,7 +50,7 @@
         <input type="checkbox" bind:checked={autoScroll} class="rounded accent-[var(--accent)]" />
         <span>Auto-scroll</span>
       </label>
-      {#if responseState.streamMessages.length > 0}
+      {#if responseState.current.streamMessages.length > 0}
         <button
           onclick={clearStream}
           title="Clear events"
@@ -63,10 +63,10 @@
     </div>
   </div>
 
-  {#if responseState.totalEventsCount > responseState.streamMessages.length}
+  {#if responseState.current.totalEventsCount > responseState.current.streamMessages.length}
     <div class="px-3 py-1 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-b border-[var(--border)] text-[11px] text-[var(--accent)] flex items-center justify-between">
       <span>
-        ⚡ High-volume stream: displaying latest <strong>{responseState.streamMessages.length}</strong> of <strong>{responseState.totalEventsCount.toLocaleString()}</strong> events.
+        ⚡ High-volume stream: displaying latest <strong>{responseState.current.streamMessages.length}</strong> of <strong>{responseState.current.totalEventsCount.toLocaleString()}</strong> events.
       </span>
     </div>
   {/if}
@@ -76,7 +76,7 @@
     bind:this={scrollContainer}
     class="flex-1 overflow-y-auto p-2 space-y-2 bg-[var(--bg)]"
   >
-    {#each responseState.streamMessages as msg, idx}
+    {#each responseState.current.streamMessages as msg, idx}
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded-md p-2.5 flex flex-col gap-1.5 shadow-sm">
         <div class="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
           <div class="flex items-center gap-2">
@@ -110,7 +110,7 @@
       </div>
     {/each}
 
-    {#if responseState.streamMessages.length === 0}
+    {#if responseState.current.streamMessages.length === 0}
       <div class="text-center py-16 text-[var(--text-subtle)] flex flex-col items-center gap-2">
         <Radio size={24} class="opacity-50" />
         <p class="text-xs font-medium text-[var(--text-strong)]">No streaming events recorded yet.</p>

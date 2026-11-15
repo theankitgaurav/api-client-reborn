@@ -43,6 +43,7 @@ export class WorkspaceState {
   isMcpModalOpen = $state(false);
   exportTargetFolder = $state<WorkspaceFileItem | null>(null);
   targetNewRequestFolder = $state<string>('.');
+  onTabsRetired: ((ids: string[]) => void) | null = null;
   private refreshRequestId = 0;
 
   // Active tab derivation
@@ -110,7 +111,9 @@ export class WorkspaceState {
         if (this.isDirty || this.isSaveModalOpen) return false;
       } else if (choice !== 'discard') return false;
     }
-    this.workspacePath = await setWorkspacePath(path);
+    const newPath = await setWorkspacePath(path);
+    this.onTabsRetired?.(this.tabs.map((tab) => tab.id));
+    this.workspacePath = newPath;
     this.tree = scannedTree;
     this.tabs = [];
     this.activeTabId = null;
@@ -171,6 +174,7 @@ export class WorkspaceState {
           this.activeTabId
         );
         if (tabToReplace) {
+          this.onTabsRetired?.([tabToReplace.id]);
           tabToReplace.filePath = path;
           tabToReplace.name = name;
           tabToReplace.method = method;
@@ -213,6 +217,8 @@ export class WorkspaceState {
       entry,
       crypto.randomUUID()
     );
+    const remaining = new Set(opened.tabs.map((tab) => tab.id));
+    this.onTabsRetired?.(this.tabs.filter((tab) => !remaining.has(tab.id)).map((tab) => tab.id));
     this.tabs = opened.tabs;
     this.activeTabId = opened.activeTabId;
   }
@@ -314,6 +320,7 @@ export class WorkspaceState {
       if (!confirmClose) return;
     }
 
+    this.onTabsRetired?.([tabId]);
     this.tabs.splice(idx, 1);
 
     if (this.activeTabId === tabId) {
@@ -329,6 +336,7 @@ export class WorkspaceState {
   closeOtherTabs(tabId: string) {
     const tab = this.tabs.find((t) => t.id === tabId);
     if (tab) {
+      this.onTabsRetired?.(this.tabs.filter((item) => item.id !== tabId).map((item) => item.id));
       this.tabs = [tab];
       this.activeTabId = tab.id;
     }
@@ -337,6 +345,7 @@ export class WorkspaceState {
   closeTabsToTheRight(tabId: string) {
     const idx = this.tabs.findIndex((t) => t.id === tabId);
     if (idx >= 0) {
+      this.onTabsRetired?.(this.tabs.slice(idx + 1).map((tab) => tab.id));
       this.tabs = this.tabs.slice(0, idx + 1);
       if (!this.tabs.some((t) => t.id === this.activeTabId)) {
         this.activeTabId = tabId;
@@ -426,7 +435,7 @@ export class WorkspaceState {
   }
 
   async deleteItem(itemPath: string, displayName?: string) {
-    const isFolder = !/\.(curl|grpc)$/i.test(itemPath);
+    const isFolder = !/\.(curl|grpc|grpcurl)$/i.test(itemPath);
     const label = displayName || itemPath.split(/[\\/]/).pop() || itemPath;
 
     try {
@@ -441,6 +450,7 @@ export class WorkspaceState {
         const { remainingTabs, closedTabs } = filterTabsOnFolderDelete(this.tabs, itemPath);
         if (closedTabs.length > 0) {
           const closedIds = new Set(closedTabs.map((t) => t.id));
+          this.onTabsRetired?.([...closedIds]);
           this.tabs = remainingTabs;
           if (closedIds.has(this.activeTabId || '')) {
             this.activeTabId = this.tabs.length > 0 ? this.tabs[0].id : null;

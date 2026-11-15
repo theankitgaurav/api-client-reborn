@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.5] — 2026-11-15
+
+### Improved
+
+- Run HTTP and gRPC requests concurrently in separate tabs, with independent response streams and cancellation.
+
+### Fixed
+
+- Keep Send and Cancel controls, responses, scripts, and history associated with the originating request tab.
+- Cancel in-progress requests when their tabs are closed or replaced, including during request startup.
+
 ## [0.14.4] — 2026-11-15
 
 ### Improved

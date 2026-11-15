@@ -45,7 +45,7 @@
     selectLastTab: () => workspaceState.selectTabByIndex(workspaceState.tabs.length - 1),
     saveActiveFile: () => workspaceState.saveActiveFile(),
     handleSend: () => {
-      if (responseState.isExecuting) {
+      if (responseState.current.isExecuting) {
         responseState.cancel();
       } else {
         responseState.runCurrentRequest();
