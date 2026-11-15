@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.8] — 2026-11-16
+
+### Improved
+
+- Made the sidebar resizable, refined its controls and text sizing, and aligned request toolbar buttons.
+- Added a persistent request/response layout toggle for side-by-side or stacked panes, with double-click divider resets.
+
 ## [0.14.7] — 2026-11-15
 
 ### Improved
