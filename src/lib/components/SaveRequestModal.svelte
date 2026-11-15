@@ -3,6 +3,7 @@
   import { Save } from '$lib/components/icons';
   import Modal from '$lib/components/ui/Modal.svelte';
   import type { WorkspaceFileItem } from '$lib/types';
+  import { untrack } from 'svelte';
 
   let requestName = $state('');
   let selectedFolder = $state('.');
@@ -13,7 +14,7 @@
     for (const item of items) {
       if (item.is_dir) {
         const fullRelPath = parent ? `${parent}/${item.name}` : item.name;
-        list.push({ path: fullRelPath, label: `${fullRelPath}/` });
+        list.push({ path: item.path, label: `${fullRelPath}/` });
         if (item.children) {
           list.push(...getFolderList(item.children, fullRelPath));
         }
@@ -29,15 +30,20 @@
 
   $effect(() => {
     if (workspaceState.isSaveModalOpen) {
-      requestName = workspaceState.activeTab?.name || 'New Request';
-      selectedFolder = workspaceState.targetNewRequestFolder || '.';
-      const extension = workspaceState.activeTab?.requestType === 'grpc' ? '.grpcurl' : '.curl';
-      customFileName = requestName
+      const { name, folder, type } = untrack(() => ({
+        name: workspaceState.activeTab?.name || 'New Request',
+        folder: workspaceState.targetNewRequestFolder || '.',
+        type: workspaceState.activeTab?.requestType,
+      }));
+      requestName = name;
+      selectedFolder = folder === untrack(() => workspaceState.workspacePath) ? '.' : folder;
+      const extension = type === 'grpc' ? '.grpcurl' : '.curl';
+      let filename = name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
-      if (!customFileName) customFileName = 'new_request';
-      if (!customFileName.toLowerCase().endsWith(extension)) customFileName += extension;
+      if (!filename) filename = 'new_request';
+      customFileName = `${filename}${extension}`;
     }
   });
 

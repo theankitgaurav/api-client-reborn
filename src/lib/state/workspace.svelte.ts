@@ -3,6 +3,7 @@ import {
   deleteWorkspaceItem,
   duplicateRequestFile,
   getWorkspacePath,
+  moveWorkspaceItem,
   readRequestFile,
   renameWorkspaceItem,
   saveRequestFile,
@@ -405,12 +406,23 @@ export class WorkspaceState {
 
   async createFolder(parentPath: string, folderName: string) {
     try {
-      await createCollectionFolder(parentPath, folderName);
+      const path = await createCollectionFolder(parentPath, folderName);
       await this.refreshTree();
+      return path;
     } catch (e) {
       console.error('Failed to create folder:', e);
       throw e;
     }
+  }
+
+  async moveItem(itemPath: string, destination: string) {
+    const newPath = await moveWorkspaceItem(itemPath, destination);
+    this.tabs = cascadeFolderRename(this.tabs, itemPath, newPath);
+    const prefix = itemPath.replace(/[\\/]+$/, '');
+    if (this.targetNewRequestFolder === prefix || this.targetNewRequestFolder.startsWith(`${prefix}/`)) {
+      this.targetNewRequestFolder = newPath + this.targetNewRequestFolder.slice(prefix.length);
+    }
+    await this.refreshTree();
   }
 
   async deleteItem(itemPath: string, displayName?: string) {
@@ -448,13 +460,10 @@ export class WorkspaceState {
     }
   }
 
-  async renameItem(oldPath: string, currentName: string) {
-    const newName = prompt('Enter new name:', currentName);
-    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  async renameItem(oldPath: string, newName: string, isFolder: boolean) {
+    if (!newName.trim()) return;
 
     try {
-      const isFolder = !/\.(curl|grpc)$/i.test(oldPath);
-
       if (isFolder) {
         const newPath = await renameWorkspaceItem(oldPath, newName.trim());
         this.tabs = cascadeFolderRename(this.tabs, oldPath, newPath);
@@ -492,7 +501,7 @@ export class WorkspaceState {
       await this.refreshTree();
     } catch (e) {
       console.error('Failed to rename item:', e);
-      alert(`Failed to rename: ${e instanceof Error ? e.message : String(e)}`);
+      throw e;
     }
   }
 

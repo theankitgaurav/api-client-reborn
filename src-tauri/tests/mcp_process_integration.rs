@@ -321,6 +321,29 @@ impl UnaryService<Bytes> for LargeUnary {
 #[derive(Clone)]
 struct ServerStreamingReplies;
 
+#[derive(Clone)]
+struct SlowStreamingReplies;
+
+impl ServerStreamingService<Bytes> for SlowStreamingReplies {
+    type Response = Bytes;
+    type ResponseStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<Bytes, Status>> + Send>>;
+    type Future = Pin<Box<dyn Future<Output = Result<TonicResponse<Self::ResponseStream>, Status>> + Send>>;
+
+    fn call(&mut self, _req: TonicRequest<Bytes>) -> Self::Future {
+        Box::pin(async move {
+            let (tx, rx) = tokio::sync::mpsc::channel(2);
+            tokio::spawn(async move {
+                let first = HelloResponse { reply: "first".into() };
+                let _ = tx.send(Ok(Bytes::from(first.encode_to_vec()))).await;
+                tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+                let second = HelloResponse { reply: "second".into() };
+                let _ = tx.send(Ok(Bytes::from(second.encode_to_vec()))).await;
+            });
+            Ok(TonicResponse::new(Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx)) as Self::ResponseStream))
+        })
+    }
+}
+
 impl ServerStreamingService<Bytes> for ServerStreamingReplies {
     type Response = Bytes;
     type ResponseStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<Bytes, Status>> + Send>>;
@@ -434,6 +457,9 @@ where
                 Ok(res)
             } else if path == "/HelloService/LotsOfReplies" {
                 let res = grpc.server_streaming(ServerStreamingReplies, req).await;
+                Ok(res)
+            } else if path == "/HelloService/SlowReplies" {
+                let res = grpc.server_streaming(SlowStreamingReplies, req).await;
                 Ok(res)
             } else if path == "/HelloService/LotsOfGreetings" {
                 let res = grpc.client_streaming(ClientStreamingGreetings, req).await;
@@ -585,6 +611,121 @@ async fn execute_grpc_request(proc: &mut McpProcess, id: u64, path: &str) -> Val
         "arguments": { "path": path }
     })).await;
     proc.read_response().await
+}
+
+#[tokio::test]
+async fn grpc_sparse_stream_emits_before_next_message_and_completion() {
+    use api_client_reborn_lib::engine::grpc::{execute_grpc_request as execute_ui_grpc, GrpcRequestConfig};
+    use tauri::ipc::{Channel, InvokeResponseBody};
+    use tokio_util::sync::CancellationToken;
+
+    let (addr, shutdown) = start_grpc_fixture().await;
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let channel = Channel::new(move |body| {
+        if let InvokeResponseBody::Json(json) = body {
+            let _ = tx.send(serde_json::from_str::<Value>(&json).unwrap());
+        }
+        Ok(())
+    });
+    let config = GrpcRequestConfig {
+        endpoint: format!("http://{addr}"),
+        service: "HelloService".into(),
+        method: "SlowReplies".into(),
+        request_json: r#"{"greeting":"test"}"#.into(),
+        ..Default::default()
+    };
+    let task = tokio::spawn(execute_ui_grpc("live-test".into(), config, channel, CancellationToken::new(), None));
+    let first = tokio::time::timeout(std::time::Duration::from_millis(450), async {
+        loop {
+            let item = rx.recv().await.expect("channel closed before first message");
+            if item["type"] == "BodyChunk" { break item; }
+        }
+    }).await.expect("first message was buffered until a later message");
+    assert!(first["payload"]["text"].as_str().unwrap().contains("first"));
+    assert!(!task.is_finished(), "first message must arrive before stream completion");
+    task.await.unwrap().unwrap();
+    let _ = shutdown.send(());
+}
+
+#[tokio::test]
+async fn http_sse_and_chunked_emit_before_completion() {
+    use api_client_reborn_lib::engine::http::execute_http_request;
+    use api_client_reborn_lib::parser::curl::parse_curl_command;
+    use tauri::ipc::{Channel, InvokeResponseBody};
+    use tokio_util::sync::CancellationToken;
+
+    for (content_type, payload, expected_type) in [
+        ("text/event-stream", "data: first\n\n", "SseChunk"),
+        ("application/x-ndjson", "{\"value\":1}\n", "BodyChunk"),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 1024];
+            let _ = socket.read(&mut request).await.unwrap();
+            let headers = format!("HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nTransfer-Encoding: chunked\r\n\r\n");
+            socket.write_all(headers.as_bytes()).await.unwrap();
+            socket.write_all(format!("{:x}\r\n{payload}\r\n", payload.len()).as_bytes()).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(600)).await;
+            socket.write_all(b"0\r\n\r\n").await.unwrap();
+        });
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let channel = Channel::new(move |body| {
+            if let InvokeResponseBody::Json(json) = body {
+                let _ = tx.send(serde_json::from_str::<Value>(&json).unwrap());
+            }
+            Ok(())
+        });
+        let request = parse_curl_command(&format!("curl http://{addr}/")).unwrap();
+        let task = tokio::spawn(execute_http_request("live-http".into(), request, CancellationToken::new(), channel));
+        tokio::time::timeout(Duration::from_millis(450), async {
+            loop {
+                let item = rx.recv().await.expect("channel closed before first chunk");
+                if item["type"] == expected_type { break; }
+            }
+        }).await.expect("first chunk did not arrive before completion");
+        assert!(!task.is_finished());
+        task.await.unwrap().unwrap();
+        server.await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn http_stream_continues_emitting_after_body_preview_limit() {
+    use api_client_reborn_lib::engine::http::execute_http_request;
+    use api_client_reborn_lib::parser::curl::parse_curl_command;
+    use tauri::ipc::{Channel, InvokeResponseBody};
+    use tokio_util::sync::CancellationToken;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut request = [0; 1024];
+        let _ = socket.read(&mut request).await.unwrap();
+        socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\nTransfer-Encoding: chunked\r\n\r\n").await.unwrap();
+        let payload = vec![b'x'; 2 * 1024 * 1024 + 1];
+        socket.write_all(format!("{:x}\r\n", payload.len()).as_bytes()).await.unwrap();
+        socket.write_all(&payload).await.unwrap();
+        socket.write_all(b"\r\n").await.unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        socket.write_all(b"5\r\nlater\r\n0\r\n\r\n").await.unwrap();
+    });
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let channel = Channel::new(move |body| {
+        if let InvokeResponseBody::Json(json) = body {
+            let _ = tx.send(serde_json::from_str::<Value>(&json).unwrap());
+        }
+        Ok(())
+    });
+    let request = parse_curl_command(&format!("curl http://{addr}/")).unwrap();
+    execute_http_request("long-stream".into(), request, CancellationToken::new(), channel).await.unwrap();
+    server.await.unwrap();
+    let mut later_seen = false;
+    while let Ok(item) = rx.try_recv() {
+        later_seen |= item["type"] == "BodyChunk" && item["payload"]["text"].as_str().unwrap_or("").contains("later");
+    }
+    assert!(later_seen, "stream preview stopped after the body preview limit");
 }
 
 // -----------------------------------------------------------------------------

@@ -498,6 +498,14 @@ async fn run_call(
         loop {
             let item = tokio::select! {
                 _ = cancel.cancelled() => return Err(AppError::Cancelled),
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(last_ipc_emit + std::time::Duration::from_millis(40))), if !pending_preview.is_empty() => {
+                    let _ = channel.send(ResponseChunk::BodyChunk {
+                        text: std::mem::take(&mut pending_preview),
+                        bytes_received: spool.total_bytes(),
+                    });
+                    last_ipc_emit = Instant::now();
+                    continue;
+                }
                 result = stream.message() => result.map_err(|e| AppError::NetworkError(format!("{}: {}", e.code(), e.message())))?,
             };
             let Some(bytes) = item else { break };

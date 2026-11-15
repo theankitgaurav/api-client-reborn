@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.4] — 2026-11-15
+
+### Improved
+
+- Added selectable import destinations, folder creation during import, and persistent drag-and-drop moves for requests and folders.
+- Added matching variable hover previews to gRPC message and metadata editors, and a shared word-wrap toggle for response bodies and streams.
+- Clarified the sidebar New Request action.
+
+### Fixed
+
+- Preserved the active gRPC editor tab when editing requests and displayed streaming response chunks as they arrive.
+- Fixed request and folder renaming and destination selection in the save dialog.
+
 ## [0.14.3] — 2026-11-14
 
 ### Improved

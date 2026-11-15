@@ -14,6 +14,33 @@ import {
 import { getCollectionArchivePath } from '../src/lib/utils/collection-exporter.ts';
 import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
 import type { WorkspaceFileItem, SidecarMetadata } from '../src/lib/types.ts';
+import { createCollectionFolder, getCollectionVariables, importCollectionBundle, moveWorkspaceItem, readRequestFile, saveRequestFile, scanWorkspace } from '../src/lib/ipc.ts';
+
+test('browser workspace moves requests without losing content or sidecars and resolves collisions', async () => {
+  const source = await createCollectionFolder('.', `move-source-${crypto.randomUUID()}`);
+  const destination = await createCollectionFolder('.', `move-destination-${crypto.randomUUID()}`);
+  const path = `${source}/request.curl`;
+  await saveRequestFile(path, 'curl https://example.test', { name: 'Moved' });
+  await saveRequestFile(`${destination}/request.curl`, 'existing');
+  const moved = await moveWorkspaceItem(path, destination);
+  assert.notEqual(moved, `${destination}/request.curl`);
+  assert.equal((await readRequestFile(moved)).raw_content, 'curl https://example.test');
+  assert.equal((await readRequestFile(moved)).sidecar?.name, 'Moved');
+  const tree = await scanWorkspace('.');
+  assert.equal(tree.find((item) => item.path === source)?.children?.length, 0);
+  await assert.rejects(() => moveWorkspaceItem(destination, destination), /itself/);
+});
+
+test('browser import respects destination and generates unique collection names', async () => {
+  const destination = await createCollectionFolder('.', `import-${crypto.randomUUID()}`);
+  const files = [{ relative_path: 'collection/nested/request.curl', content: 'curl https://example.test' }];
+  await importCollectionBundle('collection', files, [['token', 'public']], [['secret', 'private']], destination, false);
+  await importCollectionBundle('collection', files, undefined, undefined, destination, false);
+  const tree = await scanWorkspace('.');
+  const folder = tree.find((item) => item.path === destination);
+  assert.deepEqual(folder?.children?.map((item) => item.name).sort(), ['collection', 'collection (2)']);
+  assert.deepEqual(await getCollectionVariables(`${destination}/collection/nested/request.curl`), { token: 'public', secret: 'private' });
+});
 
 // ============================================================================
 // SIMULATED WORKSPACE HARNESS

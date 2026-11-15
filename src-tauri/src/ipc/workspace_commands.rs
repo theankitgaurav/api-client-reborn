@@ -314,6 +314,58 @@ pub fn delete_workspace_item(item_path: String) -> Result<()> {
 }
 
 #[tauri::command]
+pub fn move_workspace_item(item_path: String, destination_path: String) -> Result<String> {
+    let root = fs::canonicalize(resolve_workspace_root("."))
+        .map_err(|e| AppError::FsError(format!("Cannot resolve workspace: {e}")))?;
+    move_item_in_workspace(&root, &item_path, &destination_path)
+}
+
+fn move_item_in_workspace(root: &Path, item_path: &str, destination_path: &str) -> Result<String> {
+    let path_for = |path: &str| if Path::new(path).is_absolute() { PathBuf::from(path) } else { root.join(path) };
+    if fs::symlink_metadata(path_for(item_path)).map_err(|e| AppError::FsError(format!("Cannot inspect source: {e}")))?.file_type().is_symlink() {
+        return Err(AppError::FsError("Moving symbolic links is not supported".into()));
+    }
+    let source = fs::canonicalize(path_for(item_path))
+        .map_err(|e| AppError::FsError(format!("Cannot resolve source: {e}")))?;
+    let destination = fs::canonicalize(path_for(destination_path))
+        .map_err(|e| AppError::FsError(format!("Cannot resolve destination: {e}")))?;
+    if source == root || !source.starts_with(root) || !destination.starts_with(root) || !destination.is_dir() {
+        return Err(AppError::FsError("Source and destination must be inside the workspace".into()));
+    }
+    if source.is_dir() && destination.starts_with(&source) {
+        return Err(AppError::FsError("Cannot move a folder into itself or its descendants".into()));
+    }
+    if source.parent() == Some(destination.as_path()) {
+        return Ok(item_path.to_string());
+    }
+    let name = source.file_name().ok_or_else(|| AppError::FsError("Source has no name".into()))?;
+    let mut target = destination.join(name);
+    let mut suffix = 2;
+    while target.exists() || (source.is_file() && target.with_extension("meta.json").exists()) {
+        let stem = if source.is_dir() { source.file_name() } else { source.file_stem() }
+            .and_then(|s| s.to_str()).ok_or_else(|| AppError::FsError("Invalid source name".into()))?;
+        let ext = if source.is_file() { source.extension().and_then(|s| s.to_str()).map(|e| format!(".{e}")).unwrap_or_default() } else { String::new() };
+        target = destination.join(format!("{stem} ({suffix}){ext}"));
+        suffix += 1;
+    }
+    let old_sidecar = source.with_extension("meta.json");
+    let new_sidecar = target.with_extension("meta.json");
+    let has_sidecar = source.is_file() && old_sidecar.exists();
+    if has_sidecar {
+        fs::rename(&old_sidecar, &new_sidecar)
+            .map_err(|e| AppError::FsError(format!("Failed to move request metadata: {e}")))?;
+    }
+    if let Err(error) = fs::rename(&source, &target) {
+        if has_sidecar {
+            fs::rename(&new_sidecar, &old_sidecar)
+                .map_err(|e| AppError::FsError(format!("Move failed: {error}; metadata rollback failed: {e}")))?;
+        }
+        return Err(AppError::FsError(format!("Failed to move item: {error}")));
+    }
+    Ok(target.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn rename_workspace_item(old_path: String, new_name: String) -> Result<String> {
     let trimmed_name = new_name.trim();
     if trimmed_name.is_empty() {
@@ -552,20 +604,81 @@ pub fn import_collection_bundle(
     files: Vec<ImportedFileItem>,
     env_vars: Option<Vec<(String, String)>>,
     secret_vars: Option<Vec<(String, String)>>,
+    destination_path: String,
+    is_single_request: bool,
 ) -> Result<ImportSummary> {
-    let root = resolve_workspace_root(".");
+    let root = fs::canonicalize(resolve_workspace_root("."))
+        .map_err(|e| AppError::FsError(format!("Cannot resolve workspace: {e}")))?;
+    import_bundle_into_workspace(&root, collection_name, files, env_vars, secret_vars, &destination_path, is_single_request)
+}
+
+fn import_bundle_into_workspace(
+    root: &Path,
+    collection_name: String,
+    files: Vec<ImportedFileItem>,
+    env_vars: Option<Vec<(String, String)>>,
+    secret_vars: Option<Vec<(String, String)>>,
+    destination_path: &str,
+    is_single_request: bool,
+) -> Result<ImportSummary> {
+    let destination_input = Path::new(destination_path);
+    let destination = fs::canonicalize(if destination_input.is_absolute() { destination_input.to_path_buf() } else { root.join(destination_input) })
+        .map_err(|e| AppError::FsError(format!("Cannot resolve destination: {e}")))?;
+    if !destination.starts_with(root) || !destination.is_dir() {
+        return Err(AppError::FsError("Import destination must be inside the workspace".into()));
+    }
+    if files.is_empty() || (is_single_request && files.len() != 1) {
+        return Err(AppError::FsError("Invalid import contents".into()));
+    }
+    let original_root = Path::new(&files[0].relative_path).components().next()
+        .ok_or_else(|| AppError::FsError("Invalid collection path".into()))?.as_os_str().to_owned();
+    for file in &files {
+        let path = Path::new(&file.relative_path);
+        let mut components = path.components();
+        if file.relative_path.contains('\\')
+            || components.next().map(|c| c.as_os_str() != original_root).unwrap_or(true)
+            || path.components().any(|c| !matches!(c, std::path::Component::Normal(_)) || c.as_os_str() == ".apiclient")
+            || path.components().count() < 2
+        {
+            return Err(AppError::FsError("Invalid import path".into()));
+        }
+    }
     let mut count = 0;
-    let collection_root = files.first().and_then(|item| {
-        PathBuf::from(item.relative_path.trim_start_matches('/'))
-            .components()
-            .next()
-            .and_then(|component| component.as_os_str().to_str())
-            .map(str::to_string)
-    }).or_else(|| Some(slugify(&collection_name)));
+    let mut reserved_sidecars = std::collections::HashSet::new();
+    let collection_root = if is_single_request { None } else {
+        let name = original_root.to_string_lossy();
+        let mut path = destination.join(name.as_ref());
+        let mut suffix = 2;
+        while path.exists() {
+            path = destination.join(format!("{name} ({suffix})"));
+            suffix += 1;
+        }
+        fs::create_dir(&path).map_err(|e| AppError::FsError(format!("Failed to create collection: {e}")))?;
+        Some(path)
+    };
 
     for item in files {
-        let rel_path = PathBuf::from(item.relative_path.trim_start_matches('/'));
-        let target_file = root.join(&rel_path);
+        let rel_path = PathBuf::from(&item.relative_path);
+        let mut components = rel_path.components();
+        let first = components.next().ok_or_else(|| AppError::FsError("Invalid import path".into()))?;
+        if first.as_os_str() != original_root {
+            return Err(AppError::FsError("Import files must belong to one collection".into()));
+        }
+        let remainder = components.as_path();
+        let mut target_file = if let Some(ref collection) = collection_root {
+            collection.join(remainder)
+        } else {
+            destination.join(rel_path.file_name().ok_or_else(|| AppError::FsError("Invalid request name".into()))?)
+        };
+        let parent = target_file.parent().ok_or_else(|| AppError::FsError("Invalid request path".into()))?.to_path_buf();
+        let stem = target_file.file_stem().and_then(|s| s.to_str()).unwrap_or("request").to_string();
+        let ext = target_file.extension().and_then(|s| s.to_str()).map(|e| format!(".{e}")).unwrap_or_default();
+        let mut suffix = 2;
+        while target_file.exists() || target_file.with_extension("meta.json").exists() || reserved_sidecars.contains(&target_file.with_extension("meta.json")) {
+            target_file = parent.join(format!("{stem} ({suffix}){ext}"));
+            suffix += 1;
+        }
+        reserved_sidecars.insert(target_file.with_extension("meta.json"));
 
         if let Some(parent) = target_file.parent() {
             if !parent.exists() {
@@ -587,15 +700,9 @@ pub fn import_collection_bundle(
     let mut env_file_name = None;
     let vars = env_vars.unwrap_or_default();
     let secret_vars = secret_vars.unwrap_or_default();
-    let legacy_collection_env = root
-        .join("environments")
-        .join(format!("{}.env.json", slugify(&collection_name)));
-    if legacy_collection_env.exists() {
-        fs::remove_file(legacy_collection_env)
-            .map_err(|e| AppError::FsError(format!("Failed to remove legacy collection variables file: {e}")))?;
-    }
+    let _ = collection_name;
     if let Some(collection_root) = collection_root {
-            let metadata_dir = root.join(collection_root).join(".apiclient");
+            let metadata_dir = collection_root.join(".apiclient");
             fs::create_dir_all(&metadata_dir)
                 .map_err(|e| AppError::FsError(format!("Failed to create collection metadata folder: {e}")))?;
 
@@ -761,6 +868,49 @@ pub fn save_collection_variables(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn move_preserves_sidecars_and_rejects_cycles() {
+        let root = std::env::temp_dir().join(format!("workspace_move_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("source/nested")).unwrap();
+        fs::create_dir_all(root.join("destination")).unwrap();
+        let root = root.canonicalize().unwrap();
+        fs::write(root.join("source/request.curl"), "request").unwrap();
+        fs::write(root.join("source/request.meta.json"), "metadata").unwrap();
+        fs::write(root.join("destination/request.curl"), "existing").unwrap();
+        let moved = move_item_in_workspace(&root, "source/request.curl", "destination").unwrap();
+        assert_eq!(fs::read_to_string(&moved).unwrap(), "request");
+        assert_eq!(fs::read_to_string(Path::new(&moved).with_extension("meta.json")).unwrap(), "metadata");
+        assert_eq!(fs::read_to_string(root.join("destination/request.curl")).unwrap(), "existing");
+        assert!(!root.join("source/request.curl").exists());
+        assert!(move_item_in_workspace(&root, "source", "source/nested").is_err());
+        assert!(root.join("source").exists());
+        fs::create_dir_all(root.join("source.v1/.apiclient")).unwrap();
+        fs::write(root.join("source.v1/.apiclient/collection_variables.json"), "{}").unwrap();
+        fs::create_dir_all(root.join("destination/source.v1")).unwrap();
+        let moved_folder = move_item_in_workspace(&root, "source.v1", "destination").unwrap();
+        assert!(Path::new(&moved_folder).ends_with("source.v1 (2)"));
+        assert!(Path::new(&moved_folder).join(".apiclient/collection_variables.json").exists());
+        assert!(!root.join("source.v1").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn import_uses_destination_and_unique_collection_or_request_names() {
+        let root = std::env::temp_dir().join(format!("workspace_import_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("destination/collection")).unwrap();
+        let root = root.canonicalize().unwrap();
+        fs::write(root.join("destination/request.curl"), "existing").unwrap();
+        let item = |path: &str| ImportedFileItem { relative_path: path.into(), content: "imported".into(), sidecar: None };
+        import_bundle_into_workspace(&root, "Collection".into(), vec![item("collection/folder/request.curl")], Some(vec![("key".into(), "value".into())]), None, "destination", false).unwrap();
+        assert_eq!(fs::read_to_string(root.join("destination/collection (2)/folder/request.curl")).unwrap(), "imported");
+        assert!(root.join("destination/collection (2)/.apiclient/collection_variables.json").exists());
+        import_bundle_into_workspace(&root, "Single".into(), vec![item("imported/request.curl")], None, None, "destination", true).unwrap();
+        assert_eq!(fs::read_to_string(root.join("destination/request (2).curl")).unwrap(), "imported");
+        assert_eq!(fs::read_to_string(root.join("destination/request.curl")).unwrap(), "existing");
+        assert!(import_bundle_into_workspace(&root, "Bad".into(), vec![item("collection/../escape.curl")], None, None, "destination", false).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn recent_workspace_paths_put_current_first_and_exclude_default_duplicates() {

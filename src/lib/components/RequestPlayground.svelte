@@ -12,8 +12,10 @@
   import {
     getVariableAtPosition,
     getVariableInfo,
+    getTooltipPosition,
     type VariableInfo,
   } from '$lib/utils/variable-tooltip';
+  import VariableTooltip from './VariableTooltip.svelte';
   import {
     Play,
     Square,
@@ -343,24 +345,9 @@
       activeHoverInfo = info;
     }
 
-    const tooltipWidth = 280;
-    const tooltipHeight = 110;
-    const posX = Math.max(12, Math.min(e.clientX - 20, window.innerWidth - tooltipWidth - 16));
-
-    let posY = e.clientY - 10;
-    let placement: 'top' | 'bottom' = 'top';
-
-    // If too close to top of viewport, place tooltip below cursor
-    if (e.clientY < tooltipHeight + 20) {
-      posY = e.clientY + 18;
-      placement = 'bottom';
-    }
-
     varTooltip = {
       visible: true,
-      x: posX,
-      y: posY,
-      placement,
+      ...getTooltipPosition(e.clientX, e.clientY, window.innerWidth),
       ...info,
     };
   }
@@ -1096,84 +1083,16 @@
 
   <!-- Variable Hover Tooltip Card -->
   {#if varTooltip && varTooltip.visible}
-    <div
-      role="tooltip"
+    <VariableTooltip
+      tooltip={varTooltip}
+      {isMac}
+      {isAltPressed}
+      revealed={!!revealedTooltipSecrets[varTooltip.variableName]}
+      onToggleSecret={() => {
+        if (varTooltip) revealedTooltipSecrets[varTooltip.variableName] = !revealedTooltipSecrets[varTooltip.variableName];
+      }}
       onmouseenter={onTooltipMouseEnter}
       onmouseleave={onTooltipMouseLeave}
-      class="ui-menu-surface fixed z-50 pointer-events-auto transition-all duration-100 ease-out p-2.5 text-xs w-72 backdrop-blur-sm {varTooltip.placement === 'top' ? '-translate-y-full -mt-2' : 'mt-2'}"
-      style="left: {varTooltip.x}px; top: {varTooltip.y}px;"
-    >
-      <!-- Header: variable name & origin -->
-      <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[var(--border)]">
-        <div class="flex items-center gap-1.5 truncate">
-          <span class="font-mono font-bold text-[10px] px-1.5 py-0.2 rounded border {varTooltip.isDynamic
-            ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-            : varTooltip.isSecret
-              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-              : varTooltip.isDefined
-                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}">
-            &#123;&#123;{varTooltip.variableName}&#125;&#125;
-          </span>
-        </div>
-        <span class="text-[10px] font-medium text-[var(--text-muted)] shrink-0">
-          {varTooltip.source}
-        </span>
-      </div>
-
-      <!-- Resolved Value Section -->
-      <div class="space-y-1">
-        <div class="text-[10px] text-[var(--text-subtle)] uppercase tracking-wider font-semibold">
-          Value:
-        </div>
-        <div class="font-mono text-[11px] p-1.5 rounded bg-[var(--surface)] border border-[var(--border)] break-all select-text max-h-24 overflow-y-auto">
-          {#if varTooltip.isDefined}
-            {#if varTooltip.isSecret}
-              {@const isRevealed = isAltPressed || !!revealedTooltipSecrets[varTooltip.variableName]}
-              <div class="flex items-center justify-between gap-1.5">
-                <div class="flex-1 min-w-0">
-                  {#if isRevealed}
-                    <span class="text-[var(--warning)] font-semibold">{varTooltip.variableValue || '<empty>'}</span>
-                  {:else}
-                    <span class="text-[var(--text-muted)] font-mono tracking-widest select-none">••••••••••••</span>
-                  {/if}
-                </div>
-                <div class="flex items-center gap-1 shrink-0">
-                  <span class="text-[9px] text-[var(--warning)] bg-amber-500/10 px-1 py-0.5 rounded font-mono">secret</span>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      if (varTooltip) {
-                        revealedTooltipSecrets[varTooltip.variableName] = !revealedTooltipSecrets[varTooltip.variableName];
-                      }
-                    }}
-                    title={isRevealed ? 'Hide secret' : `Reveal secret (or hold ${isMac ? '⌥' : 'Alt'})`}
-                    aria-label={isRevealed ? 'Hide secret' : 'Reveal secret'}
-                    class="p-0.5 text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors rounded hover:bg-[var(--surface-hover)]"
-                  >
-                    {#if isRevealed}
-                      <EyeOff size={12} />
-                    {:else}
-                      <Eye size={12} />
-                    {/if}
-                  </button>
-                </div>
-              </div>
-              <div class="text-[9px] text-[var(--text-subtle)] pt-0.5 flex items-center justify-between">
-                <span>{isRevealed ? 'Revealed' : 'Hidden for security'}</span>
-                <span class="font-mono text-[8px] opacity-75">{isMac ? 'Hold ⌥ to peek' : 'Hold Alt to peek'}</span>
-              </div>
-            {:else}
-              <span class="text-[var(--success)] font-semibold">{varTooltip.variableValue || '<empty string>'}</span>
-            {/if}
-          {:else}
-            <div class="text-[var(--danger)] italic flex items-center gap-1">
-              <span>⚠️ Not found</span>
-              <span class="text-[var(--text-muted)] font-sans text-[10px]">(click Variables in navbar)</span>
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
+    />
   {/if}
 </div>

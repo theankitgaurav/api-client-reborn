@@ -570,10 +570,14 @@ export async function getCollectionVariables(requestFilePath: string): Promise<R
 const mockCollectionVariableSets = new Map<string, CollectionVariablesPayload>();
 
 function mockCollectionKey(requestFilePath: string): string {
-  const normalized = requestFilePath.replaceAll('\\', '/');
+  const normalized = `/${normalizeMockPath(requestFilePath.replaceAll('\\', '/'))}`;
   if (normalized.includes('/variable-resolution/')) return '/examples/variable-resolution';
-  const parent = normalized.slice(0, normalized.lastIndexOf('/'));
-  return parent || '/';
+  let parent = normalized.slice(0, normalized.lastIndexOf('/')) || '/';
+  while (parent !== '/') {
+    if (mockCollectionVariableSets.has(parent)) return parent;
+    parent = parent.slice(0, parent.lastIndexOf('/')) || '/';
+  }
+  return normalized.slice(0, normalized.lastIndexOf('/')) || '/';
 }
 
 export async function getCollectionVariablesForEditor(
@@ -686,6 +690,8 @@ export async function createCollectionFolder(
   const newPath = isRoot
     ? cleanFolderName
     : `${parentPath.replace(/[\\\/]+$/, '')}/${cleanFolderName}`;
+  if (!cleanFolderName || cleanFolderName === '.' || cleanFolderName === '..') throw new Error('Invalid folder name');
+  if (findMockItem(mockWorkspaceTree, newPath)) throw new Error('Folder already exists');
 
   const newFolder: WorkspaceFileItem = {
     name: cleanFolderName,
@@ -702,7 +708,7 @@ export async function createCollectionFolder(
       if (!parent.children) parent.children = [];
       parent.children.push(newFolder);
     } else {
-      mockWorkspaceTree.push(newFolder);
+      throw new Error('Parent folder not found');
     }
   }
 
@@ -947,11 +953,64 @@ export async function duplicateRequestFile(sourcePath: string): Promise<string> 
   return newPath;
 }
 
+export async function moveWorkspaceItem(itemPath: string, destinationPath: string): Promise<string> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('move_workspace_item', { itemPath, destinationPath });
+  }
+  const source = findMockItem(mockWorkspaceTree, itemPath);
+  const root = destinationPath === '.' || destinationPath === '/' || destinationPath === await getWorkspacePath();
+  const destination = root ? null : findMockItem(mockWorkspaceTree, destinationPath);
+  if (!source || (!root && (!destination || !destination.is_dir))) throw new Error('Invalid source or destination');
+  const normalizedSource = normalizeMockPath(itemPath);
+  const normalizedDestination = normalizeMockPath(destinationPath);
+  if (source.is_dir && (normalizedSource === normalizedDestination || normalizedDestination.startsWith(`${normalizedSource}/`))) {
+    throw new Error('Cannot move a folder into itself or its descendants');
+  }
+  const oldParent = normalizedSource.split('/').slice(0, -1).join('/');
+  if (oldParent === (root ? '' : normalizedDestination)) return itemPath;
+  const siblings = destination ? (destination.children ||= []) : mockWorkspaceTree;
+  const match = source.name.match(/^(.*?)(\.[^.]+)?$/);
+  const stem = source.is_dir ? source.name : match?.[1] || source.name;
+  const ext = source.is_dir ? '' : match?.[2] || '';
+  let name = source.name;
+  for (let suffix = 2; siblings.some((item) => item.name === name); suffix++) name = `${stem} (${suffix})${ext}`;
+  const newPath = `${root ? '' : destinationPath.replace(/\/+$/, '')}/${name}`;
+  function remove(items: WorkspaceFileItem[]): boolean {
+    const index = items.indexOf(source!);
+    if (index >= 0) { items.splice(index, 1); return true; }
+    return items.some((item) => item.children && remove(item.children));
+  }
+  remove(mockWorkspaceTree);
+  function update(item: WorkspaceFileItem) {
+    const old = item.path;
+    item.path = newPath + old.slice(itemPath.length);
+    const storedPath = [...mockFileContents.keys()].find((key) => normalizeMockPath(key) === normalizeMockPath(old));
+    const content = storedPath ? mockFileContents.get(storedPath) : undefined;
+    if (content && storedPath) { mockFileContents.delete(storedPath); mockFileContents.set(item.path, { ...content, path: item.path }); }
+    item.children?.forEach(update);
+  }
+  update(source);
+  source.name = name;
+  siblings.push(source);
+  const oldPrefix = `/${normalizeMockPath(itemPath)}`;
+  const newPrefix = `/${normalizeMockPath(newPath)}`;
+  for (const [key, values] of mockCollectionVariableSets) {
+    if (key === oldPrefix || key.startsWith(`${oldPrefix}/`)) {
+      mockCollectionVariableSets.delete(key);
+      mockCollectionVariableSets.set(newPrefix + key.slice(oldPrefix.length), values);
+    }
+  }
+  return newPath;
+}
+
 export async function importCollectionBundle(
   collectionName: string,
   files: { relative_path: string; content: string; sidecar?: any }[],
   envVars?: [string, string][],
-  secretVars?: [string, string][]
+  secretVars?: [string, string][],
+  destinationPath = '.',
+  isSingleRequest = false
 ): Promise<{ imported_requests: number; env_file?: string }> {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -960,9 +1019,38 @@ export async function importCollectionBundle(
       files,
       envVars,
       secretVars,
+      destinationPath,
+      isSingleRequest,
     });
   }
-  return { imported_requests: files.length, env_file: `.apiclient/collection_variables.json` };
+  const root = destinationPath === '.' || destinationPath === await getWorkspacePath() ? '' : destinationPath.replace(/\/+$/, '');
+  const originalRoot = files[0]?.relative_path.split('/')[0];
+  if (!originalRoot) throw new Error('Invalid import contents');
+  let collection = originalRoot;
+  for (let suffix = 2; !isSingleRequest && findMockItem(mockWorkspaceTree, `${root}/${collection}`); suffix++) collection = `${originalRoot} (${suffix})`;
+  for (const file of files) {
+    const parts = file.relative_path.split('/');
+    const parentParts = isSingleRequest ? [] : [collection, ...parts.slice(1, -1)];
+    let parent = root || '.';
+    for (const part of parentParts) {
+      const next = `${parent === '.' ? '' : parent}/${part}`;
+      if (!findMockItem(mockWorkspaceTree, next)) await createCollectionFolder(parent, part);
+      parent = next;
+    }
+    let filename = parts.at(-1) || 'request.curl';
+    const match = filename.match(/^(.*?)(\.[^.]+)?$/);
+    for (let suffix = 2; findMockItem(mockWorkspaceTree, `${parent === '.' ? '' : parent}/${filename}`); suffix++) filename = `${match?.[1] || filename} (${suffix})${match?.[2] || ''}`;
+    const path = `${parent === '.' ? '' : parent}/${filename}`;
+    await saveRequestFile(path, file.content, file.sidecar);
+  }
+  if (!isSingleRequest && (envVars?.length || secretVars?.length)) {
+    mockCollectionVariableSets.set(`/${normalizeMockPath(`${root}/${collection}`)}`, {
+      collection_name: collection,
+      public_vars: Object.fromEntries(envVars || []),
+      secret_vars: Object.fromEntries(secretVars || []),
+    });
+  }
+  return { imported_requests: files.length, env_file: isSingleRequest ? undefined : `.apiclient/collection_variables.json` };
 }
 
 export async function exportSpooledStream(

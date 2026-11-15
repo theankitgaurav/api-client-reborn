@@ -7,6 +7,7 @@
   import { uiState } from '$lib/state/ui.svelte';
   import { readRequestFile } from '$lib/ipc';
   import HistoryPanel from './HistoryPanel.svelte';
+  import Modal from './ui/Modal.svelte';
   import Kbd from '$lib/components/ui/Kbd.svelte';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
   import { COLLECTION_EXPORT_LABEL } from '$lib/utils/collection-exporter';
@@ -43,6 +44,70 @@
   let newFolderName = $state('');
   let newFolderError = $state('');
   let isCreatingFolder = $state(false);
+  let renameTarget = $state<WorkspaceFileItem | null>(null);
+  let renameName = $state('');
+  let renameError = $state('');
+  let isRenaming = $state(false);
+  let draggedItem = $state<WorkspaceFileItem | null>(null);
+  let dropTarget = $state<string | null>(null);
+  let dragError = $state('');
+
+  function startDrag(event: DragEvent, item: WorkspaceFileItem) {
+    draggedItem = item;
+    dragError = '';
+    event.dataTransfer?.setData('text/plain', item.path);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    event.stopPropagation();
+  }
+
+  function dragOver(event: DragEvent, destination: string) {
+    if (!draggedItem) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dropTarget = destination;
+  }
+
+  function dragLeave(event: DragEvent, destination: string) {
+    const container = event.currentTarget as HTMLElement;
+    if (dropTarget === destination && !(event.relatedTarget instanceof Node && container.contains(event.relatedTarget))) {
+      dropTarget = null;
+    }
+  }
+
+  function endDrag() {
+    draggedItem = null;
+    dropTarget = null;
+  }
+
+  async function dropItem(event: DragEvent, destination: string) {
+    if (!draggedItem) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const source = draggedItem;
+    endDrag();
+    try { await workspaceState.moveItem(source.path, destination); }
+    catch (error) { dragError = error instanceof Error ? error.message : String(error); }
+  }
+
+  function openRename(item: WorkspaceFileItem) {
+    renameTarget = item;
+    renameName = item.is_dir ? item.name : item.display_name || item.name.replace(/\.(?:curl|grpc|grpcurl)$/i, '');
+    renameError = '';
+    closeContextMenu();
+  }
+
+  async function submitRename() {
+    if (!renameTarget || !renameName.trim() || isRenaming) return;
+    isRenaming = true;
+    renameError = '';
+    try {
+      await workspaceState.renameItem(renameTarget.path, renameName, renameTarget.is_dir);
+      renameTarget = null;
+    } catch (error) {
+      renameError = error instanceof Error ? error.message : String(error);
+    } finally { isRenaming = false; }
+  }
 
   let itemContextMenu = $state<{
     visible: boolean;
@@ -392,7 +457,7 @@
             class="inline-flex items-center gap-1 rounded bg-[var(--accent)] hover:bg-[var(--accent-strong)] text-white px-2 py-0.5 text-[10px] font-medium transition-all active:scale-[0.98]"
           >
             <Plus size={11} />
-            <span>New</span>
+            <span>New Request</span>
           </button>
         </div>
 
@@ -454,15 +519,19 @@
       </div>
 
       <!-- Workspace Collection Tree -->
-      <div class="flex-1 overflow-y-auto p-1 space-y-0.5">
+      <div class="flex-1 overflow-y-auto p-1 space-y-0.5 {dropTarget === '.' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''}" role="group" aria-label="Workspace root" ondragover={(event) => dragOver(event, '.')} ondragleave={(event) => dragLeave(event, '.')} ondrop={(event) => void dropItem(event, '.')}>
+        {#if dragError}<div role="alert" class="p-2 text-[var(--danger)]">{dragError} <button type="button" onclick={() => { dragError = ''; }}>Dismiss</button></div>{/if}
         {#snippet renderNode(item: WorkspaceFileItem, depth: number)}
           {#if item.is_dir}
-            <div class="mb-0.5" style="padding-left: {depth * 8}px;">
+            <div class="mb-0.5" style="padding-left: {depth * 8}px;" role="group" aria-label="Drop into {item.name}" ondragover={(event) => dragOver(event, item.path)} ondragleave={(event) => dragLeave(event, item.path)} ondrop={(event) => void dropItem(event, item.path)}>
               <div
                 role="group"
                 aria-label="Collection {item.name}"
+                draggable="true"
+                ondragstart={(event) => startDrag(event, item)}
+                ondragend={endDrag}
                 oncontextmenu={(e) => handleItemContextMenu(e, item)}
-                class="group flex h-6.5 items-center justify-between px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-hover)] rounded transition-colors"
+                class="group flex h-6.5 items-center justify-between px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-hover)] rounded transition-colors {dropTarget === item.path ? 'ring-1 ring-inset ring-[var(--accent)]' : ''}"
               >
                 <button
                   type="button"
@@ -525,6 +594,9 @@
               <div
                 role="button"
                 tabindex="0"
+                draggable="true"
+                ondragstart={(event) => startDrag(event, item)}
+                ondragend={endDrag}
                 onclick={() => workspaceState.openRequest(item.path, false)}
                 ondblclick={() => workspaceState.openRequest(item.path, true)}
                 oncontextmenu={(e) => handleItemContextMenu(e, item)}
@@ -572,6 +644,18 @@
     {/if}
   {/if}
 </aside>
+
+<Modal isOpen={!!renameTarget} title="Rename {renameTarget?.is_dir ? 'Folder' : 'Request'}" onclose={() => { if (!isRenaming) renameTarget = null; }}>
+  <form class="p-4 space-y-3" onsubmit={(event) => { event.preventDefault(); void submitRename(); }}>
+    <label for="rename-item-name" class="block text-xs text-[var(--text-muted)]">Name</label>
+    <input id="rename-item-name" bind:value={renameName} disabled={isRenaming} class="w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--text-strong)]" />
+    {#if renameError}<p role="alert" class="text-[var(--danger)]">{renameError}</p>{/if}
+    <div class="flex justify-end gap-2">
+      <button type="button" class="ui-button ui-button-secondary" disabled={isRenaming} onclick={() => { renameTarget = null; }}>Cancel</button>
+      <button type="submit" class="ui-button ui-button-primary" disabled={isRenaming || !renameName.trim()}>Rename</button>
+    </div>
+  </form>
+</Modal>
 
 <!-- Context Menu -->
 {#if itemContextMenu && itemContextMenu.visible}
@@ -633,13 +717,7 @@
         type="button"
         class="w-full text-left px-2.5 py-1.5 rounded hover:bg-[var(--surface-hover)] text-[var(--text-strong)] transition-colors"
         onclick={() => {
-          if (itemContextMenu) {
-            const item = itemContextMenu.item;
-            closeContextMenu();
-            workspaceState.renameItem(item.path, item.name);
-          } else {
-            closeContextMenu();
-          }
+          openRename(menuItem);
         }}
       >
         Rename Folder
@@ -708,14 +786,7 @@
         type="button"
         class="w-full text-left px-2.5 py-1.5 rounded hover:bg-[var(--surface-hover)] text-[var(--text-strong)] transition-colors"
         onclick={() => {
-          if (itemContextMenu) {
-            const item = itemContextMenu.item;
-            const currentName = item.display_name || item.name.replace(/\.curl$/, '');
-            closeContextMenu();
-            workspaceState.renameItem(item.path, currentName);
-          } else {
-            closeContextMenu();
-          }
+          openRename(menuItem);
         }}
       >
         Rename Request

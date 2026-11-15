@@ -243,7 +243,7 @@ pub async fn execute_http_request(
                             }
                         } else {
                             // Memory & IPC defense: send text up to 2 MB, then throttle progress updates
-                            let should_send_text = total_bytes <= 2 * 1024 * 1024;
+                            let should_send_text = is_streaming || total_bytes <= 2 * 1024 * 1024;
                             let now = Instant::now();
 
                             if should_send_text || now.duration_since(last_ipc_emit).as_millis() >= 40 {

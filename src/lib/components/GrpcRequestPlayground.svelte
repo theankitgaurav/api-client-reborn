@@ -1,11 +1,15 @@
 <script lang="ts">
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { envState } from '$lib/state/env.svelte';
+  import { shortcutsState } from '$lib/state/shortcuts.svelte';
   import { responseState } from '$lib/state/response.svelte';
   import { discoverGrpcServices } from '$lib/ipc';
   import type { GrpcRequestConfig, GrpcServiceInfo } from '$lib/types';
   import { createDefaultGrpcRequest, parseGrpcRequest, resolveGrpcVariables, serializeGrpcRequest, toGrpcurl } from '$lib/utils/grpc';
   import { Play, Square, Save, Copy, Check, RefreshCw, Plus, Trash2 } from '$lib/components/icons';
+  import { untrack } from 'svelte';
+  import { getTooltipPosition, getVariableAtPosition, getVariableInfo, type VariableInfo } from '$lib/utils/variable-tooltip';
+  import VariableTooltip from './VariableTooltip.svelte';
 
   let config = $state<GrpcRequestConfig>(createDefaultGrpcRequest());
   let services = $state<GrpcServiceInfo[]>([]);
@@ -13,20 +17,75 @@
   let discoverError = $state('');
   let selectedSection = $state<'message' | 'metadata' | 'connection'>('connection');
   let copied = $state(false);
+  let tooltip = $state<(VariableInfo & { x: number; y: number; placement: 'top' | 'bottom' }) | null>(null);
+  let revealedTooltipSecrets = $state<Record<string, boolean>>({});
+  let isAltPressed = $state(false);
+  let isMac = $derived(shortcutsState.isMac);
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
+  let tooltipVariables = $state<Record<string, string>>({});
+  let collectionVariables = $state<Set<string>>(new Set());
+  let collectionSecrets = $state<Set<string>>(new Set());
 
   let serviceNames = $derived(services.map((service) => service.name));
   let methods = $derived(services.find((service) => service.name === config.service)?.methods || []);
   let selectedMethod = $derived(methods.find((method) => method.name === config.method) || null);
 
   $effect(() => {
-    const tab = workspaceState.activeTab;
+    const tabId = workspaceState.activeTabId;
+    const activeTab = workspaceState.activeTab;
+    const filePath = activeTab?.filePath;
+    const type = activeTab?.requestType;
+    const tab = untrack(() => workspaceState.tabs.find((item) => item.id === tabId));
+    void filePath;
+    void type;
     if (tab?.requestType === 'grpc') {
-      config = parseGrpcRequest(tab.rawContent);
+      config = parseGrpcRequest(untrack(() => tab.rawContent));
       services = [];
       discoverError = '';
       selectedSection = 'connection';
     }
   });
+
+  $effect(() => {
+    const filePath = workspaceState.activeTab?.filePath;
+    envState.collectionVariablesRevision;
+    envState.mergedVariables;
+    tooltip = null;
+    tooltipVariables = {};
+    collectionVariables = new Set();
+    collectionSecrets = new Set();
+    let active = true;
+    void Promise.all([
+      envState.variablesForRequest(filePath),
+      filePath ? envState.collectionVariablesForRequest(filePath) : Promise.resolve(null),
+    ]).then(([variables, collection]) => {
+      if (!active) return;
+      tooltipVariables = variables;
+      collectionVariables = new Set([...Object.keys(collection?.public_vars || {}), ...Object.keys(collection?.secret_vars || {})]);
+      collectionSecrets = new Set(Object.keys(collection?.secret_vars || {}));
+    }).catch((error) => {
+      if (active) console.error('Failed to load variables for gRPC tooltip:', error);
+    });
+    return () => { active = false; };
+  });
+
+  function hoverVariable(event: MouseEvent, text: string) {
+    clearTimeout(tooltipTimer);
+    const match = getVariableAtPosition({ text, clientX: event.clientX, clientY: event.clientY, target: event.currentTarget as HTMLElement });
+    if (!match) { tooltip = null; return; }
+    const info = tooltip?.variableName === match.name
+      ? tooltip
+      : getVariableInfo(match.name, envState.variables, tooltipVariables, collectionVariables, collectionSecrets);
+    tooltip = {
+      ...info,
+      ...getTooltipPosition(event.clientX, event.clientY, window.innerWidth),
+    };
+  }
+
+  function leaveVariable() {
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => { tooltip = null; }, 180);
+  }
 
   function sync() {
     config.name = config.name || 'New gRPC Request';
@@ -143,6 +202,11 @@
   }
 </script>
 
+<svelte:window
+  onkeydown={(event) => { if (event.key === 'Alt') isAltPressed = true; }}
+  onkeyup={(event) => { if (event.key === 'Alt') isAltPressed = false; }}
+/>
+
 <div class="contents text-xs">
   <div class="col-span-3 row-start-1 flex min-w-0 flex-col overflow-hidden">
     <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-3 py-1.5">
@@ -232,6 +296,8 @@
           id="grpc-request-json"
           bind:value={config.request_json}
           oninput={sync}
+          onmousemove={(event) => hoverVariable(event, (event.currentTarget as HTMLTextAreaElement).value)}
+          onmouseleave={leaveVariable}
           wrap="soft"
           spellcheck="false"
           class="flex-1 min-h-48 resize-none whitespace-pre-wrap break-words bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded p-2.5 font-mono text-xs leading-relaxed text-[var(--text-strong)] outline-none transition-colors"
@@ -259,10 +325,10 @@
             {#each config.metadata as entry, index}
               <tr class="group hover:bg-[var(--surface-hover)] transition-colors">
                 <td class="py-1 pr-2">
-                  <input aria-label="Metadata key" value={entry.key} oninput={(event) => updateMetadata(index, 'key', (event.target as HTMLInputElement).value)} placeholder="Key" class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]" />
+                  <input aria-label="Metadata key" value={entry.key} oninput={(event) => updateMetadata(index, 'key', (event.target as HTMLInputElement).value)} onmousemove={(event) => hoverVariable(event, entry.key)} onmouseleave={leaveVariable} placeholder="Key" class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]" />
                 </td>
                 <td class="py-1 pr-2">
-                  <input aria-label="Metadata value" value={entry.value} oninput={(event) => updateMetadata(index, 'value', (event.target as HTMLInputElement).value)} placeholder="Value" class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]" />
+                  <input aria-label="Metadata value" value={entry.value} oninput={(event) => updateMetadata(index, 'value', (event.target as HTMLInputElement).value)} onmousemove={(event) => hoverVariable(event, entry.value)} onmouseleave={leaveVariable} placeholder="Value" class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]" />
                 </td>
                 <td class="py-1 text-center">
                   <button aria-label="Remove metadata" onclick={() => removeMetadata(index)} class="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-opacity"><Trash2 size={13} /></button>
@@ -275,6 +341,7 @@
           <div class="py-8 text-center text-[var(--text-subtle)]">No request metadata</div>
         {/if}
       </div>
+
     {:else}
       <div class="w-full space-y-4">
         <div class="grid grid-cols-2 gap-2">
@@ -323,6 +390,7 @@
             {/if}
           </div>
         </div>
+
         {#if !serviceNames.length}<p class="text-[10px] text-[var(--text-subtle)]">Enter service and method names, or discover available options from the server.</p>{/if}
         {#if selectedMethod}
           <p class="text-[10px] text-[var(--text-muted)] font-mono">{selectedMethod.input_type} → {selectedMethod.output_type}{#if selectedMethod.client_streaming} · client stream{/if}{#if selectedMethod.server_streaming} · server stream{/if}</p>
@@ -355,3 +423,17 @@
     {/if}
   </div>
 </div>
+
+{#if tooltip}
+  <VariableTooltip
+    {tooltip}
+    {isMac}
+    {isAltPressed}
+    revealed={!!revealedTooltipSecrets[tooltip.variableName]}
+    onToggleSecret={() => {
+      if (tooltip) revealedTooltipSecrets[tooltip.variableName] = !revealedTooltipSecrets[tooltip.variableName];
+    }}
+    onmouseenter={() => clearTimeout(tooltipTimer)}
+    onmouseleave={() => { tooltip = null; }}
+  />
+{/if}

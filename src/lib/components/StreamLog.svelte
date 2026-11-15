@@ -1,6 +1,7 @@
 <script lang="ts">
   import { responseState } from '$lib/state/response.svelte';
   import { Radio, Copy, Check, Trash2 } from '$lib/components/icons';
+  let { wordWrap = $bindable(false) }: { wordWrap?: boolean } = $props();
 
   let copiedIndex = $state<number | null>(null);
   let autoScroll = $state(true);
@@ -44,6 +45,7 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <button type="button" aria-pressed={wordWrap} onclick={() => (wordWrap = !wordWrap)} class="ui-button ui-button-secondary h-6 px-2 text-[10px]">Word wrap {wordWrap ? 'On' : 'Off'}</button>
       <label class="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer select-none">
         <input type="checkbox" bind:checked={autoScroll} class="rounded accent-[var(--accent)]" />
         <span>Auto-scroll</span>
@@ -104,7 +106,7 @@
             </button>
           </div>
         </div>
-        <pre class="bg-[var(--surface-muted)] border border-[var(--border)] p-2 rounded text-xs font-mono text-[var(--text-strong)] overflow-x-auto whitespace-pre-wrap">{msg.data}</pre>
+        <pre class="bg-[var(--surface-muted)] border border-[var(--border)] p-2 rounded text-xs font-mono text-[var(--text-strong)] overflow-x-auto {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}">{msg.data}</pre>
       </div>
     {/each}
 

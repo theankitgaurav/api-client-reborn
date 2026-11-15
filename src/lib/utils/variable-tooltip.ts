@@ -105,6 +105,40 @@ export function getVariableAtPosition(params: {
 
   const rect = target.getBoundingClientRect();
   const style = window.getComputedStyle(target);
+  if (target instanceof HTMLTextAreaElement && style.whiteSpace !== 'pre') {
+    const mirror = document.createElement('div');
+    const properties = [
+      'font', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing',
+      'lineHeight', 'padding', 'textIndent', 'textTransform', 'wordSpacing',
+      'overflowWrap', 'wordBreak', 'tabSize',
+    ] as const;
+    for (const property of properties) mirror.style[property] = style[property];
+    Object.assign(mirror.style, {
+      position: 'fixed', visibility: 'hidden', pointerEvents: 'none',
+      left: `${rect.left + target.clientLeft}px`, top: `${rect.top + target.clientTop}px`,
+      width: `${target.clientWidth}px`, height: `${target.clientHeight}px`,
+      boxSizing: 'border-box', whiteSpace: 'pre-wrap', overflow: 'hidden',
+    });
+    const content = document.createElement('div');
+    content.textContent = text;
+    mirror.appendChild(content);
+    document.body.appendChild(mirror);
+    content.style.transform = `translate(${-target.scrollLeft}px, ${-target.scrollTop}px)`;
+    const node = content.firstChild;
+    try {
+      if (node && clientX >= rect.left && clientX < rect.right && clientY >= rect.top && clientY < rect.bottom) {
+        for (const match of findVariablesInText(text)) {
+          const range = document.createRange();
+          range.setStart(node, match.start);
+          range.setEnd(node, match.end);
+          if (Array.from(range.getClientRects()).some((r) => clientX >= r.left && clientX < r.right && clientY >= r.top && clientY < r.bottom)) return match;
+        }
+      }
+      return null;
+    } finally {
+      mirror.remove();
+    }
+  }
   const paddingLeft = parseFloat(style.paddingLeft) || 0;
   const borderLeft = parseFloat(style.borderLeftWidth) || 0;
   const charWidth = getMonospaceCharWidth(target);
@@ -235,5 +269,14 @@ export function getVariableInfo(
     isSecret: false,
     isDynamic: false,
     source: 'Unresolved Variable',
+  };
+}
+
+export function getTooltipPosition(clientX: number, clientY: number, viewportWidth: number) {
+  const placement: 'top' | 'bottom' = clientY < 130 ? 'bottom' : 'top';
+  return {
+    x: Math.max(12, Math.min(clientX - 20, viewportWidth - 296)),
+    y: placement === 'top' ? clientY - 10 : clientY + 18,
+    placement,
   };
 }

@@ -12,6 +12,7 @@
   } from '$lib/components/icons';
 
   let copied = $state(false);
+  let wordWrap = $state(false);
 
   function downloadFilename() {
     const disposition = responseState.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
@@ -207,6 +208,7 @@
           </div>
         {/if}
         <div class="px-3 py-1 bg-[var(--surface-muted)] border-b border-[var(--border)] flex justify-end gap-2">
+          <button type="button" aria-pressed={wordWrap} onclick={() => (wordWrap = !wordWrap)} class="ui-button ui-button-secondary h-6 px-2 text-[10px]">Word wrap {wordWrap ? 'On' : 'Off'}</button>
           {#if responseIsFile() && responseState.status && !responseState.isExecuting && responseState.spoolFilePath}
             <button
               onclick={saveResponseFile}
@@ -231,7 +233,7 @@
             {/if}
           </button>
         </div>
-        <pre class="flex-1 whitespace-pre-wrap break-words p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.bodyText || '// No response body'}</pre>
+        <pre class="flex-1 {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.bodyText || '// No response body'}</pre>
         </div>
       {:else if responseState.activeTab === 'headers'}
         <div class="h-full overflow-y-auto p-3">
@@ -256,7 +258,7 @@
         {/if}
         </div>
       {:else if responseState.activeTab === 'stream'}
-        <StreamLog />
+        <StreamLog bind:wordWrap />
       {:else if responseState.activeTab === 'tests'}
         <div class="h-full flex flex-col p-4 overflow-y-auto space-y-3">
         {#if responseState.testResults.length === 0}

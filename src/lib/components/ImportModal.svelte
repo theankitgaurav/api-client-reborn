@@ -14,6 +14,7 @@
   import { Upload, Check, AlertCircle, FileCode, Folder } from '$lib/components/icons';
   import Modal from '$lib/components/ui/Modal.svelte';
   import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+  import type { WorkspaceFileItem } from '$lib/types';
 
   let rawInput = $state('');
   let fileName = $state('');
@@ -23,6 +24,29 @@
   let parseError = $state<string | null>(null);
   let isImporting = $state(false);
   let importSuccess = $state(false);
+  let destination = $state('.');
+  let folderName = $state('');
+  let isSingleRequest = $state(false);
+
+  function folders(items: WorkspaceFileItem[], parent = ''): { path: string; label: string }[] {
+    return items.flatMap((item) => {
+      if (!item.is_dir) return [];
+      const label = parent ? `${parent}/${item.name}` : item.name;
+      return [{ path: item.path, label }, ...folders(item.children || [], label)];
+    });
+  }
+  let folderOptions = $derived([{ path: '.', label: 'Workspace Root (/)' }, ...folders(workspaceState.tree)]);
+
+  async function createDestinationFolder() {
+    if (!folderName.trim()) return;
+    try {
+      destination = await workspaceState.createFolder(destination, folderName.trim());
+      folderName = '';
+      parseError = null;
+    } catch (error) {
+      parseError = `Failed to create folder: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
 
   const modeItems = [
     { id: 'file', label: 'Upload File' },
@@ -37,6 +61,9 @@
     parseError = null;
     isImporting = false;
     importSuccess = false;
+    destination = '.';
+    folderName = '';
+    isSingleRequest = false;
   }
 
   function closeModal() {
@@ -56,7 +83,7 @@
         const collection = prepareRequestCollectionImport(
           files,
           file.name,
-          workspaceState.tree.map((item) => item.name)
+          []
         );
         parseResult = {
           collectionName: collection.collectionName,
@@ -69,6 +96,7 @@
           totalRequests: collection.files.length,
           totalFolders: new Set(collection.files.map((file) => file.path.split('/').slice(1, -1).join('/')).filter(Boolean)).size,
         };
+        isSingleRequest = false;
         environmentImport = null;
       } catch (error) {
         parseResult = null;
@@ -102,6 +130,7 @@
     parseError = null;
     parseResult = null;
     environmentImport = null;
+    isSingleRequest = false;
     if (!content.trim()) return;
 
     try {
@@ -123,6 +152,7 @@
         }
         parseResult = result;
       } else if (content.trim().startsWith('curl ') || content.trim().startsWith('#')) {
+        isSingleRequest = true;
         // Raw cURL command input
         const ext = 'curl';
         const defaultName = 'Imported cURL Request';
@@ -150,6 +180,7 @@
           totalFolders: 1,
         };
       } else if (/\bgrpcurl(?:\.exe)?\b/i.test(content)) {
+        isSingleRequest = true;
         const imported = parseGrpcurlCommand(content);
         const slug = imported.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'grpc_request';
         parseResult = {
@@ -210,7 +241,9 @@
         parseResult.collectionName,
         filesPayload,
         parseResult.variables.length > 0 ? parseResult.variables : undefined,
-        parseResult.secretVariables?.length ? parseResult.secretVariables : undefined
+        parseResult.secretVariables?.length ? parseResult.secretVariables : undefined,
+        destination,
+        isSingleRequest
       );
 
       importSuccess = true;
@@ -313,6 +346,18 @@
       {/if}
 
       <!-- Import Summary Preview -->
+      {#if parseResult}
+        <div class="space-y-2">
+          <label for="import-destination" class="block text-[var(--text-muted)]">Destination folder / collection</label>
+          <select id="import-destination" bind:value={destination} class="ui-select w-full px-2.5 py-1.5">
+            {#each folderOptions as option}<option value={option.path}>{option.label}</option>{/each}
+          </select>
+          <div class="flex gap-2">
+            <input aria-label="New destination folder name" bind:value={folderName} placeholder="New folder name" class="flex-1 rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1" />
+            <button type="button" class="ui-button ui-button-secondary" disabled={!folderName.trim()} onclick={createDestinationFolder}>Create folder</button>
+          </div>
+        </div>
+      {/if}
       {#if environmentImport}
         <div class="border border-[var(--border)] rounded-md overflow-hidden bg-[var(--surface)]">
           <div class="px-3 py-2 bg-[var(--surface-muted)] border-b border-[var(--border)] flex items-center justify-between">

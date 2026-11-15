@@ -89,6 +89,7 @@ Use the command palette with <kbd>⌘</kbd>+<kbd>K</kbd> (Windows/Linux: <kbd>Ct
 - **Live Event Streamer**: Inspect chunked HTTP streaming endpoints and Server-Sent Events with structured event IDs, types, and payloads.
 - **Bounded Preview**: A sliding window limits the events retained in the interface.
 - **Background Disk Spooling**: Streaming response data is written to disk (`engine/spooler.rs`).
+- **Response Word Wrap**: Body and Stream previews start unwrapped; use the shared Word wrap toggle to wrap long lines.
 
 ### 🪄 Dynamic Variables & Hover Tooltips
 - **Built-in Generators**: Automatically generate dynamic values such as `{{$guid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}`, and `{{$randomInt}}`.
@@ -106,6 +107,8 @@ Use the command palette with <kbd>⌘</kbd>+<kbd>K</kbd> (Windows/Linux: <kbd>Ct
 
 ### 📦 Postman Collection v2.1 Importer
 - Import Postman collections (v2.1 JSON), including folders, headers, supported auth, request bodies, collection variables, and pre/post scripts, into `.curl` and `.sidecar.json` files. Import Postman environment exports separately and select them in the app.
+- Choose or create an import destination. Collections keep their folder structure; single requests go directly into the selected folder. Name conflicts receive a unique suffix.
+- Drag requests or folders between collections in the sidebar to move their workspace files.
 
 ### 🚀 Collection CLI Exporter (`.sh`)
 - Export collections or folders into a portable shell script. Running HTTP exports requires cURL; gRPC exports additionally require `grpcurl`. No Node.js, Python, or proprietary CLI runner is needed.
@@ -261,19 +264,19 @@ Press <kbd>?</kbd> or <kbd>⌘</kbd> + <kbd>/</kbd> anywhere in the application 
 A GitHub Actions automated release pipeline is configured in [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ### Publishing a New Release
-1. Update version numbers in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+1. Update version numbers in `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, and add release notes to `CHANGELOG.md`.
 2. Commit and tag the release:
    ```bash
    git commit -am "chore: release v0.5.0"
    git tag v0.5.0
-   git push origin main --tags
+   git push origin main v0.5.0
    ```
 3. GitHub Actions will automatically:
    - Build macOS Universal binary (`.dmg`).
    - Build Windows installer (`.exe`, `.msi`).
    - Build Linux packages (`.deb`, `.AppImage`).
    - Run verification checks and test suites.
-   - Publish a Draft Release on GitHub with all binaries attached.
+   - Publish a release on GitHub with all binaries attached.
 
 ---
 
