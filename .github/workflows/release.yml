@@ -4,13 +4,55 @@ on:
   push:
     tags:
       - 'v*'
+  # Dry run: tests and builds every platform without creating or publishing a release.
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Linux build dependencies
+        timeout-minutes: 10
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libgtk-3-dev \
+            libxdo-dev
+
+      - name: Install frontend dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run verification checks & tests
+        run: npm run test
+
   prepare:
+    needs: test
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -21,7 +63,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify tag matches project versions
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          expected="${RELEASE_TAG#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          conf="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          cargo="$(awk '/^\[package\]/ { p = 1; next } /^\[/ { p = 0 } p && /^version[[:space:]]*=/ { gsub(/.*=[[:space:]]*"|".*/, ""); print; exit }' src-tauri/Cargo.toml)"
+          status=0
+          for entry in "package.json=$pkg" "src-tauri/tauri.conf.json=$conf" "src-tauri/Cargo.toml=$cargo"; do
+            if [ "${entry#*=}" != "$expected" ]; then
+              echo "Version mismatch in ${entry%%=*}: found '${entry#*=}', tag expects '$expected'" >&2
+              status=1
+            fi
+          done
+          exit $status
+
       - name: Create or reuse draft release
+        if: github.event_name == 'push'
         id: draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,7 +126,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   release:
-    needs: prepare
+    needs: [test, prepare]
+    if: ${{ !cancelled() && needs.test.result == 'success' && (needs.prepare.result == 'success' || github.event_name != 'push') }}
     permissions:
       contents: write
     strategy:
@@ -118,10 +181,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run verification checks & tests
-        run: npm run test
-
       - name: Build Tauri App & Draft Release
+        if: github.event_name == 'push'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,8 +196,25 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      - name: Build Tauri App (dry run)
+        if: github.event_name != 'push'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Upload dry-run bundles
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundles-${{ matrix.platform }}
+          path: src-tauri/target/**/release/bundle/**
+          retention-days: 3
+          if-no-files-found: error
+
   publish:
     needs: release
+    if: github.event_name == 'push'
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -158,3 +236,24 @@ jobs:
           gh release download "$RELEASE_TAG" --pattern latest.json --pattern '*.sig' --dir "$RUNNER_TEMP/updater-assets"
           node .github/scripts/validate-release.mjs "$RELEASE_TAG" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/updater-assets" "$RUNNER_TEMP/release.json"
           gh release edit "$RELEASE_TAG" --draft=false
+
+  # Remove a draft left by a failed or cancelled run; published releases are never touched.
+  cleanup:
+    needs: [prepare, release, publish]
+    if: ${{ (failure() || cancelled()) && github.event_name == 'push' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete leftover draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          ids="$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\" and .draft) | .id")"
+          for id in $ids; do
+            gh api -X DELETE "repos/$GH_REPO/releases/$id"
+          done
