@@ -15,6 +15,7 @@
     getTooltipPosition,
     type VariableInfo,
   } from '$lib/utils/variable-tooltip';
+  import { HTTP_HEADER_NAMES, headerValueSuggestions } from '$lib/utils/http-headers';
   import VariableTooltip from './VariableTooltip.svelte';
   import {
     Play,
@@ -79,6 +80,8 @@
   $effect(() => {
     const tab = workspaceState.activeTab;
     if (tab) {
+      // Skip re-parsing our own edits; parsing would trim whitespace typed in the name.
+      if (tab.rawContent === lastSyncedContent) return;
       model = parseCurlToPlayground(tab.rawContent);
       preRequestScript = tab.sidecar?.pre_request_script || '';
       postResponseScript = tab.sidecar?.post_response_script || '';
@@ -86,9 +89,12 @@
   });
 
   // Re-serialize back to workspace raw_content whenever the request model changes
+  let lastSyncedContent: string | null = null;
+
   function syncToWorkspace() {
     if (workspaceState.activeTab) {
       const serialized = serializePlaygroundToCurl(model);
+      lastSyncedContent = serialized;
       workspaceState.updateContent(serialized, model.method, model.name);
     }
   }
@@ -391,6 +397,13 @@
           type="text"
           bind:value={model.name}
           oninput={syncToWorkspace}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              syncToWorkspace();
+              void workspaceState.saveActiveFile();
+            }
+          }}
           placeholder="Request Name"
           class="w-64 min-w-0 bg-transparent px-2 py-0.5 text-xs font-semibold text-[var(--text-strong)] rounded hover:bg-[var(--surface-hover)] focus:bg-[var(--surface)] border border-transparent focus:border-[var(--border)] outline-none transition-colors"
         />
@@ -613,6 +626,9 @@
         <div class="text-[10px] font-semibold text-[var(--text-subtle)] mb-2 uppercase tracking-wider">
           Request Headers
         </div>
+        <datalist id="http-header-names">
+          {#each HTTP_HEADER_NAMES as n}<option value={n}></option>{/each}
+        </datalist>
         <table class="w-full text-left font-mono text-xs">
           <thead>
             <tr class="text-[var(--text-subtle)] border-b border-[var(--border)]">
@@ -637,6 +653,7 @@
                   <input
                     type="text"
                     placeholder="Header Name"
+                    list="http-header-names"
                     bind:value={h.key}
                     oninput={syncToWorkspace}
                     onmousemove={(e) => handleVarHover(e, h.key)}
@@ -649,6 +666,7 @@
                   <input
                     type="text"
                     placeholder="Header Value"
+                    list="header-values-{h.id}"
                     bind:value={h.value}
                     oninput={syncToWorkspace}
                     onmousemove={(e) => handleVarHover(e, h.value)}
@@ -656,6 +674,9 @@
                     onblur={handleVarLeave}
                     class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
+                  <datalist id="header-values-{h.id}">
+                    {#each headerValueSuggestions(h.key) as v}<option value={v}></option>{/each}
+                  </datalist>
                 </td>
                 <td class="py-1 text-center">
                   <button
