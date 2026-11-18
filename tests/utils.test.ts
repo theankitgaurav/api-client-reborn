@@ -10,6 +10,26 @@ import { updateStoredRequestName } from '../src/lib/utils/workspace-sync.ts';
 import { formatResponseBody } from '../src/lib/utils/response-body.ts';
 import { appendVariableDraft } from '../src/lib/utils/variable-drafts.ts';
 import type { VariableItem } from '../src/lib/types.ts';
+import { hasDuplicateEnvironmentName, isDefaultEnvironmentName, normalizeEnvironmentName } from '../src/lib/utils/environment.ts';
+
+test('environment names trim whitespace and reject duplicates case-insensitively or by slug', () => {
+  assert.equal(normalizeEnvironmentName('  staging  '), 'staging');
+  assert.equal(hasDuplicateEnvironmentName([
+    { name: 'development', file_path: '/environments/development.env.json', variables: [] },
+  ], ' DEVELOPMENT '), true);
+  assert.equal(hasDuplicateEnvironmentName([
+    { name: 'development', file_path: '/environments/development.env.json', variables: [] },
+  ], 'production'), false);
+  assert.equal(hasDuplicateEnvironmentName([
+    { name: 'QA Env', file_path: '/environments/qa_env.env.json', variables: [] },
+  ], 'QA-Env'), true);
+});
+
+test('default environment names are protected case-insensitively', () => {
+  assert.equal(isDefaultEnvironmentName('default'), true);
+  assert.equal(isDefaultEnvironmentName('  DEFAULT  '), true);
+  assert.equal(isDefaultEnvironmentName('development'), false);
+});
 
 test('pending variable drafts are trimmed and committed before save', () => {
   const existing: VariableItem[] = [];

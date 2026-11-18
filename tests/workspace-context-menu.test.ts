@@ -24,6 +24,9 @@ import {
   saveCollectionVariables,
   saveRequestFile,
   scanWorkspace,
+  getWorkspaceEnvironments,
+  saveWorkspaceEnvironment,
+  deleteWorkspaceEnvironment,
 } from '../src/lib/ipc.ts';
 
 test('browser workspace moves requests without losing content or sidecars and resolves collisions', async () => {
@@ -50,6 +53,25 @@ test('browser import respects destination and generates unique collection names'
   const folder = tree.find((item) => item.path === destination);
   assert.deepEqual(folder?.children?.map((item) => item.name).sort(), ['collection', 'collection (2)']);
   assert.deepEqual(await getCollectionVariables(`${destination}/collection/nested/request.curl`), { token: 'public', secret: 'private' });
+});
+
+test('browser environment creation persists in the environment list', async () => {
+  const environmentName = `qa-${crypto.randomUUID()}`;
+  await saveWorkspaceEnvironment('.', environmentName, {}, {});
+  const environments = await getWorkspaceEnvironments('.');
+  const created = environments.find((environment) => environment.name === environmentName);
+  assert.ok(created);
+  assert.deepEqual(created.variables, []);
+  assert.deepEqual(created.secret_variables, []);
+});
+
+test('browser environment deletion removes non-default environments and protects default', async () => {
+  const environmentName = `temporary-${crypto.randomUUID()}`;
+  await saveWorkspaceEnvironment('.', environmentName, { api_host: 'temporary.example' }, { token: 'secret' });
+  await deleteWorkspaceEnvironment('.', environmentName);
+  const environments = await getWorkspaceEnvironments('.');
+  assert.equal(environments.some((environment) => environment.name === environmentName), false);
+  await assert.rejects(() => deleteWorkspaceEnvironment('.', 'default'), /default environment cannot be deleted/i);
 });
 
 test('browser collection variables can be loaded and saved from a folder path', async () => {

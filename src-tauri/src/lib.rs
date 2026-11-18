@@ -17,7 +17,7 @@ use ipc::{
     execute_grpc_request, discover_grpc_services, export_spooled_stream, get_mcp_config_info, get_request_history, get_workspace_environments, get_workspace_history, get_workspace_path,
     get_collection_variables, get_collection_variables_for_editor, get_workspace_secrets, get_workspace_variables, import_collection_bundle, move_workspace_item, parse_curl_preview,
     read_request_file, relaunch_app, rename_workspace_item, save_collection_variables, save_request_file, save_workspace_secrets,
-    save_workspace_environment, save_workspace_variables, scan_workspace, set_workspace_path,
+    save_workspace_environment, delete_workspace_environment, save_workspace_variables, scan_workspace, set_workspace_path,
 };
 
 fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -190,6 +190,7 @@ pub fn run() {
             get_workspace_variables,
             save_workspace_variables,
             save_workspace_environment,
+            delete_workspace_environment,
             relaunch_app,
         ])
         .run(tauri::generate_context!())

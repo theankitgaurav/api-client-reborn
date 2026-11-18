@@ -179,6 +179,82 @@ pub fn save_workspace_environment(
     Ok(())
 }
 
+fn delete_environment_files(ws_path: &std::path::Path, environment_name: &str) -> Result<()> {
+    let normalized = environment_name.trim();
+    if normalized.is_empty() {
+        return Err(AppError::FsError("Select an environment to delete".to_string()));
+    }
+
+    let env_dir = ws_path.join("environments");
+    let mut target_slug: Option<String> = None;
+
+    if env_dir.is_dir() {
+        if let Ok(entries) = fs::read_dir(&env_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|extension| extension.to_str()) != Some("json")
+                    || path.file_stem().and_then(|stem| stem.to_str()).is_none()
+                {
+                    continue;
+                }
+                let file_name = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
+                if !file_name.ends_with(".env.json") {
+                    continue;
+                }
+                let stem = path.file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .unwrap_or("")
+                    .trim_end_matches(".env")
+                    .to_string();
+                let display_name = fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+                    .and_then(|value| value.get("_environment_name").and_then(|name| name.as_str()).map(str::to_string))
+                    .unwrap_or_else(|| stem.replace('_', " "));
+                if display_name.trim().eq_ignore_ascii_case(normalized)
+                    || stem.eq_ignore_ascii_case(normalized)
+                    || stem.eq_ignore_ascii_case(&slugify_environment(normalized))
+                {
+                    target_slug = Some(stem);
+                    break;
+                }
+            }
+        }
+    }
+
+    let slug = target_slug.unwrap_or_else(|| slugify_environment(normalized));
+    if slug.eq_ignore_ascii_case("default") || normalized.eq_ignore_ascii_case("default") {
+        return Err(AppError::FsError("The default environment cannot be deleted".to_string()));
+    }
+
+    let public_path = env_dir.join(format!("{slug}.env.json"));
+    let secrets_path = ws_path
+        .join(".apiclient")
+        .join("environment-secrets")
+        .join(format!("{slug}.secrets.json"));
+    if !public_path.exists() {
+        return Err(AppError::FsError(format!("Environment \"{normalized}\" does not exist")));
+    }
+    fs::remove_file(&public_path)
+        .map_err(|e| AppError::FsError(format!("Failed to delete environment: {e}")))?;
+    if secrets_path.exists() {
+        fs::remove_file(&secrets_path)
+            .map_err(|e| AppError::FsError(format!("Failed to delete environment secrets: {e}")))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_workspace_environment(
+    workspace_path: String,
+    environment_name: String,
+) -> Result<()> {
+    let ws_path = resolve_workspace_root(&workspace_path);
+    delete_environment_files(&ws_path, &environment_name)
+}
+
 fn slugify_environment(name: &str) -> String {
     let mut slug = String::new();
     let mut separator = false;
@@ -208,4 +284,36 @@ pub fn save_workspace_secrets(
 ) -> Result<()> {
     let ws_path = resolve_workspace_root(&workspace_path);
     save_secrets_env(&ws_path, &secrets)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn delete_environment_removes_public_and_secret_files_and_protects_default() {
+        let root = std::env::temp_dir().join(format!("environment_delete_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("environments")).unwrap();
+        fs::create_dir_all(root.join(".apiclient/environment-secrets")).unwrap();
+        fs::write(
+            root.join("environments/qa.env.json"),
+            r#"{"_environment_name":"QA","api_host":"qa.example"}"#,
+        ).unwrap();
+        fs::write(
+            root.join(".apiclient/environment-secrets/qa.secrets.json"),
+            r#"{"token":"secret"}"#,
+        ).unwrap();
+        fs::write(
+            root.join("environments/default.env.json"),
+            r#"{"_environment_name":"default","api_host":"localhost"}"#,
+        ).unwrap();
+
+        delete_environment_files(&root, "QA").unwrap();
+        assert!(!root.join("environments/qa.env.json").exists());
+        assert!(!root.join(".apiclient/environment-secrets/qa.secrets.json").exists());
+        assert!(root.join("environments/default.env.json").exists());
+        assert!(delete_environment_files(&root, "default").is_err());
+
+        fs::remove_dir_all(root).unwrap();
+    }
 }

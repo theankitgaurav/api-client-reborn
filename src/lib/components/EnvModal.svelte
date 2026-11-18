@@ -3,6 +3,7 @@
   import { workspaceState } from '$lib/state/workspace.svelte';
   import type { VariableItem } from '$lib/types';
   import { appendVariableDraft } from '$lib/utils/variable-drafts';
+  import { hasDuplicateEnvironmentName, isDefaultEnvironmentName, normalizeEnvironmentName } from '$lib/utils/environment';
   import Modal from '$lib/components/ui/Modal.svelte';
   import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
   import {
@@ -31,6 +32,13 @@
   let newCollectionKey = $state('');
   let newCollectionValue = $state('');
   let newCollectionIsSecret = $state(false);
+  let isCreatingEnvironment = $state(false);
+  let newEnvironmentName = $state('');
+  let newEnvironmentError = $state('');
+  let isSavingNewEnvironment = $state(false);
+  let pendingDeleteEnvironment = $state<string | null>(null);
+  let isDeletingEnvironment = $state(false);
+  let deleteEnvironmentError = $state('');
   let collectionLoadId = 0;
   let wasOpen = false;
 
@@ -54,6 +62,13 @@
       newCollectionKey = '';
       newCollectionValue = '';
       newCollectionIsSecret = false;
+      isCreatingEnvironment = false;
+      newEnvironmentName = '';
+      newEnvironmentError = '';
+      isSavingNewEnvironment = false;
+      pendingDeleteEnvironment = null;
+      isDeletingEnvironment = false;
+      deleteEnvironmentError = '';
     }
     wasOpen = true;
   });
@@ -126,6 +141,45 @@
     collectionVars = collectionVars.filter((v) => v.id !== id);
   }
 
+  async function submitNewEnvironment() {
+    const name = normalizeEnvironmentName(newEnvironmentName);
+    if (!name) {
+      newEnvironmentError = 'Enter an environment name.';
+      return;
+    }
+    if (hasDuplicateEnvironmentName(envState.environments, name)) {
+      newEnvironmentError = `Environment "${name}" already exists.`;
+      return;
+    }
+
+    isSavingNewEnvironment = true;
+    newEnvironmentError = '';
+    try {
+      await envState.createEnvironment(name);
+      isCreatingEnvironment = false;
+      newEnvironmentName = '';
+    } catch (error) {
+      newEnvironmentError = error instanceof Error ? error.message : String(error);
+    } finally {
+      isSavingNewEnvironment = false;
+    }
+  }
+
+  async function submitDeleteEnvironment() {
+    if (!pendingDeleteEnvironment || isDeletingEnvironment) return;
+    const name = pendingDeleteEnvironment;
+    isDeletingEnvironment = true;
+    deleteEnvironmentError = '';
+    try {
+      await envState.deleteEnvironment(name);
+      pendingDeleteEnvironment = null;
+    } catch (error) {
+      deleteEnvironmentError = error instanceof Error ? error.message : String(error);
+    } finally {
+      isDeletingEnvironment = false;
+    }
+  }
+
   async function handleSave() {
     saveError = '';
     try {
@@ -153,19 +207,130 @@
   {/snippet}
 
   {#snippet headerActions()}
-    <select
-      aria-label="Active environment"
-      value={envState.activeEnvName}
-      onchange={(event) => envState.selectEnvironment(event.currentTarget.value)}
-      class="ui-select max-w-40 px-2 py-0.5 text-[11px]"
-    >
-      {#each envState.environments as environment}
-        <option value={environment.name}>{environment.name}</option>
-      {/each}
-    </select>
+    <div class="flex items-center gap-1">
+      <select
+        aria-label="Active environment"
+        value={envState.activeEnvName}
+        onchange={(event) => envState.selectEnvironment(event.currentTarget.value)}
+        class="ui-select max-w-40 px-2 py-0.5 text-[11px]"
+      >
+        {#each envState.environments as environment}
+          <option value={environment.name}>{environment.name}</option>
+        {/each}
+      </select>
+      <button
+        type="button"
+        onclick={() => {
+          isCreatingEnvironment = !isCreatingEnvironment;
+          pendingDeleteEnvironment = null;
+          deleteEnvironmentError = '';
+          newEnvironmentName = '';
+          newEnvironmentError = '';
+        }}
+        title="Create environment"
+        aria-label="Create environment"
+        class="ui-icon-button"
+      >
+        <Plus size={13} />
+      </button>
+      <button
+        type="button"
+        onclick={() => {
+          pendingDeleteEnvironment = envState.activeEnvName;
+          isCreatingEnvironment = false;
+          newEnvironmentName = '';
+          newEnvironmentError = '';
+          deleteEnvironmentError = '';
+        }}
+        disabled={isDefaultEnvironmentName(envState.activeEnvName) || isDeletingEnvironment}
+        title={isDefaultEnvironmentName(envState.activeEnvName) ? 'The default environment cannot be deleted' : `Delete ${envState.activeEnvName}`}
+        aria-label="Delete environment"
+        class="ui-icon-button text-[var(--danger)] disabled:opacity-40"
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
   {/snippet}
 
   <div class="flex flex-col text-xs">
+    {#if pendingDeleteEnvironment}
+      <div
+        role="alertdialog"
+        aria-label="Delete environment"
+        class="border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--danger)_6%,var(--surface-muted))] px-4 py-2"
+      >
+        <div class="flex items-center gap-2">
+          <span class="min-w-0 flex-1 text-[11px] text-[var(--text-strong)]">
+            Delete <span class="font-semibold">"{pendingDeleteEnvironment}"</span> and its secrets?
+          </span>
+          <button
+            type="button"
+            onclick={() => {
+              pendingDeleteEnvironment = null;
+              deleteEnvironmentError = '';
+            }}
+            disabled={isDeletingEnvironment}
+            class="ui-button ui-button-secondary h-7 px-2 text-[10px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onclick={() => void submitDeleteEnvironment()}
+            disabled={isDeletingEnvironment}
+            class="ui-button ui-button-danger h-7 px-2 text-[10px]"
+          >
+            {isDeletingEnvironment ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+        {#if deleteEnvironmentError}
+          <p role="alert" class="mt-1.5 text-[10px] text-[var(--danger)]">{deleteEnvironmentError}</p>
+        {/if}
+      </div>
+    {/if}
+
+    {#if isCreatingEnvironment}
+      <form
+        class="border-b border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2"
+        onsubmit={(event) => {
+          event.preventDefault();
+          void submitNewEnvironment();
+        }}
+      >
+        <div class="flex items-center gap-2">
+          <input
+            aria-label="New environment name"
+            bind:value={newEnvironmentName}
+            disabled={isSavingNewEnvironment}
+            placeholder="Environment name"
+            class="min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[11px] text-[var(--text-strong)] outline-none focus:border-[var(--focus)]"
+          />
+          <button
+            type="button"
+            onclick={() => {
+              isCreatingEnvironment = false;
+              newEnvironmentName = '';
+              newEnvironmentError = '';
+            }}
+            disabled={isSavingNewEnvironment}
+            class="ui-button ui-button-secondary h-7 px-2 text-[10px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSavingNewEnvironment || !normalizeEnvironmentName(newEnvironmentName)}
+            class="ui-button ui-button-primary h-7 px-2 text-[10px]"
+          >
+            {isSavingNewEnvironment ? 'Creating...' : 'Create'}
+          </button>
+        </div>
+        {#if newEnvironmentError}
+          <p role="alert" class="mt-1.5 text-[10px] text-[var(--danger)]">{newEnvironmentError}</p>
+        {/if}
+      </form>
+    {/if}
+
     <!-- Notice -->
     <div class="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2 text-[11px] text-[var(--text-muted)]">
       <div class="flex items-center gap-1.5">

@@ -562,6 +562,22 @@ export async function saveWorkspaceEnvironment(
   });
 }
 
+export async function deleteWorkspaceEnvironment(
+  workspacePath: string,
+  environmentName: string,
+): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('delete_workspace_environment', { workspacePath, environmentName });
+  }
+  if (environmentName.trim().toLowerCase() === 'default') {
+    throw new Error('The default environment cannot be deleted.');
+  }
+  mockEnvironments = mockEnvironments.filter(
+    (environment) => environment.name.toLowerCase() !== environmentName.trim().toLowerCase()
+  );
+}
+
 let mockEnvironments: EnvironmentItem[] = [
   { name: 'default', file_path: '/environments/default.env.json', variables: [['base_url', 'https://httpbin.org'], ['grpc_host', 'demo.connectrpc.com'], ['grpc_port', '443'], ['grpc_interop_host', 'grpc-test.sandbox.googleapis.com'], ['grpc_interop_port', '443'], ['sse_base_url', 'https://httpcan.org']] },
   { name: 'development', file_path: '/environments/development.env.json', variables: [['api_host', 'httpbin.org'], ['port', '443'], ['grpc_host', 'demo.connectrpc.com'], ['grpc_port', '443'], ['grpc_interop_host', 'grpc-test.sandbox.googleapis.com'], ['grpc_interop_port', '443'], ['sse_base_url', 'https://httpcan.org']] },

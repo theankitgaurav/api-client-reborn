@@ -6,8 +6,10 @@ import {
   saveCollectionVariables,
   saveWorkspaceEnvironment,
   saveWorkspaceSecrets,
+  deleteWorkspaceEnvironment,
 } from '../ipc';
 import type { CollectionVariablesPayload, EnvironmentItem, VariableItem } from '../types';
+import { hasDuplicateEnvironmentName, isDefaultEnvironmentName, normalizeEnvironmentName } from '../utils/environment';
 
 function createVariable(key: string, value: string, isSecret: boolean, scope: 'environment' | 'workspace'): VariableItem {
   return { id: String(Date.now() + Math.random()), key, value, isSecret, scope };
@@ -103,6 +105,29 @@ export class EnvironmentState {
     const secretVars = Object.fromEntries(secretVariables);
     await saveWorkspaceEnvironment('.', name, publicVars, secretVars);
     await this.refresh(name);
+  }
+
+  async createEnvironment(name: string) {
+    const normalized = normalizeEnvironmentName(name);
+    if (!normalized) throw new Error('Enter an environment name.');
+    if (hasDuplicateEnvironmentName(this.environments, normalized)) {
+      throw new Error(`Environment "${normalized}" already exists.`);
+    }
+    await saveWorkspaceEnvironment('.', normalized, {}, {});
+    await this.refresh(normalized);
+  }
+
+  async deleteEnvironment(name: string) {
+    const normalized = normalizeEnvironmentName(name);
+    if (!normalized) throw new Error('Select an environment to delete.');
+    if (isDefaultEnvironmentName(normalized)) throw new Error('The default environment cannot be deleted.');
+    if (!this.environments.some((environment) =>
+      environment.name.trim().toLowerCase() === normalized.toLowerCase()
+    )) {
+      throw new Error(`Environment "${normalized}" does not exist.`);
+    }
+    await deleteWorkspaceEnvironment('.', normalized);
+    await this.refresh('default');
   }
 
   async updateVariables(newVariables: VariableItem[]) {
