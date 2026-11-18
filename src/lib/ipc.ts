@@ -586,6 +586,16 @@ const mockCollectionVariableSets = new Map<string, CollectionVariablesPayload>()
 function mockCollectionKey(requestFilePath: string): string {
   const normalized = `/${normalizeMockPath(requestFilePath.replaceAll('\\', '/'))}`;
   if (normalized.includes('/variable-resolution/')) return '/examples/variable-resolution';
+  if (!/\.(?:curl|grpc|grpcurl)$/i.test(normalized)) {
+    let parent = normalized;
+    while (parent !== '/') {
+      if (mockCollectionVariableSets.has(parent)) return parent;
+      parent = parent.slice(0, parent.lastIndexOf('/')) || '/';
+    }
+    const secondSlash = normalized.indexOf('/', 1);
+    const firstCollection = secondSlash > 0 ? normalized.slice(0, secondSlash) : normalized;
+    return firstCollection;
+  }
   let parent = normalized.slice(0, normalized.lastIndexOf('/')) || '/';
   while (parent !== '/') {
     if (mockCollectionVariableSets.has(parent)) return parent;
@@ -609,7 +619,17 @@ export async function getCollectionVariablesForEditor(
       secret_vars: {},
     });
   }
-  return mockCollectionVariableSets.get(key) || null;
+  const existing = mockCollectionVariableSets.get(key);
+  if (existing) return existing;
+  if (!/\.(?:curl|grpc|grpcurl)$/i.test(`/${normalizeMockPath(requestFilePath.replaceAll('\\', '/'))}`)) {
+    const pathParts = key.split('/').filter(Boolean);
+    return {
+      collection_name: pathParts[pathParts.length - 1] || 'Collection',
+      public_vars: {},
+      secret_vars: {},
+    };
+  }
+  return null;
 }
 
 export async function saveCollectionVariables(

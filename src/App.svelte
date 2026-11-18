@@ -62,7 +62,11 @@
     toggleCommandPalette: () => uiState.toggleCommandPalette(),
     toggleSidebar: () => uiState.toggleSidebar(),
     toggleVariablesModal: () => {
-      envState.isVariablesModalOpen = !envState.isVariablesModalOpen;
+      if (envState.isVariablesModalOpen) {
+        envState.closeVariablesModal();
+      } else {
+        envState.openVariablesModal();
+      }
     },
     closeActiveModal: () => {
       if (updaterState.isModalOpen && updaterState.status !== 'downloading') {
@@ -90,7 +94,7 @@
         return true;
       }
       if (envState.isVariablesModalOpen) {
-        envState.isVariablesModalOpen = false;
+        envState.closeVariablesModal();
         return true;
       }
       return false;

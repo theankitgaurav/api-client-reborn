@@ -328,7 +328,7 @@
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const menuWidth = 192;
-    const menuHeight = item.is_dir ? 190 : 230;
+    const menuHeight = item.is_dir ? 220 : 230;
 
     let x = rect.right - menuWidth;
     if (x < 8) x = 8;
@@ -766,6 +766,17 @@
         }}
       >
         <span>New Subfolder</span>
+      </button>
+
+      <button
+        type="button"
+        class="w-full text-left px-2.5 py-1.5 rounded hover:bg-[var(--surface-hover)] text-[var(--text-strong)] transition-colors flex items-center justify-between"
+        onclick={() => {
+          if (itemContextMenu) envState.openVariablesModal(itemContextMenu.item.path);
+          closeContextMenu();
+        }}
+      >
+        <span>Variables</span>
       </button>
 
       <div class="h-px bg-[var(--border)] my-1"></div>

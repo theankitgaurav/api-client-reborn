@@ -18,6 +18,7 @@ export class EnvironmentState {
   environments = $state<EnvironmentItem[]>([]);
   activeEnvName = $state('default');
   isVariablesModalOpen = $state(false);
+  collectionVariablesTargetPath = $state<string | null>(null);
   collectionVariablesRevision = $state(0);
 
   get isSecretsModalOpen(): boolean {
@@ -25,6 +26,16 @@ export class EnvironmentState {
   }
   set isSecretsModalOpen(value: boolean) {
     this.isVariablesModalOpen = value;
+  }
+
+  openVariablesModal(collectionPath?: string) {
+    this.collectionVariablesTargetPath = collectionPath?.trim() || null;
+    this.isVariablesModalOpen = true;
+  }
+
+  closeVariablesModal() {
+    this.isVariablesModalOpen = false;
+    this.collectionVariablesTargetPath = null;
   }
 
   mergedVariables = $derived.by(() => {

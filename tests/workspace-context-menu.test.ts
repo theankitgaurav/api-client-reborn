@@ -14,7 +14,17 @@ import {
 import { getCollectionArchivePath } from '../src/lib/utils/collection-exporter.ts';
 import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
 import type { WorkspaceFileItem, SidecarMetadata } from '../src/lib/types.ts';
-import { createCollectionFolder, getCollectionVariables, importCollectionBundle, moveWorkspaceItem, readRequestFile, saveRequestFile, scanWorkspace } from '../src/lib/ipc.ts';
+import {
+  createCollectionFolder,
+  getCollectionVariables,
+  getCollectionVariablesForEditor,
+  importCollectionBundle,
+  moveWorkspaceItem,
+  readRequestFile,
+  saveCollectionVariables,
+  saveRequestFile,
+  scanWorkspace,
+} from '../src/lib/ipc.ts';
 
 test('browser workspace moves requests without losing content or sidecars and resolves collisions', async () => {
   const source = await createCollectionFolder('.', `move-source-${crypto.randomUUID()}`);
@@ -40,6 +50,41 @@ test('browser import respects destination and generates unique collection names'
   const folder = tree.find((item) => item.path === destination);
   assert.deepEqual(folder?.children?.map((item) => item.name).sort(), ['collection', 'collection (2)']);
   assert.deepEqual(await getCollectionVariables(`${destination}/collection/nested/request.curl`), { token: 'public', secret: 'private' });
+});
+
+test('browser collection variables can be loaded and saved from a folder path', async () => {
+  const folderPath = `folder-${crypto.randomUUID()}`;
+  assert.deepEqual(await getCollectionVariablesForEditor(folderPath), {
+    collection_name: folderPath,
+    public_vars: {},
+    secret_vars: {},
+  });
+
+  await saveCollectionVariables(folderPath, { baseUrl: 'https://api.example.test' }, { apiKey: 'secret' });
+  assert.deepEqual(await getCollectionVariablesForEditor(folderPath), {
+    collection_name: folderPath,
+    public_vars: { baseUrl: 'https://api.example.test' },
+    secret_vars: { apiKey: 'secret' },
+  });
+  assert.deepEqual(await getCollectionVariables(`${folderPath}/request.curl`), {
+    baseUrl: 'https://api.example.test',
+    apiKey: 'secret',
+  });
+});
+
+test('browser nested folder variables resolve to the owning top-level collection', async () => {
+  const collectionPath = `collection-${crypto.randomUUID()}`;
+  const nestedFolder = `${collectionPath}/nested/auth`;
+  await saveCollectionVariables(nestedFolder, { nestedUrl: 'https://nested.example.test' }, {});
+
+  assert.deepEqual(await getCollectionVariablesForEditor(nestedFolder), {
+    collection_name: collectionPath,
+    public_vars: { nestedUrl: 'https://nested.example.test' },
+    secret_vars: {},
+  });
+  assert.deepEqual(await getCollectionVariables(`${nestedFolder}/request.curl`), {
+    nestedUrl: 'https://nested.example.test',
+  });
 });
 
 // ============================================================================

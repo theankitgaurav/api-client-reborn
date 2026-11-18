@@ -323,7 +323,7 @@
 
     <!-- Environment Variables Button -->
     <button
-      onclick={() => (envState.isVariablesModalOpen = true)}
+      onclick={() => envState.openVariablesModal()}
       title="Environment variables ({isMac ? '⌘E' : 'Ctrl+E'})"
       aria-label="Configure environment variables"
       class="flex items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] px-2 py-1 text-[11px] font-medium text-[var(--text-strong)] transition-colors select-none"

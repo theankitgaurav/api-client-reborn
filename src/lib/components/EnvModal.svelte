@@ -2,6 +2,7 @@
   import { envState } from '$lib/state/env.svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import type { VariableItem } from '$lib/types';
+  import { appendVariableDraft } from '$lib/utils/variable-drafts';
   import Modal from '$lib/components/ui/Modal.svelte';
   import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
   import {
@@ -38,6 +39,7 @@
     const variables = envState.variables;
     if (!isOpen) {
       wasOpen = false;
+      envState.collectionVariablesTargetPath = null;
       return;
     }
     localVars = variables.map((variable) => ({ ...variable }));
@@ -47,7 +49,7 @@
       newValue = '';
       newIsSecret = false;
       newScope = 'environment';
-      activeSection = 'environment';
+      activeSection = envState.collectionVariablesTargetPath ? 'collection' : 'environment';
       saveError = '';
       newCollectionKey = '';
       newCollectionValue = '';
@@ -58,7 +60,8 @@
 
   $effect(() => {
     if (!envState.isVariablesModalOpen) return;
-    const requestPath = workspaceState.activeTab?.filePath || '';
+    envState.collectionVariablesRevision;
+    const requestPath = envState.collectionVariablesTargetPath || workspaceState.activeTab?.filePath || '';
     collectionPath = requestPath;
     hasCollection = false;
     collectionName = '';
@@ -93,16 +96,11 @@
 
   function addVariable() {
     if (!newKey.trim()) return;
-    localVars = [
-      ...localVars,
-      {
-        id: `var-${Date.now()}-${Math.random()}`,
-        key: newKey.trim(),
-        value: newValue,
-        isSecret: newIsSecret,
-        scope: newScope,
-      },
-    ];
+    localVars = appendVariableDraft(
+      localVars,
+      { key: newKey, value: newValue, isSecret: newIsSecret, scope: newScope },
+      `var-${Date.now()}-${Math.random()}`,
+    );
     newKey = '';
     newValue = '';
     newIsSecret = false;
@@ -113,17 +111,12 @@
   }
 
   function addCollectionVariable() {
-    if (!newCollectionKey.trim() || !hasCollection) return;
-    collectionVars = [
-      ...collectionVars,
-      {
-        id: `col-${Date.now()}-${Math.random()}`,
-        key: newCollectionKey.trim(),
-        value: newCollectionValue,
-        isSecret: newCollectionIsSecret,
-        scope: 'collection',
-      },
-    ];
+    if (!newCollectionKey.trim() || !collectionPath) return;
+    collectionVars = appendVariableDraft(
+      collectionVars,
+      { key: newCollectionKey, value: newCollectionValue, isSecret: newCollectionIsSecret, scope: 'collection' },
+      `col-${Date.now()}-${Math.random()}`,
+    );
     newCollectionKey = '';
     newCollectionValue = '';
     newCollectionIsSecret = false;
@@ -136,11 +129,13 @@
   async function handleSave() {
     saveError = '';
     try {
+      addVariable();
+      addCollectionVariable();
       await envState.updateVariables(localVars);
-      if (hasCollection && collectionPath) {
+      if (collectionPath && (hasCollection || envState.collectionVariablesTargetPath)) {
         await envState.updateCollectionVariables(collectionPath, collectionVars);
       }
-      envState.isVariablesModalOpen = false;
+      envState.closeVariablesModal();
     } catch (e) {
       saveError = e instanceof Error ? e.message : String(e);
     }
@@ -151,7 +146,7 @@
   isOpen={envState.isVariablesModalOpen}
   title="Variables & Secrets"
   maxWidth="2xl"
-  onclose={() => (envState.isVariablesModalOpen = false)}
+  onclose={() => envState.closeVariablesModal()}
 >
   {#snippet icon()}
     <span class="font-mono font-bold text-xs">&#123;x&#125;</span>
@@ -402,7 +397,7 @@
   {#snippet footer()}
     <button
       type="button"
-      onclick={() => (envState.isVariablesModalOpen = false)}
+      onclick={() => envState.closeVariablesModal()}
       class="ui-button ui-button-secondary h-7 px-3 text-[11px]"
     >
       Cancel

@@ -743,8 +743,12 @@ fn import_bundle_into_workspace(
 
 #[tauri::command]
 pub fn get_collection_variables(request_file_path: String) -> Result<HashMap<String, String>> {
-    let request_path = PathBuf::from(request_file_path);
-    let mut directory = request_path.parent();
+    let request_path = resolve_item_path(&request_file_path);
+    let mut directory = if request_path.is_dir() {
+        Some(request_path.as_path())
+    } else {
+        request_path.parent()
+    };
     while let Some(path) = directory {
         let metadata_dir = path.join(".apiclient");
         let variables_path = metadata_dir.join("collection_variables.json");
@@ -766,14 +770,21 @@ pub fn get_collection_variables(request_file_path: String) -> Result<HashMap<Str
     Ok(HashMap::new())
 }
 
-fn collection_metadata_dir(request_file_path: &str) -> Result<Option<(PathBuf, String)>> {
-    let root = resolve_workspace_root(".");
-    let request_path = resolve_item_path(request_file_path);
+fn collection_metadata_dir_from_root(root: &Path, request_file_path: &str) -> Result<Option<(PathBuf, String)>> {
+    let request_path = if Path::new(request_file_path).is_absolute() {
+        PathBuf::from(request_file_path)
+    } else {
+        root.join(request_file_path)
+    };
     let relative = request_path.strip_prefix(&root).map_err(|_| {
         AppError::FsError("Request is outside the active workspace".to_string())
     })?;
 
-    let mut directory = request_path.parent();
+    let mut directory = if request_path.is_dir() {
+        Some(request_path.as_path())
+    } else {
+        request_path.parent()
+    };
     while let Some(path) = directory {
         if path == root {
             break;
@@ -799,6 +810,11 @@ fn collection_metadata_dir(request_file_path: &str) -> Result<Option<(PathBuf, S
     }
     let name = collection_root.file_name().and_then(|name| name.to_str()).unwrap_or("Collection");
     Ok(Some((collection_root.join(".apiclient"), name.to_string())))
+}
+
+fn collection_metadata_dir(request_file_path: &str) -> Result<Option<(PathBuf, String)>> {
+    let root = resolve_workspace_root(".");
+    collection_metadata_dir_from_root(&root, request_file_path)
 }
 
 #[tauri::command]
@@ -868,6 +884,18 @@ pub fn save_collection_variables(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn collection_metadata_dir_resolves_nested_folder_to_its_collection() {
+        let root = std::env::temp_dir().join(format!("workspace_collection_vars_{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("collection/nested")).unwrap();
+        let (metadata_dir, name) = collection_metadata_dir_from_root(&root, "collection/nested")
+            .unwrap()
+            .unwrap();
+        assert_eq!(metadata_dir, root.join("collection/.apiclient"));
+        assert_eq!(name, "collection");
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn move_preserves_sidecars_and_rejects_cycles() {

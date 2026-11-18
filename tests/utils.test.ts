@@ -8,6 +8,26 @@ import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
 import { HTTP_HEADER_NAMES, httpHeaderValues } from '../src/lib/utils/http-headers.ts';
 import { updateStoredRequestName } from '../src/lib/utils/workspace-sync.ts';
 import { formatResponseBody } from '../src/lib/utils/response-body.ts';
+import { appendVariableDraft } from '../src/lib/utils/variable-drafts.ts';
+import type { VariableItem } from '../src/lib/types.ts';
+
+test('pending variable drafts are trimmed and committed before save', () => {
+  const existing: VariableItem[] = [];
+  const result = appendVariableDraft(
+    existing,
+    { key: '  base_url  ', value: 'https://api.example.test', isSecret: false, scope: 'collection' },
+    'draft-1',
+  );
+
+  assert.deepEqual(result, [{
+    id: 'draft-1',
+    key: 'base_url',
+    value: 'https://api.example.test',
+    isSecret: false,
+    scope: 'collection',
+  }]);
+  assert.deepEqual(appendVariableDraft(result, { key: '   ', value: 'ignored', isSecret: false, scope: 'collection' }, 'draft-2'), result);
+});
 
 test('formats JSON responses without altering numeric or string literals', () => {
   const body = '{"id":9007199254740993,"amount":1.00e+3,"items":[{},[],{"text":"a, \\"b\\""}]}';
