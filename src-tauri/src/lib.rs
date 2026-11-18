@@ -28,7 +28,7 @@ fn build_app_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             name: Some(package.name.clone()),
             version: Some(package.version.to_string()),
             copyright: Some("Copyright © 2026 Ankit Gaurav".into()),
-            credits: Some("Built with ❤️ for developers who love speed, simplicity, and open protocols.".into()),
+            credits: Some("Built with ❤️ for developers and agents.".into()),
             ..Default::default()
         };
         let check_updates_item =
