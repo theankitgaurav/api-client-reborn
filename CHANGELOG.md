@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0] — 2026-11-18
+
+### Improved
+
+- Confirm clearing request history in a dialog and start with request folders collapsed, while revealing matches during search.
+- Align gRPC metadata editing with HTTP headers and add a file picker for custom CA certificates.
+- Display complete HTTP and gRPC JSON responses formatted in the Body tab while preserving the original in Raw.
+
 ## [0.14.9] — 2026-11-18
 
 ### Improved

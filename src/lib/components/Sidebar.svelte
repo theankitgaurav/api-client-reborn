@@ -37,8 +37,8 @@
     { id: 'requests' as const, label: 'Requests', count: countRequests(workspaceState.tree) },
     { id: 'history' as const, label: 'History', count: historyState.entries.length },
   ]);
-  let collapsedFolderPaths = $state<string[]>([]);
-  let hasInitializedFolderDefaults = false;
+  let expandedFolderPaths = $state<string[]>([]);
+  let searchCollapsedFolderPaths = $state<string[]>([]);
   let pendingDeleteItem = $state<WorkspaceFileItem | null>(null);
   let isDeletingItem = $state(false);
   let isNewFolderDialogOpen = $state(false);
@@ -214,13 +214,19 @@
   let filteredTree = $derived(filterItems(workspaceState.tree));
 
   function isFolderExpanded(path: string): boolean {
-    return !collapsedFolderPaths.includes(path);
+    return searchQuery.trim() ? !searchCollapsedFolderPaths.includes(path) : expandedFolderPaths.includes(path);
   }
 
   function toggleFolder(path: string) {
-    collapsedFolderPaths = isFolderExpanded(path)
-      ? [...collapsedFolderPaths, path]
-      : collapsedFolderPaths.filter((collapsedPath) => collapsedPath !== path);
+    if (searchQuery.trim()) {
+      searchCollapsedFolderPaths = isFolderExpanded(path)
+        ? [...searchCollapsedFolderPaths, path]
+        : searchCollapsedFolderPaths.filter((collapsedPath) => collapsedPath !== path);
+    } else {
+      expandedFolderPaths = isFolderExpanded(path)
+        ? expandedFolderPaths.filter((expandedPath) => expandedPath !== path)
+        : [...expandedFolderPaths, path];
+    }
   }
 
   $effect(() => {
@@ -228,11 +234,14 @@
   });
 
   $effect(() => {
-    const tree = workspaceState.tree;
-    if (hasInitializedFolderDefaults || tree.length === 0) return;
-    const examplesFolder = tree.find((item) => item.is_dir && item.name.toLowerCase() === 'examples');
-    if (examplesFolder) collapsedFolderPaths = [examplesFolder.path];
-    hasInitializedFolderDefaults = true;
+    workspaceState.workspacePath;
+    expandedFolderPaths = [];
+    searchCollapsedFolderPaths = [];
+  });
+
+  $effect(() => {
+    searchQuery;
+    searchCollapsedFolderPaths = [];
   });
 
   let copyNotification = $state<{ text: string; visible: boolean } | null>(null);

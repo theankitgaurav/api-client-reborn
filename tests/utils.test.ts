@@ -7,6 +7,22 @@ import {
 import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
 import { HTTP_HEADER_NAMES, httpHeaderValues } from '../src/lib/utils/http-headers.ts';
 import { updateStoredRequestName } from '../src/lib/utils/workspace-sync.ts';
+import { formatResponseBody } from '../src/lib/utils/response-body.ts';
+
+test('formats JSON responses without altering numeric or string literals', () => {
+  const body = '{"id":9007199254740993,"amount":1.00e+3,"items":[{},[],{"text":"a, \\"b\\""}]}';
+  assert.equal(formatResponseBody(body, false, false, false),
+    '{\n  "id": 9007199254740993,\n  "amount": 1.00e+3,\n  "items": [\n    {},\n    [],\n    {\n      "text": "a, \\"b\\""\n    }\n  ]\n}');
+});
+
+test('leaves invalid, incomplete, streaming and truncated bodies unchanged', () => {
+  const body = '{"value":1}';
+  assert.equal(formatResponseBody('{"value":', false, false, false), '{"value":');
+  assert.equal(formatResponseBody('plain text', false, false, false), 'plain text');
+  assert.equal(formatResponseBody(body, true, false, false), body);
+  assert.equal(formatResponseBody(body, false, true, false), body);
+  assert.equal(formatResponseBody(body, false, false, true), body);
+});
 
 test('header value suggestions depend on the case-insensitive header name', () => {
   assert.ok(HTTP_HEADER_NAMES.includes('Content-Type'));

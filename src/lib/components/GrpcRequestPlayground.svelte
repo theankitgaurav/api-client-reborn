@@ -178,6 +178,27 @@
     }
   }
 
+  async function chooseCaFile() {
+    const tabId = workspaceState.activeTabId;
+    discoverError = '';
+    try {
+      let path: string | null = null;
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const selection = await open({ multiple: false });
+        path = typeof selection === 'string' ? selection : null;
+      } else {
+        path = window.prompt('Enter the path to a CA certificate file:', config.tls_ca_file || '');
+      }
+      if (path && workspaceState.activeTabId === tabId) {
+        config.tls_ca_file = path;
+        sync();
+      }
+    } catch (error) {
+      if (workspaceState.activeTabId === tabId) discoverError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   function setTlsEnabled(enabled: boolean) {
     config.tls_enabled = enabled;
     if (config.endpoint.startsWith('http://')) {
@@ -328,13 +349,7 @@
       </div>
     {:else if selectedSection === 'metadata'}
       <div class="w-full">
-        <div class="mb-2 flex items-center justify-between">
-          <div class="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">Request Metadata</div>
-          <button onclick={addMetadata} class="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline">
-            <Plus size={13} />
-            <span>Add Metadata</span>
-          </button>
-        </div>
+        <div class="text-[10px] font-semibold text-[var(--text-subtle)] mb-2 uppercase tracking-wider">Request Metadata</div>
         <table class="w-full text-left font-mono text-xs">
           <thead>
             <tr class="border-b border-[var(--border)] text-[var(--text-subtle)]">
@@ -362,6 +377,10 @@
         {#if !config.metadata.length}
           <div class="py-8 text-center text-[var(--text-subtle)]">No request metadata</div>
         {/if}
+        <button onclick={addMetadata} class="mt-2.5 flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline">
+          <Plus size={13} />
+          <span>Add Metadata</span>
+        </button>
       </div>
 
     {:else}
@@ -433,7 +452,10 @@
             {#if config.tls_enabled}
               <label class="flex items-center gap-2 text-[var(--warning)]"><input type="checkbox" bind:checked={config.tls_insecure} onchange={sync} class="accent-[var(--warning)]" />Skip server certificate validation</label>
               <label class="block text-[11px] text-[var(--text-muted)]" for="grpc-ca-file">Custom CA certificate path (optional)</label>
-              <input id="grpc-ca-file" bind:value={config.tls_ca_file} oninput={sync} placeholder="/path/to/ca.pem" class="w-full bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2.5 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none" />
+              <div class="flex gap-2">
+                <input id="grpc-ca-file" bind:value={config.tls_ca_file} oninput={sync} placeholder="/path/to/ca.pem" class="flex-1 min-w-0 bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-2.5 py-1.5 font-mono text-xs text-[var(--text-strong)] outline-none" />
+                <button onclick={chooseCaFile} class="ui-button ui-button-secondary h-7 px-3 text-xs">Browse</button>
+              </div>
             {/if}
           </div>
           <div class="border-t border-[var(--border)] pt-3">

@@ -2,6 +2,7 @@
   import { historyState } from '$lib/state/history.svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
   import { AlertCircle, Clock, Search, Trash2 } from '$lib/components/icons';
+  import Modal from './ui/Modal.svelte';
 
   $effect(() => {
     void historyState.load(workspaceState.workspacePath);
@@ -56,39 +57,28 @@
         class="w-full bg-[var(--surface)] border border-[var(--border)] rounded pl-7 pr-2 py-1 text-[11px] text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none focus:border-[var(--focus)] transition-colors"
       />
     </div>
-    {#if isConfirmingClear}
-      <span class="shrink-0 text-[10px] text-[var(--text-muted)]">Clear all?</span>
-      <button
-        type="button"
-        onclick={() => (isConfirmingClear = false)}
-        disabled={isClearing}
-        class="shrink-0 rounded px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onclick={clearHistory}
-        disabled={historyState.entries.length === 0 || isClearing}
-        class="shrink-0 flex items-center gap-1 rounded bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] border border-[color-mix(in_srgb,var(--danger)_28%,transparent)] px-1.5 py-1 text-[10px] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_22%,transparent)] disabled:opacity-40"
-      >
-        <Trash2 size={11} />
-        <span>{isClearing ? 'Clearing…' : 'Clear all'}</span>
-      </button>
-    {:else}
-      <button
-        type="button"
-        onclick={() => (isConfirmingClear = true)}
-        disabled={historyState.entries.length === 0 || isClearing}
-        title="Clear all history"
-        aria-label="Clear all history"
-        class="shrink-0 flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Trash2 size={11} />
-        <span>Clear</span>
-      </button>
-    {/if}
+    <button
+      type="button"
+      onclick={() => (isConfirmingClear = true)}
+      disabled={historyState.entries.length === 0 || isClearing}
+      title="Clear all history"
+      aria-label="Clear all history"
+      class="shrink-0 flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <Trash2 size={11} />
+      <span>Clear</span>
+    </button>
   </div>
+
+  <Modal isOpen={isConfirmingClear} title="Clear History" onclose={() => { if (!isClearing) isConfirmingClear = false; }}>
+    <div class="p-4 space-y-3">
+      <p>Clear all request history? This cannot be undone.</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="ui-button ui-button-secondary" disabled={isClearing} onclick={() => (isConfirmingClear = false)}>Cancel</button>
+        <button type="button" class="ui-button ui-button-danger" disabled={isClearing || historyState.entries.length === 0} onclick={clearHistory}>{isClearing ? 'Clearing…' : 'Clear all'}</button>
+      </div>
+    </div>
+  </Modal>
 
   <div class="flex-1 overflow-y-auto p-1.5 space-y-1">
     {#if historyState.isLoading}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { responseState } from '$lib/state/response.svelte';
   import { workspaceState } from '$lib/state/workspace.svelte';
+  import { formatResponseBody } from '$lib/utils/response-body';
   import StreamLog from './StreamLog.svelte';
   import {
     Copy,
@@ -14,6 +15,12 @@
   let { stacked = false }: { stacked?: boolean } = $props();
   let copied = $state(false);
   let wordWrap = $state(false);
+  let displayBody = $derived(formatResponseBody(
+    responseState.current.bodyText,
+    responseState.current.isExecuting,
+    responseState.current.isStreaming,
+    responseState.current.isBodyTruncated,
+  ));
 
   function downloadFilename() {
     const disposition = responseState.current.headers.find((header) => header.key.toLowerCase() === 'content-disposition')?.value || '';
@@ -62,7 +69,7 @@
   });
 
   function copyBody() {
-    navigator.clipboard.writeText(responseState.current.bodyText);
+    navigator.clipboard.writeText(displayBody);
     copied = true;
     setTimeout(() => {
       copied = false;
@@ -238,7 +245,7 @@
             {/if}
           </button>
         </div>
-        <pre class="flex-1 {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{responseState.current.bodyText || '// No response body'}</pre>
+        <pre class="flex-1 {wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} p-3 m-0 font-mono text-xs leading-relaxed overflow-auto text-[var(--text-strong)] select-text bg-[var(--surface)]">{displayBody || '// No response body'}</pre>
         </div>
       {:else if responseState.current.activeTab === 'headers'}
         <div class="h-full overflow-y-auto p-3">
