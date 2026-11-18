@@ -6,6 +6,7 @@ import {
   moveWorkspaceItem,
   readRequestFile,
   renameWorkspaceItem,
+  saveRequestDisplayName,
   saveRequestFile,
   setWorkspacePath,
   scanWorkspace,
@@ -45,6 +46,8 @@ export class WorkspaceState {
   targetNewRequestFolder = $state<string>('.');
   onTabsRetired: ((ids: string[]) => void) | null = null;
   private refreshRequestId = 0;
+  private nameOnlyEdits = new WeakMap<TabItem, string>();
+  private requestSaveQueues = new Map<string, Promise<void>>();
 
   // Active tab derivation
   activeTab = $derived(this.tabs.find((t) => t.id === this.activeTabId) || null);
@@ -360,30 +363,91 @@ export class WorkspaceState {
     }
   }
 
-  updateContent(newContent: string, method?: string, name?: string) {
+  updateContent(newContent: string, method?: string, name?: string, nameEdit = false) {
     if (!this.activeTab) return;
+    if (nameEdit && !this.activeTab.isDirty) {
+      this.nameOnlyEdits.set(this.activeTab, JSON.stringify(this.activeTab.sidecar ?? null));
+    } else if (!nameEdit) {
+      this.nameOnlyEdits.delete(this.activeTab);
+    }
     this.activeTab.rawContent = newContent;
     this.activeTab.isDirty = true;
     this.activeTab.isPinned = true; // Pin once user makes changes
     if (method) this.activeTab.method = method;
-    if (name) this.activeTab.name = name;
+    if (name !== undefined) this.activeTab.name = name;
+  }
+
+  private queueRequestSave(path: string, operation: () => Promise<void>): Promise<void> {
+    const previous = this.requestSaveQueues.get(path);
+    // The earlier save reports its own failure; a later save should still be attempted.
+    const save = (previous ? previous.catch(() => {}) : Promise.resolve()).then(operation);
+    this.requestSaveQueues.set(path, save);
+    void save.then(
+      () => { if (this.requestSaveQueues.get(path) === save) this.requestSaveQueues.delete(path); },
+      () => { if (this.requestSaveQueues.get(path) === save) this.requestSaveQueues.delete(path); },
+    );
+    return save;
+  }
+
+  async saveActiveRequestName(): Promise<boolean> {
+    const tab = this.activeTab;
+    if (!tab) return false;
+    const enteredName = tab.name;
+    const name = enteredName.trim();
+    if (!name) {
+      alert('Request name cannot be empty.');
+      return false;
+    }
+    if (!tab.filePath) return true;
+    const path = tab.filePath;
+    const requestType = tab.requestType;
+    const content = tab.rawContent;
+    const sidecar = JSON.stringify(tab.sidecar ?? null);
+    const nameOnly = this.nameOnlyEdits.get(tab) === sidecar;
+    try {
+      await this.queueRequestSave(path, () => saveRequestDisplayName(path, name, requestType));
+      if (this.tabs.includes(tab) && tab.filePath === path) {
+        const unchanged = tab.name === enteredName && tab.rawContent === content
+          && JSON.stringify(tab.sidecar ?? null) === sidecar;
+        if (tab.sidecar?.name !== undefined && tab.name.trim() === name) tab.sidecar.name = name;
+        if (nameOnly && unchanged && this.nameOnlyEdits.get(tab) === sidecar) {
+          tab.isDirty = false;
+          this.nameOnlyEdits.delete(tab);
+        }
+      }
+      await this.refreshTree();
+      return true;
+    } catch (error) {
+      console.error('Failed to save request name:', error);
+      alert(`Failed to save request name: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
   }
 
   async saveActiveFile() {
-    if (!this.activeTab) return;
-    if (!this.activeTab.filePath) {
+    const tab = this.activeTab;
+    if (!tab) return;
+    if (!tab.filePath) {
       // Open Save Request Modal for unsaved draft
       this.isSaveModalOpen = true;
       return;
     }
 
+    const path = tab.filePath;
+    const content = tab.rawContent;
+    const name = tab.name;
+    const sidecarSnapshot = JSON.stringify(tab.sidecar ?? null);
+    const sidecar: SidecarMetadata | undefined = tab.sidecar ? JSON.parse(sidecarSnapshot) : undefined;
+    if (sidecar?.name !== undefined && name.trim()) sidecar.name = name.trim();
     try {
-      await saveRequestFile(
-        this.activeTab.filePath,
-        this.activeTab.rawContent,
-        this.activeTab.sidecar
-      );
-      this.activeTab.isDirty = false;
+      await this.queueRequestSave(path, () => saveRequestFile(path, content, sidecar));
+      const currentSidecar = JSON.stringify(tab.sidecar ?? null);
+      if (this.tabs.includes(tab) && tab.filePath === path && tab.rawContent === content
+          && tab.name === name && (currentSidecar === sidecarSnapshot || currentSidecar === JSON.stringify(sidecar ?? null))) {
+        if (tab.sidecar?.name !== undefined && sidecar?.name !== undefined) tab.sidecar.name = sidecar.name;
+        tab.isDirty = false;
+        this.nameOnlyEdits.delete(tab);
+      }
       await this.refreshTree();
     } catch (e) {
       console.error('Failed to save file:', e);

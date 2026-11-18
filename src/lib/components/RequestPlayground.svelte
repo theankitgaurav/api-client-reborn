@@ -28,6 +28,7 @@
     EyeOff,
   } from '$lib/components/icons';
   import { getResolvedCommand } from '$lib/utils/curl-generator';
+  import { HTTP_HEADER_NAMES, httpHeaderValues } from '$lib/utils/http-headers';
 
   let { stacked = false }: { stacked?: boolean } = $props();
   let activeTab = $state<'params' | 'headers' | 'body' | 'auth' | 'scripts'>('params');
@@ -39,6 +40,9 @@
   let showBasicPassword = $state(false);
 
   let model = $state<PlaygroundModel>(parseCurlToPlayground(''));
+  let loadedTabId: string | null = null;
+  let loadedFilePath: string | null = null;
+  let lastSyncedContent: string | null = null;
   let tooltipVariables = $state<Record<string, string>>({});
   let tooltipCollectionVariables = $state<Set<string>>(new Set());
   let tooltipCollectionSecrets = $state<Set<string>>(new Set());
@@ -78,7 +82,10 @@
   // Whenever the active tab changes from workspace, load into model & scripts
   $effect(() => {
     const tab = workspaceState.activeTab;
-    if (tab) {
+    if (tab && (tab.id !== loadedTabId || tab.filePath !== loadedFilePath || tab.rawContent !== lastSyncedContent)) {
+      loadedTabId = tab.id;
+      loadedFilePath = tab.filePath;
+      lastSyncedContent = tab.rawContent;
       model = parseCurlToPlayground(tab.rawContent);
       preRequestScript = tab.sidecar?.pre_request_script || '';
       postResponseScript = tab.sidecar?.post_response_script || '';
@@ -86,10 +93,39 @@
   });
 
   // Re-serialize back to workspace raw_content whenever the request model changes
-  function syncToWorkspace() {
+  function syncToWorkspace(event?: Event) {
+    if (!event) {
+      syncWorkspace(false);
+      return;
+    }
+    const tab = workspaceState.activeTab;
+    queueMicrotask(() => {
+      if (workspaceState.activeTab === tab) syncWorkspace(false);
+    });
+  }
+
+  function syncWorkspace(nameEdit: boolean) {
     if (workspaceState.activeTab) {
       const serialized = serializePlaygroundToCurl(model);
-      workspaceState.updateContent(serialized, model.method, model.name);
+      lastSyncedContent = serialized;
+      workspaceState.updateContent(serialized, model.method, model.name, nameEdit);
+    }
+  }
+
+  function handleNameInput(event: Event) {
+    model.name = (event.currentTarget as HTMLInputElement).value;
+    syncWorkspace(true);
+  }
+
+  async function handleNameKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    const input = event.currentTarget as HTMLInputElement;
+    const value = input.value;
+    const tab = workspaceState.activeTab;
+    if (await workspaceState.saveActiveRequestName()
+        && workspaceState.activeTab === tab && input.value === value && document.activeElement === input) {
+      input.blur();
     }
   }
 
@@ -389,8 +425,10 @@
       <div class="mr-2 flex min-w-0 flex-1 items-center gap-2">
         <input
           type="text"
+          aria-label="Request name"
           bind:value={model.name}
-          oninput={syncToWorkspace}
+          oninput={handleNameInput}
+          onkeydown={handleNameKeydown}
           placeholder="Request Name"
           class="w-64 min-w-0 bg-transparent px-2 py-0.5 text-xs font-semibold text-[var(--text-strong)] rounded hover:bg-[var(--surface-hover)] focus:bg-[var(--surface)] border border-transparent focus:border-[var(--border)] outline-none transition-colors"
         />
@@ -610,6 +648,11 @@
     <!-- 2. HEADERS TAB -->
     {:else if activeTab === 'headers'}
       <div class="flex-1 overflow-y-auto p-3">
+        <datalist id="http-header-names">
+          {#each HTTP_HEADER_NAMES as name}
+            <option value={name}></option>
+          {/each}
+        </datalist>
         <div class="text-[10px] font-semibold text-[var(--text-subtle)] mb-2 uppercase tracking-wider">
           Request Headers
         </div>
@@ -638,7 +681,8 @@
                     type="text"
                     placeholder="Header Name"
                     bind:value={h.key}
-                    oninput={syncToWorkspace}
+                    list="http-header-names"
+                    oninput={(event) => { h.key = event.currentTarget.value; syncToWorkspace(); }}
                     onmousemove={(e) => handleVarHover(e, h.key)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
@@ -650,12 +694,18 @@
                     type="text"
                     placeholder="Header Value"
                     bind:value={h.value}
-                    oninput={syncToWorkspace}
+                    list={"http-header-values-" + h.id}
+                    oninput={(event) => { h.value = event.currentTarget.value; syncToWorkspace(); }}
                     onmousemove={(e) => handleVarHover(e, h.value)}
                     onmouseleave={handleVarLeave}
                     onblur={handleVarLeave}
                     class="w-full bg-transparent border-b border-transparent hover:border-[var(--border-strong)] focus:border-[var(--focus)] px-1 py-0.5 outline-none text-[var(--text-strong)]"
                   />
+                  <datalist id={"http-header-values-" + h.id}>
+                    {#each httpHeaderValues(h.key) as value}
+                      <option {value}></option>
+                    {/each}
+                  </datalist>
                 </td>
                 <td class="py-1 text-center">
                   <button

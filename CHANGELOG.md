@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.9] — 2026-11-18
+
+### Improved
+
+- Suggest common HTTP header names and values while editing request headers.
+
+### Fixed
+
+- Allow spaces in HTTP and gRPC request names and save only the name with Enter, removing focus after a successful save.
+
 ## [0.14.8] — 2026-11-16
 
 ### Improved

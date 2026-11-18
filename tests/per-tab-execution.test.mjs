@@ -8,6 +8,7 @@ const { ResponseState } = await server.ssrLoadModule('/src/lib/state/response.sv
 const { envState } = await server.ssrLoadModule('/src/lib/state/env.svelte.ts');
 const { historyState, HistoryState } = await server.ssrLoadModule('/src/lib/state/history.svelte.ts');
 const { createDefaultGrpcRequest, serializeGrpcRequest } = await server.ssrLoadModule('/src/lib/utils/grpc.ts');
+const { readRequestFile, saveRequestFile } = await server.ssrLoadModule('/src/lib/ipc.ts');
 await workspaceState.refreshTree();
 
 const originalVariables = envState.variablesForRequest;
@@ -71,6 +72,110 @@ function body(text) {
 function finished(text) {
   return { type: 'Finished', payload: { total_duration_ms: 5, total_bytes: text.length } };
 }
+
+test('saving only the HTTP name preserves pending request and sidecar changes', async () => {
+  const path = `name-${crypto.randomUUID()}.curl`;
+  const saved = '# @name Old name\ncurl https://example.com/saved';
+  await saveRequestFile(path, saved, { name: 'Old name', tests: [], pre_request_script: 'saved' });
+  const request = { ...tab('http-name'), filePath: path, name: 'Old name', rawContent: saved,
+    sidecar: { name: 'Old name', tests: [], pre_request_script: 'saved' } };
+  await setup([request]);
+  workspaceState.updateContent('# @name Old name\ncurl https://example.com/unsaved', 'GET', 'Old name');
+  workspaceState.activeTab.sidecar.pre_request_script = 'unsaved';
+  workspaceState.updateContent('# @name New name\ncurl https://example.com/unsaved', 'GET', 'New name', true);
+  assert.equal(await workspaceState.saveActiveRequestName(), true);
+  const stored = await readRequestFile(path);
+  assert.equal(stored.raw_content, '# @name New name\ncurl https://example.com/saved');
+  assert.equal(stored.sidecar.name, 'New name');
+  assert.equal(stored.sidecar.pre_request_script, 'saved');
+  assert.equal(workspaceState.activeTab.sidecar.pre_request_script, 'unsaved');
+  assert.equal(workspaceState.activeTab.isDirty, true);
+});
+
+test('saving a name-only edit clears dirty state without affecting a tab switched during save', async () => {
+  const path = `name-only-${crypto.randomUUID()}.curl`;
+  const saved = '# @name Old\ncurl https://example.com';
+  await saveRequestFile(path, saved, { name: 'Old', tests: [] });
+  await setup([{ ...tab('first'), filePath: path, name: 'Old', rawContent: saved,
+    sidecar: { name: 'Old', tests: [] } }, tab('second')]);
+  workspaceState.updateContent('# @name New name\ncurl https://example.com', 'GET', 'New name', true);
+  const saving = workspaceState.saveActiveRequestName();
+  workspaceState.activeTabId = 'second';
+  await saving;
+  assert.equal((await readRequestFile(path)).raw_content, '# @name New name\ncurl https://example.com');
+  assert.equal(workspaceState.tabs[0].isDirty, false);
+  assert.equal(workspaceState.tabs[0].sidecar.name, 'New name');
+  assert.equal(workspaceState.activeTab.name, 'second');
+});
+
+test('gRPC name-only save preserves JSON fields and draft names remain unsaved', async () => {
+  const path = `name-${crypto.randomUUID()}.grpc`;
+  const saved = JSON.stringify({ name: 'Old', endpoint: 'saved', custom: { keep: true } });
+  await saveRequestFile(path, saved);
+  await setup([{ ...tab('grpc-name', 'grpc'), filePath: path, name: 'Old', rawContent: saved, isDirty: true }]);
+  workspaceState.updateContent('# @name Renamed service\ngrpcurl unsaved', 'gRPC', 'Renamed service', true);
+  assert.equal(await workspaceState.saveActiveRequestName(), true);
+  assert.deepEqual(JSON.parse((await readRequestFile(path)).raw_content),
+    { name: 'Renamed service', endpoint: 'saved', custom: { keep: true } });
+  assert.equal(workspaceState.activeTab.isDirty, true);
+  await setup([tab('draft', 'grpc')]);
+  workspaceState.updateContent('# @name Draft service\ngrpcurl localhost', 'gRPC', 'Draft service', true);
+  assert.equal(await workspaceState.saveActiveRequestName(), true);
+  assert.equal(workspaceState.activeTab.name, 'Draft service');
+  assert.equal(workspaceState.activeTab.filePath, null);
+  assert.equal(workspaceState.isSaveModalOpen, false);
+});
+
+test('name save reports failure without clearing the pending edit', async () => {
+  const path = `invalid-${crypto.randomUUID()}.grpc`;
+  await saveRequestFile(path, '{invalid JSON');
+  await setup([{ ...tab('invalid-name', 'grpc'), filePath: path, name: 'Old', rawContent: '{invalid JSON' }]);
+  workspaceState.updateContent('# @name New\ngrpcurl localhost example.Service/Method', 'gRPC', 'New', true);
+  const originalAlert = globalThis.alert;
+  const originalError = console.error;
+  const messages = [];
+  globalThis.alert = (message) => messages.push(message);
+  console.error = () => {};
+  try {
+    assert.equal(await workspaceState.saveActiveRequestName(), false);
+    assert.equal(workspaceState.activeTab.isDirty, true);
+    assert.match(messages[0], /Failed to save request name/);
+  } finally {
+    globalThis.alert = originalAlert;
+    console.error = originalError;
+  }
+});
+
+test('rapid name saves persist the latest name without losing the clean state', async () => {
+  const path = `rapid-name-${crypto.randomUUID()}.grpcurl`;
+  const saved = '# @name Old\ngrpcurl localhost example.Service/Method';
+  await saveRequestFile(path, saved);
+  await setup([{ ...tab('rapid', 'grpc'), filePath: path, name: 'Old', rawContent: saved }]);
+  workspaceState.updateContent('# @name First\ngrpcurl localhost example.Service/Method', 'gRPC', 'First', true);
+  const first = workspaceState.saveActiveRequestName();
+  workspaceState.updateContent('# @name Second name\ngrpcurl localhost example.Service/Method', 'gRPC', 'Second name', true);
+  const second = workspaceState.saveActiveRequestName();
+  await Promise.all([first, second]);
+  assert.equal((await readRequestFile(path)).raw_content, '# @name Second name\ngrpcurl localhost example.Service/Method');
+  assert.equal(workspaceState.activeTab.isDirty, false);
+});
+
+test('a full save ordered after a name save retains the latest request edits', async () => {
+  const path = `ordered-save-${crypto.randomUUID()}.curl`;
+  const saved = '# @name Old\ncurl https://example.com/saved';
+  await saveRequestFile(path, saved, { name: 'Old', tests: [] });
+  await setup([{ ...tab('ordered'), filePath: path, name: 'Old', rawContent: saved,
+    sidecar: { name: 'Old', tests: [] } }]);
+  workspaceState.updateContent('# @name New\ncurl https://example.com/saved', 'GET', 'New', true);
+  const rename = workspaceState.saveActiveRequestName();
+  await Promise.resolve();
+  workspaceState.updateContent('# @name New\ncurl https://example.com/edited', 'GET', 'New');
+  const fullSave = workspaceState.saveActiveFile();
+  await Promise.all([rename, fullSave]);
+  assert.equal((await readRequestFile(path)).raw_content, '# @name New\ncurl https://example.com/edited');
+  assert.equal((await readRequestFile(path)).sidecar.name, 'New');
+  assert.equal(workspaceState.activeTab.isDirty, false);
+});
 
 test('concurrent gRPC and HTTP requests keep controls, responses, scripts, and history in their tabs', async () => {
   const script = 'pm.test("HTTP status", function () { pm.response.to.have.status(201); });';

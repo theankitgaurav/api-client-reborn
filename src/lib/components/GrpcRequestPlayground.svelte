@@ -89,8 +89,28 @@
   }
 
   function sync() {
-    config.name = config.name || 'New gRPC Request';
-    workspaceState.updateContent(serializeGrpcRequest(config), 'gRPC', config.name);
+    syncWorkspace(false);
+  }
+
+  function syncWorkspace(nameEdit: boolean) {
+    workspaceState.updateContent(serializeGrpcRequest(config), 'gRPC', config.name, nameEdit);
+  }
+
+  function handleNameInput(event: Event) {
+    config.name = (event.currentTarget as HTMLInputElement).value;
+    syncWorkspace(true);
+  }
+
+  async function handleNameKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    const input = event.currentTarget as HTMLInputElement;
+    const value = input.value;
+    const tab = workspaceState.activeTab;
+    if (await workspaceState.saveActiveRequestName()
+        && workspaceState.activeTab === tab && input.value === value && document.activeElement === input) {
+      input.blur();
+    }
   }
 
   async function loadServices() {
@@ -214,7 +234,8 @@
       <input
         aria-label="Request name"
         bind:value={config.name}
-        oninput={sync}
+        oninput={handleNameInput}
+        onkeydown={handleNameKeydown}
         placeholder="gRPC Request Name"
         class="bg-transparent font-semibold text-[var(--text-strong)] outline-none text-xs w-64 hover:bg-[var(--surface-hover)] focus:bg-[var(--surface)] border border-transparent focus:border-[var(--border)] px-2 py-0.5 rounded transition-colors"
       />

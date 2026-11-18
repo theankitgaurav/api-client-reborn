@@ -5,6 +5,23 @@ import {
   serializePlaygroundToCurl,
 } from '../src/lib/utils/curl-serializer.ts';
 import { getResolvedCommand } from '../src/lib/utils/curl-generator.ts';
+import { HTTP_HEADER_NAMES, httpHeaderValues } from '../src/lib/utils/http-headers.ts';
+import { updateStoredRequestName } from '../src/lib/utils/workspace-sync.ts';
+
+test('header value suggestions depend on the case-insensitive header name', () => {
+  assert.ok(HTTP_HEADER_NAMES.includes('Content-Type'));
+  assert.ok(httpHeaderValues(' content-TYPE ').includes('application/json'));
+  assert.ok(httpHeaderValues('Accept').includes('text/event-stream'));
+  assert.deepEqual(httpHeaderValues('X-Custom'), []);
+});
+
+test('request name updates preserve request content and literal replacement characters', () => {
+  const raw = '# @name Old\n# @description Keep\ncurl https://example.com';
+  assert.equal(updateStoredRequestName(raw, 'New $& name', 'http'),
+    '# @name New $& name\n# @description Keep\ncurl https://example.com');
+  assert.equal(updateStoredRequestName('# @name Old\ngrpcurl localhost service/method', 'New name', 'grpc'),
+    '# @name New name\ngrpcurl localhost service/method');
+});
 
 test('parseCurlToPlayground parses GET with query params and headers', () => {
   const input = `# @name Get Users

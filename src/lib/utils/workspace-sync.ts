@@ -321,7 +321,7 @@ export function updateRequestNameHeader(rawContent: string, newDisplayName: stri
   const nameLineRegex = /(^[ \t]*#[ \t]*@name\b)(?:[ \t]+.*)?$/m;
 
   if (nameLineRegex.test(rawContent)) {
-    return rawContent.replace(nameLineRegex, `# @name ${newDisplayName}`);
+    return rawContent.replace(nameLineRegex, () => `# @name ${newDisplayName}`);
   }
 
   if (trimmed.length === 0) {
@@ -329,4 +329,15 @@ export function updateRequestNameHeader(rawContent: string, newDisplayName: stri
   }
 
   return `# @name ${newDisplayName}\n${rawContent}`;
+}
+
+export function updateStoredRequestName(rawContent: string, newName: string, requestType?: 'http' | 'grpc'): string {
+  if (requestType === 'grpc' && rawContent.trimStart().startsWith('{')) {
+    const config: unknown = JSON.parse(rawContent);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error('Invalid gRPC request configuration');
+    }
+    return JSON.stringify({ ...config, name: newName }, null, 2);
+  }
+  return updateRequestNameHeader(rawContent, newName);
 }

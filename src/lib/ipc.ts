@@ -10,6 +10,7 @@ import type {
   WorkspaceFileItem,
 } from './types';
 import { parseGrpcRequest } from './utils/grpc.ts';
+import { updateStoredRequestName } from './utils/workspace-sync.ts';
 
 // Detect whether running in Tauri desktop environment
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -334,6 +335,19 @@ export async function saveRequestFile(
   });
 
   upsertItemInMockTree(path, rawContent, sidecar);
+}
+
+export async function saveRequestDisplayName(
+  path: string,
+  name: string,
+  requestType?: 'http' | 'grpc'
+): Promise<void> {
+  const saved = await readRequestFile(path);
+  const content = updateStoredRequestName(saved.raw_content, name, requestType);
+  const sidecar = saved.sidecar?.name !== undefined
+    ? { ...saved.sidecar, name }
+    : saved.sidecar;
+  await saveRequestFile(path, content, sidecar);
 }
 
 export async function parseCurlPreview(rawContent: string): Promise<ParsedCurlRequest> {
