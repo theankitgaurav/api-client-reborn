@@ -17,3 +17,7 @@ export function buildWorkspaceOptions(defaultPath: string, recentPaths: string[]
 
   return options;
 }
+
+export function getWorkspaceRevealLabel(isMac: boolean): string {
+  return isMac ? 'Reveal in Finder' : 'Open in file explorer';
+}

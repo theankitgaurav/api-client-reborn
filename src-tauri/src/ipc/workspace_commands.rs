@@ -158,6 +158,34 @@ pub fn set_workspace_path(workspace_path: String) -> Result<String> {
     Ok(set_selected_workspace_dir(&PathBuf::from(workspace_path))?.to_string_lossy().to_string())
 }
 
+fn reveal_workspace_folder_path(folder_path: &Path) -> Result<()> {
+    if !folder_path.is_dir() {
+        return Err(AppError::FsError(format!(
+            "Workspace folder does not exist: {}",
+            folder_path.to_string_lossy()
+        )));
+    }
+
+    #[cfg(target_os = "macos")]
+    let command = "open";
+    #[cfg(target_os = "windows")]
+    let command = "explorer";
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let command = "xdg-open";
+
+    std::process::Command::new(command)
+        .arg(folder_path)
+        .spawn()
+        .map_err(|error| AppError::FsError(format!("Failed to open workspace folder: {error}")))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reveal_workspace_folder(folder_path: String) -> Result<()> {
+    let path = resolve_item_path(&folder_path);
+    reveal_workspace_folder_path(&path)
+}
+
 #[tauri::command]
 pub fn scan_workspace(workspace_path: String) -> Result<Vec<WorkspaceFileItem>> {
     let path = resolve_workspace_root(&workspace_path);
@@ -884,6 +912,12 @@ pub fn save_collection_variables(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reveal_workspace_folder_rejects_missing_paths() {
+        let missing = std::env::temp_dir().join(format!("missing_workspace_{}", uuid::Uuid::new_v4()));
+        assert!(reveal_workspace_folder_path(&missing).is_err());
+    }
 
     #[test]
     fn collection_metadata_dir_resolves_nested_folder_to_its_collection() {

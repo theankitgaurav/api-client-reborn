@@ -7,8 +7,8 @@
   import { updaterState } from '$lib/state/updater.svelte';
   import { uiState } from '$lib/state/ui.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { getWorkspaceHistory } from '$lib/ipc';
-  import { buildWorkspaceOptions } from '$lib/utils/workspace-history';
+  import { getWorkspaceHistory, revealWorkspaceFolder } from '$lib/ipc';
+  import { buildWorkspaceOptions, getWorkspaceRevealLabel } from '$lib/utils/workspace-history';
   import Kbd from '$lib/components/ui/Kbd.svelte';
   import {
     Layers,
@@ -116,6 +116,15 @@
       workspaceMenuError = e instanceof Error ? e.message : String(e);
     }
   }
+
+  async function openWorkspaceInExplorer(path: string) {
+    workspaceMenuError = '';
+    try {
+      await revealWorkspaceFolder(path);
+    } catch (e) {
+      workspaceMenuError = e instanceof Error ? e.message : String(e);
+    }
+  }
 </script>
 
 <svelte:window onclick={closeMenuOutside} />
@@ -169,27 +178,46 @@
               <p class="px-2.5 py-2 text-[11px] text-[var(--text-muted)]">Loading workspaces…</p>
             {:else}
               {#each workspaceOptions as path, index}
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={isSwitchingWorkspace}
-                  title={path}
-                  aria-label="Switch to {getWorkspaceName(path)}{index === 0 ? ', default workspace' : ''}"
-                  onclick={() => switchToWorkspace(path)}
-                  class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 {path === workspaceState.workspacePath ? 'bg-[var(--surface-hover)] font-medium text-[var(--text-strong)]' : 'text-[var(--text)]'}"
+                <div
+                  role="none"
+                  class="group flex items-center rounded transition-colors {path === workspaceState.workspacePath ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'}"
                 >
-                  <FolderOpen size={13} class="shrink-0 text-[var(--accent)]" />
-                  <span class="flex min-w-0 flex-1 flex-col">
-                    <span class="truncate">{getWorkspaceName(path)}</span>
-                    <span class="truncate font-mono text-[9px] text-[var(--text-subtle)]">{path}</span>
-                  </span>
-                  {#if index === 0}
-                    <span class="shrink-0 rounded bg-[var(--surface-muted)] border border-[var(--border)] px-1 py-0.2 text-[9px] text-[var(--text-muted)]">Default</span>
-                  {/if}
-                  {#if path === workspaceState.workspacePath}
-                    <Check size={12} class="shrink-0 text-[var(--accent)]" />
-                  {/if}
-                </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={isSwitchingWorkspace}
+                    title={path}
+                    aria-label="Switch to {getWorkspaceName(path)}{index === 0 ? ', default workspace' : ''}"
+                    onclick={() => switchToWorkspace(path)}
+                    class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-[11px] transition-colors disabled:opacity-50 {path === workspaceState.workspacePath ? 'font-medium text-[var(--text-strong)]' : 'text-[var(--text)]'}"
+                  >
+                    <FolderOpen size={13} class="shrink-0 text-[var(--accent)]" />
+                    <span class="flex min-w-0 flex-1 flex-col">
+                      <span class="truncate">{getWorkspaceName(path)}</span>
+                      <span class="truncate font-mono text-[9px] text-[var(--text-subtle)]">{path}</span>
+                    </span>
+                    {#if index === 0}
+                      <span class="shrink-0 rounded bg-[var(--surface-muted)] border border-[var(--border)] px-1 py-0.2 text-[9px] text-[var(--text-muted)]">Default</span>
+                    {/if}
+                    {#if path === workspaceState.workspacePath}
+                      <Check size={12} class="shrink-0 text-[var(--accent)]" />
+                    {/if}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={isSwitchingWorkspace}
+                    title={getWorkspaceRevealLabel(isMac)}
+                    aria-label="{getWorkspaceRevealLabel(isMac)}: {getWorkspaceName(path)}"
+                    onclick={(event) => {
+                      event.stopPropagation();
+                      void openWorkspaceInExplorer(path);
+                    }}
+                    class="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--text-muted)] opacity-0 pointer-events-none transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:pointer-events-auto hover:bg-[var(--surface)] hover:text-[var(--text-strong)] disabled:opacity-40"
+                  >
+                    <FolderOpen size={12} />
+                  </button>
+                </div>
               {/each}
             {/if}
           </div>

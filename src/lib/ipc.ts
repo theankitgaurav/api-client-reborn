@@ -31,6 +31,14 @@ export async function setWorkspacePath(workspacePath: string): Promise<string> {
   return workspacePath;
 }
 
+export async function revealWorkspaceFolder(folderPath: string): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('reveal_workspace_folder', { folderPath });
+  }
+  throw new Error('Opening workspace folders is available in the desktop app.');
+}
+
 export interface WorkspaceHistory {
   default_workspace_path: string;
   recent_workspace_paths: string[];
