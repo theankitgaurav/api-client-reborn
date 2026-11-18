@@ -8,6 +8,14 @@ import {
 } from '../src/lib/utils/variable-tooltip.ts';
 import type { VariableItem } from '../src/lib/types.ts';
 
+test('gRPC endpoint input is wired to variable hover and dismissal handlers', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/lib/components/GrpcRequestPlayground.svelte', import.meta.url), 'utf8');
+  assert.match(source, /aria-label="gRPC endpoint"[\s\S]*?onmousemove=\{\(event\) => hoverVariable\(event, config\.endpoint\)\}/);
+  assert.match(source, /aria-label="gRPC endpoint"[\s\S]*?onmouseleave=\{leaveVariable\}/);
+  assert.match(source, /aria-label="gRPC endpoint"[\s\S]*?onblur=\{leaveVariable\}/);
+});
+
 test('tooltip placement stays within the viewport and moves below near the top edge', () => {
   assert.deepEqual(getTooltipPosition(500, 300, 800), { x: 480, y: 290, placement: 'top' });
   assert.deepEqual(getTooltipPosition(790, 100, 800), { x: 504, y: 118, placement: 'bottom' });

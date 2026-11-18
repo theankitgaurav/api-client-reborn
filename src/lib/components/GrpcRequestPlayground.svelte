@@ -297,6 +297,9 @@
           aria-label="gRPC endpoint"
           bind:value={config.endpoint}
           oninput={sync}
+          onmousemove={(event) => hoverVariable(event, config.endpoint)}
+          onmouseleave={leaveVariable}
+          onblur={leaveVariable}
           placeholder="http://127.0.0.1:50051"
           class="h-8 flex-1 bg-[var(--surface-muted)] focus:bg-[var(--surface)] border border-[var(--border)] focus:border-[var(--focus)] rounded px-3 font-mono text-xs text-[var(--text-strong)] placeholder:text-[var(--text-subtle)] outline-none transition-colors"
         />
