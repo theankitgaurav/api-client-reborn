@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.1] — 2026-11-19
+
+### Improved
+
+- Added direct collection-variable controls to folder menus and in-place environment creation and deletion.
+- Added resolved variable tooltips to gRPC endpoint fields and native folder reveal actions to workspace picker entries.
+
+### Fixed
+
+- Persisted collection variables entered in the add-variable row when Save Changes is clicked without first pressing the add button.
+- Replaced the restricted shell URL opener with platform-native workspace folder reveal commands.
+
 ## [0.15.0] — 2026-11-18
 
 ### Improved
