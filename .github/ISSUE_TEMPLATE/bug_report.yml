@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a defect in API Client Reborn
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the request file format or feature path when relevant.
+      placeholder: "1. Open...\n2. Execute..."
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, app version, and relevant HTTP/gRPC/Postman/MCP setup.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Remove secrets and credentials before attaching output.
