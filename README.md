@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://github.com/theankitgaurav/api-client-reborn/releases/latest"><img src="https://img.shields.io/github/v/release/theankitgaurav/api-client-reborn?style=flat-square" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License MIT" /></a>
+  <a href="https://github.com/johnpapa/ai-ready"><img src="https://img.shields.io/badge/AI--Ready-yes-brightgreen?style=flat" alt="AI Ready" /></a>
 </p>
 
 <p align="center">
